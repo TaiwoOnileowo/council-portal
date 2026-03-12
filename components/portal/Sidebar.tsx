@@ -21,13 +21,14 @@ import Image from "next/image";
 
 const mainNav = [
   { label: "Home", icon: Home, href: "/", badge: null },
-  { label: "My Wallet", icon: Wallet, href: "/wallet", badge: null },
-  { label: "My Bookings", icon: CalendarCheck, href: "/bookings", badge: null },
+  // { label: "My Wallet", icon: Wallet, href: "/wallet", badge: null },
+  // { label: "My Bookings", icon: CalendarCheck, href: "/bookings", badge: null },
   //   { label: "Notifications", icon: Bell, href: "/notifications", badge: 3 },
 ];
 
 const servicesNav = [
   { label: "Transport", icon: Bus, href: "/transport", badge: null },
+  { label: "Vendor Dashboard", icon: Store, href: "/vendor-dashboard", badge: null },
   //   { label: "Canopy Booking", icon: Tent, href: "/canopy", badge: null },
   //   { label: "Help Desk", icon: TicketCheck, href: "/helpdesk", badge: 1 },
   //   { label: "Vendor Registry", icon: Store, href: "/vendors", badge: null },
