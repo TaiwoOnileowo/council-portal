@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   Copy,
   MessageCircle,
+  Info,
 } from "lucide-react";
 import type { Vendor, VendorLocation } from "./vendorData";
 
@@ -24,15 +25,19 @@ export default function BookingFlow({
   vendor,
   open,
   onClose,
+  initialLocation,
 }: {
   vendor: Vendor;
   open: boolean;
   onClose: () => void;
+  initialLocation?: VendorLocation | null;
 }) {
-  const [step, setStep] = useState<Step>("pick-destination");
+  const [step, setStep] = useState<Step>(
+    initialLocation ? "ride-summary" : "pick-destination",
+  );
   const [search, setSearch] = useState("");
   const [selectedLocation, setSelectedLocation] =
-    useState<VendorLocation | null>(null);
+    useState<VendorLocation | null>(initialLocation ?? null);
   const [rideType, setRideType] = useState<RideType>("Private Ride");
   const [notes, setNotes] = useState("");
   const [bookingRef] = useState(
@@ -257,6 +262,30 @@ export default function BookingFlow({
                         </div>
                       </div>
                     </div>
+
+                    {/* Ride Instructions */}
+                    {vendor.rideInstructions &&
+                      vendor.rideInstructions.length > 0 && (
+                        <div className="mb-4">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-portal-muted mb-2 flex items-center gap-1">
+                            <Info className="w-3 h-3" />
+                            Ride Instructions from {vendor.name}
+                          </p>
+                          <div className="bg-portal-blue-bg border border-blue-200 rounded-xl p-3.5 space-y-2">
+                            {vendor.rideInstructions.map((instruction, i) => (
+                              <div
+                                key={i}
+                                className="flex gap-2 text-[12px] text-portal-text2 leading-relaxed"
+                              >
+                                <span className="text-portal-blue font-bold mt-px">
+                                  •
+                                </span>
+                                <span>{instruction}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
                     {/* Ride type toggle */}
                     <div className="mb-4">

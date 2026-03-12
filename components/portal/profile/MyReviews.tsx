@@ -2,6 +2,7 @@
 
 import { motion } from "motion/react";
 import { Star, MessageSquareText } from "lucide-react";
+import Image from "next/image";
 import { mockReviews } from "./profileData";
 
 function StarRating({ rating }: { rating: number }) {
@@ -67,15 +68,9 @@ export default function MyReviews() {
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2.5">
                   <div
-                    className={`w-[30px] h-[30px] rounded-lg ${review.vendorLogoBg} flex items-center justify-center`}
+                    className="w-[30px] h-[30px] rounded-lg overflow-hidden"
                   >
-                    <span className="text-[10px] font-bold text-portal-text">
-                      {review.vendorName
-                        .split(" ")
-                        .map((w) => w[0])
-                        .join("")
-                        .slice(0, 2)}
-                    </span>
+                    <Image src={review.vendorLogo} alt={review.vendorName} width={30} height={30} className="w-full h-full object-cover" />
                   </div>
                   <div>
                     <p className="text-[13px] font-semibold text-portal-text">

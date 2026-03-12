@@ -16,14 +16,15 @@ export type Vendor = {
   name: string;
   tagline: string;
   about: string;
-  logoBg: string;
-  coverGradient: string;
+  logo: string;
+  coverImage: string;
   rating: number;
   reviews: number;
   fullStars: number;
   price: string;
   topRated: boolean;
   available: boolean;
+  rideInstructions: string[];
   socials: { platform: string; handle: string }[];
   locations: VendorLocation[];
   reviewsList: VendorReview[];
@@ -35,14 +36,21 @@ export const vendors: Vendor[] = [
     tagline: "Fast & reliable campus-to-city rides",
     about:
       "SwiftMove NG is Unilag's most trusted transport partner, providing premium rides across Lagos since 2022. All vehicles are GPS-tracked and drivers are verified.",
-    logoBg: "bg-gradient-to-br from-blue-100 to-blue-200",
-    coverGradient: "from-blue-500 to-blue-700",
+    logo: "https://ui-avatars.com/api/?name=Swift+Move&background=3b82f6&color=fff&size=128&bold=true&format=png",
+    coverImage:
+      "https://images.unsplash.com/photo-1449965408869-ebd3fee40f8b?w=800&h=400&fit=crop",
     rating: 4.9,
     reviews: 214,
     fullStars: 5,
     price: "₦25,000",
     topRated: true,
     available: true,
+    rideInstructions: [
+      "Pickup Time: Be at Main Gate at least 10 minutes before departure",
+      "Luggage: Maximum 1 medium-sized bag per passenger",
+      "Students must present a valid student ID before boarding",
+      "No food or drinks inside the vehicle",
+    ],
     socials: [
       { platform: "Instagram", handle: "@swiftmove_ng" },
       { platform: "WhatsApp", handle: "+234 801 234 5678" },
@@ -130,14 +138,21 @@ export const vendors: Vendor[] = [
     tagline: "Affordable shared shuttles for students",
     about:
       "CampusLink specializes in budget-friendly shared shuttle services tailored for students. Pool rides to save more and meet fellow students along the way.",
-    logoBg: "bg-gradient-to-br from-red-100 to-red-200",
-    coverGradient: "from-red-500 to-red-700",
+    logo: "https://ui-avatars.com/api/?name=Campus+Link&background=ef4444&color=fff&size=128&bold=true&format=png",
+    coverImage:
+      "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=800&h=400&fit=crop",
     rating: 4.6,
     reviews: 189,
     fullStars: 4,
     price: "₦18,000",
     topRated: false,
     available: true,
+    rideInstructions: [
+      "Pickup Time: Shuttles depart every 30 minutes from Main Gate",
+      "Luggage: Maximum 1 small backpack per passenger (no large bags)",
+      "Shared shuttles leave only when 4+ seats are filled",
+      "Please arrive 15 minutes early to secure your seat",
+    ],
     socials: [
       { platform: "Instagram", handle: "@campuslink" },
       { platform: "WhatsApp", handle: "+234 802 345 6789" },
@@ -207,14 +222,21 @@ export const vendors: Vendor[] = [
     tagline: "Premium executive rides to anywhere",
     about:
       "UniRide Express offers executive-class transport with luxury SUVs and sedans. Perfect for airport runs, interviews, and premium travel across Lagos.",
-    logoBg: "bg-gradient-to-br from-emerald-100 to-emerald-200",
-    coverGradient: "from-emerald-500 to-emerald-700",
+    logo: "https://ui-avatars.com/api/?name=Uni+Ride&background=10b981&color=fff&size=128&bold=true&format=png",
+    coverImage:
+      "https://images.unsplash.com/photo-1549317661-bd32c8ce0afa?w=800&h=400&fit=crop",
     rating: 4.8,
     reviews: 97,
     fullStars: 5,
     price: "₦35,000",
     topRated: false,
     available: true,
+    rideInstructions: [
+      "Pickup Time: Driver arrives at Main Gate within 15 minutes of booking",
+      "Luggage: Up to 2 large bags allowed in the boot",
+      "Executive vehicles — please keep the interior clean",
+      "Airport rides: Book at least 2 hours before your flight",
+    ],
     socials: [
       { platform: "Instagram", handle: "@uniride_express" },
       { platform: "WhatsApp", handle: "+234 803 456 7890" },
@@ -279,14 +301,21 @@ export const vendors: Vendor[] = [
     tagline: "Group-friendly SUVs with top safety",
     about:
       "SafeTrips Ltd provides large SUVs perfect for group travel. All vehicles are fitted with dashcams and track systems for maximum safety.",
-    logoBg: "bg-gradient-to-br from-violet-100 to-violet-200",
-    coverGradient: "from-violet-500 to-violet-700",
+    logo: "https://ui-avatars.com/api/?name=Safe+Trips&background=8b5cf6&color=fff&size=128&bold=true&format=png",
+    coverImage:
+      "https://images.unsplash.com/photo-1519641471654-76ce0107ad1b?w=800&h=400&fit=crop",
     rating: 4.5,
     reviews: 143,
     fullStars: 4,
     price: "₦28,000",
     topRated: false,
     available: false,
+    rideInstructions: [
+      "Pickup Time: SUVs depart at scheduled times — check your booking confirmation",
+      "Luggage: Up to 3 bags per group (SUV boot space)",
+      "Group bookings of 4+ passengers get priority scheduling",
+      "All passengers must wear seatbelts at all times",
+    ],
     socials: [
       { platform: "Instagram", handle: "@safetrips_ltd" },
       { platform: "WhatsApp", handle: "+234 804 567 8901" },
@@ -349,14 +378,21 @@ export const vendors: Vendor[] = [
     tagline: "Budget-friendly shuttles across Lagos",
     about:
       "GoFast Motors runs no-frills shuttle routes across Lagos at the lowest prices. Ideal for students on a tight budget who need to get around.",
-    logoBg: "bg-gradient-to-br from-amber-100 to-amber-200",
-    coverGradient: "from-amber-500 to-amber-700",
+    logo: "https://ui-avatars.com/api/?name=Go+Fast&background=f59e0b&color=fff&size=128&bold=true&format=png",
+    coverImage:
+      "https://images.unsplash.com/photo-1570125909232-eb263c188f7e?w=800&h=400&fit=crop",
     rating: 4.3,
     reviews: 78,
     fullStars: 4,
     price: "₦22,000",
     topRated: false,
     available: true,
+    rideInstructions: [
+      "Pickup Time: Shuttles leave Main Gate at fixed times — 8AM, 12PM, 4PM, 7PM",
+      "Luggage: 1 small bag only — no large luggage on shuttles",
+      "First come, first served seating",
+      "No refunds for missed departures",
+    ],
     socials: [{ platform: "WhatsApp", handle: "+234 805 678 9012" }],
     locations: [
       {

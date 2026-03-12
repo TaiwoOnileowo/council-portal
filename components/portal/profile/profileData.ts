@@ -13,7 +13,7 @@ export type UserProfile = {
 export type UserReview = {
   id: string;
   vendorName: string;
-  vendorLogoBg: string;
+  vendorLogo: string;
   rating: number;
   comment: string;
   date: string;
@@ -35,7 +35,7 @@ export const mockReviews: UserReview[] = [
   {
     id: "1",
     vendorName: "SwiftMove NG",
-    vendorLogoBg: "bg-gradient-to-br from-blue-100 to-blue-200",
+    vendorLogo: "https://ui-avatars.com/api/?name=Swift+Move&background=3b82f6&color=fff&size=128&bold=true&format=png",
     rating: 5,
     comment:
       "Amazing service! The driver was punctual and the car was clean. Will definitely book again for my next trip to Berger.",
@@ -44,7 +44,7 @@ export const mockReviews: UserReview[] = [
   {
     id: "2",
     vendorName: "CampusLink",
-    vendorLogoBg: "bg-gradient-to-br from-red-100 to-red-200",
+    vendorLogo: "https://ui-avatars.com/api/?name=Campus+Link&background=ef4444&color=fff&size=128&bold=true&format=png",
     rating: 4,
     comment:
       "Good ride overall. The pickup was slightly delayed but the driver made up for it with a smooth journey.",
@@ -53,7 +53,7 @@ export const mockReviews: UserReview[] = [
   {
     id: "3",
     vendorName: "UniRide Express",
-    vendorLogoBg: "bg-gradient-to-br from-emerald-100 to-emerald-200",
+    vendorLogo: "https://ui-avatars.com/api/?name=Uni+Ride&background=10b981&color=fff&size=128&bold=true&format=png",
     rating: 5,
     comment:
       "Best vendor I've used so far. AC was working perfectly and the driver knew the fastest route.",

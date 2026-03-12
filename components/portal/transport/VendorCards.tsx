@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { motion } from "motion/react";
-import { Star, Bus, Award } from "lucide-react";
-import { vendors, type Vendor } from "./vendorData";
+import { Star, Award } from "lucide-react";
+import Image from "next/image";
+import { vendors, type Vendor, type VendorLocation } from "./vendorData";
 import VendorDetailPopup from "./VendorDetailPopup";
 import BookingFlow from "./BookingFlow";
 
@@ -27,15 +28,23 @@ function StarRating({ full }: { full: number }) {
 export default function VendorCards() {
   const [detailVendor, setDetailVendor] = useState<Vendor | null>(null);
   const [bookingVendor, setBookingVendor] = useState<Vendor | null>(null);
+  const [bookingLocation, setBookingLocation] = useState<VendorLocation | null>(
+    null,
+  );
 
   function handleCardClick(vendor: Vendor) {
     setDetailVendor(vendor);
   }
 
-  function handleBookNow(vendor: Vendor, e?: React.MouseEvent) {
+  function handleBookNow(
+    vendor: Vendor,
+    e?: React.MouseEvent,
+    location?: VendorLocation,
+  ) {
     e?.stopPropagation();
     setDetailVendor(null);
     setBookingVendor(vendor);
+    setBookingLocation(location ?? null);
   }
 
   return (
@@ -79,10 +88,14 @@ export default function VendorCards() {
 
               {/* Header */}
               <div className="flex items-center gap-3 mb-3.5">
-                <div
-                  className={`w-[46px] h-[46px] rounded-[13px] ${vendor.logoBg} flex items-center justify-center flex-shrink-0`}
-                >
-                  <Bus className="w-5 h-5 text-portal-text2/60" />
+                <div className="w-[46px] h-[46px] rounded-[13px] overflow-hidden flex-shrink-0">
+                  <Image
+                    src={vendor.logo}
+                    alt={vendor.name}
+                    width={46}
+                    height={46}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
                 <div>
                   <h3 className="font-heading text-[15px] font-bold">
@@ -129,7 +142,7 @@ export default function VendorCards() {
           vendor={detailVendor}
           open={!!detailVendor}
           onClose={() => setDetailVendor(null)}
-          onBookNow={(v) => handleBookNow(v)}
+          onBookNow={(v, loc) => handleBookNow(v, undefined, loc)}
         />
       )}
 
@@ -138,7 +151,11 @@ export default function VendorCards() {
         <BookingFlow
           vendor={bookingVendor}
           open={!!bookingVendor}
-          onClose={() => setBookingVendor(null)}
+          onClose={() => {
+            setBookingVendor(null);
+            setBookingLocation(null);
+          }}
+          initialLocation={bookingLocation}
         />
       )}
     </>

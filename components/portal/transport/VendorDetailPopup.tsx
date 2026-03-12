@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from "motion/react";
 import {
   X,
   Star,
-  Bus,
   Award,
   MapPin,
   Clock,
@@ -14,6 +13,7 @@ import {
   Twitter,
   ExternalLink,
 } from "lucide-react";
+import Image from "next/image";
 import type { Vendor } from "./vendorData";
 
 function StarRating({
@@ -64,7 +64,10 @@ export default function VendorDetailPopup({
   vendor: Vendor;
   open: boolean;
   onClose: () => void;
-  onBookNow: (vendor: Vendor) => void;
+  onBookNow: (
+    vendor: Vendor,
+    location?: import("./vendorData").VendorLocation,
+  ) => void;
 }) {
   const [tab, setTab] = useState<ActiveTab>("prices");
 
@@ -93,9 +96,13 @@ export default function VendorDetailPopup({
           >
             {/* Cover + Logo */}
             <div className="relative flex-shrink-0">
-              <div
-                className={`h-[120px] bg-gradient-to-br ${vendor.coverGradient} relative`}
-              >
+              <div className="h-[120px] relative overflow-hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={vendor.coverImage}
+                  alt=""
+                  className="w-full h-full object-cover"
+                />
                 {/* Close */}
                 <button
                   onClick={onClose}
@@ -120,10 +127,14 @@ export default function VendorDetailPopup({
 
               {/* Logo overlapping */}
               <div className="absolute -bottom-7 left-5">
-                <div
-                  className={`w-[58px] h-[58px] rounded-[16px] ${vendor.logoBg} flex items-center justify-center border-[3px] border-portal-surface shadow-lg`}
-                >
-                  <Bus className="w-6 h-6 text-portal-text2/60" />
+                <div className="w-[58px] h-[58px] rounded-[16px] overflow-hidden border-[3px] border-portal-surface shadow-lg">
+                  <Image
+                    src={vendor.logo}
+                    alt={vendor.name}
+                    width={58}
+                    height={58}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
               </div>
             </div>
@@ -225,6 +236,13 @@ export default function VendorDetailPopup({
                       <p className="font-heading text-sm font-extrabold flex-shrink-0">
                         {loc.price}
                       </p>
+                      <button
+                        onClick={() => onBookNow(vendor, loc)}
+                        disabled={!vendor.available}
+                        className="px-3 py-1.5 bg-portal-accent-bg border border-portal-accent-border rounded-lg text-portal-accent text-[12px] font-semibold hover:bg-portal-accent hover:text-white transition-all duration-200 flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-portal-accent-bg disabled:hover:text-portal-accent"
+                      >
+                        Book
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -258,25 +276,6 @@ export default function VendorDetailPopup({
                   ))}
                 </div>
               )}
-            </div>
-
-            {/* Footer */}
-            <div className="flex-shrink-0 px-5 py-4 border-t border-portal-border bg-portal-surface">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[11px] text-portal-muted">Starting from</p>
-                  <p className="font-heading text-lg font-extrabold">
-                    {vendor.price}
-                  </p>
-                </div>
-                <button
-                  onClick={() => onBookNow(vendor)}
-                  disabled={!vendor.available}
-                  className="px-6 py-2.5 bg-portal-accent hover:bg-portal-accent2 text-white rounded-xl text-[13px] font-semibold transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
-                >
-                  Book Now
-                </button>
-              </div>
             </div>
           </motion.div>
         </motion.div>
