@@ -1,26 +1,17 @@
 "use client";
 
+import { signOutUser } from "@/lib/actions/user.action";
 import { cn } from "@/lib/utils";
-import {
-  Home,
-  Bus,
-  Store,
-  User,
-  LogOut,
-} from "lucide-react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Bus, Home, LogOut, User } from "lucide-react";
 import { motion } from "motion/react";
 import Image from "next/image";
-import { signOutUser } from "@/lib/actions/user.action";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
-const mainNav = [
-  { label: "Home", icon: Home, href: "/", badge: null },
-];
+const mainNav = [{ label: "Home", icon: Home, href: "/", badge: null }];
 
 const servicesNav = [
   { label: "Transport", icon: Bus, href: "/transport", badge: null },
-  { label: "Vendor Dashboard", icon: Store, href: "/vendor-dashboard", badge: null },
 ];
 
 const accountNav = [

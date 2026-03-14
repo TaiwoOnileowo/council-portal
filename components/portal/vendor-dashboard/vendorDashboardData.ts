@@ -11,8 +11,16 @@ export type IncomingBooking = {
 
 export type Route = {
   id: string;
-  destination: string;
-  price: number;
+  from: string;
+  to: string;
+  goingPrice: number;
+  returnPrice: number;
+  capacity: number | "unlimited";
+  active: boolean;
+  unavailability?: {
+    startDate: string;
+    endDate: string;
+  };
 };
 
 export type EarningsData = {
@@ -91,44 +99,56 @@ export const incomingBookings: IncomingBooking[] = [
 export const vendorRoutes: Route[] = [
   {
     id: "RT-001",
-    destination: "Yaba",
-    price: "₦8,500",
-    priceNum: 8500,
-    estimatedTime: "25 mins",
+    from: "University Gate",
+    to: "Yaba",
+    goingPrice: 8500,
+    returnPrice: 7500,
+    capacity: 14,
+    active: true,
   },
   {
     id: "RT-002",
-    destination: "Victoria Island",
-    price: "₦25,000",
-    priceNum: 25000,
-    estimatedTime: "55 mins",
+    from: "University Gate",
+    to: "Victoria Island",
+    goingPrice: 25000,
+    returnPrice: 22000,
+    capacity: "unlimited",
+    active: true,
   },
   {
     id: "RT-003",
-    destination: "Ikeja",
-    price: "₦15,000",
-    priceNum: 15000,
-    estimatedTime: "40 mins",
+    from: "University Gate",
+    to: "Ikeja",
+    goingPrice: 15000,
+    returnPrice: 13000,
+    capacity: 10,
+    active: true,
   },
   {
     id: "RT-004",
-    destination: "Lekki Phase 1",
-    price: "₦18,000",
-    priceNum: 18000,
-    estimatedTime: "50 mins",
+    from: "University Gate",
+    to: "Lekki Phase 1",
+    goingPrice: 18000,
+    returnPrice: 16000,
+    capacity: 8,
+    active: false,
   },
   {
     id: "RT-005",
-    destination: "Surulere",
-    price: "₦6,000",
-    priceNum: 6000,
-    estimatedTime: "20 mins",
+    from: "University Gate",
+    to: "Surulere",
+    goingPrice: 6000,
+    returnPrice: 5500,
+    capacity: 14,
+    active: true,
   },
   {
     id: "RT-006",
-    destination: "Maryland",
-    price: "₦10,000",
-    priceNum: 10000,
-    estimatedTime: "30 mins",
+    from: "University Gate",
+    to: "Maryland",
+    goingPrice: 10000,
+    returnPrice: 9000,
+    capacity: "unlimited",
+    active: true,
   },
 ];
