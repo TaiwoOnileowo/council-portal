@@ -39,7 +39,7 @@ export default async function ProfilePage() {
                 department: dbUser.department,
               }}
             />
-            <ChangePassword />
+            <ChangePassword email={dbUser.email} />
           </div>
 
           <div>

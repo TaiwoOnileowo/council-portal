@@ -2,32 +2,32 @@
 
 import { useState } from "react";
 import { motion } from "motion/react";
-import { Lock, Eye, EyeOff, Check } from "lucide-react";
+import { Lock } from "lucide-react";
+import { toast } from "sonner";
+import { requestPasswordReset } from "@/lib/actions/password.action";
 
-export default function ChangePassword() {
-  const [open, setOpen] = useState(false);
-  const [current, setCurrent] = useState("");
-  const [newPass, setNewPass] = useState("");
-  const [confirm, setConfirm] = useState("");
-  const [showCurrent, setShowCurrent] = useState(false);
-  const [showNew, setShowNew] = useState(false);
-  const [saved, setSaved] = useState(false);
+interface ChangePasswordProps {
+  email: string;
+}
 
-  function handleSave() {
-    if (!current || !newPass || newPass !== confirm) return;
-    // Mock save
-    setSaved(true);
-    setTimeout(() => {
-      setSaved(false);
-      setOpen(false);
-      setCurrent("");
-      setNewPass("");
-      setConfirm("");
-    }, 1500);
+export default function ChangePassword({ email }: ChangePasswordProps) {
+  const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  async function handleRequest() {
+    setLoading(true);
+    try {
+      await requestPasswordReset(email);
+      setSent(true);
+      toast.success("Check your email for next steps.");
+    } catch (error) {
+      toast.error(
+        "Error sending password reset email. Please try again later.",
+      );
+    } finally {
+      setLoading(false);
+    }
   }
-
-  const mismatch = confirm.length > 0 && newPass !== confirm;
-  const tooShort = newPass.length > 0 && newPass.length < 8;
 
   return (
     <motion.div
@@ -46,141 +46,37 @@ export default function ChangePassword() {
               Password
             </h3>
             <p className="text-[12px] text-portal-muted">
-              Last changed 45 days ago
+              Change via secure email link
             </p>
           </div>
         </div>
-        {!open && (
+
+        {!sent && (
           <button
-            onClick={() => setOpen(true)}
-            className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-portal-accent bg-portal-accent-bg hover:bg-portal-accent hover:text-white px-3 py-1.5 rounded-lg transition-colors"
+            onClick={handleRequest}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-portal-accent bg-portal-accent-bg hover:bg-portal-accent hover:text-white px-3 py-1.5 rounded-lg transition-colors disabled:opacity-60"
           >
-            Change Password
+            {loading ? (
+              <>
+                <span className="inline-block w-3 h-3 border-2 border-current/40 border-t-current rounded-full animate-spin" />
+                Sending...
+              </>
+            ) : (
+              "Change Password"
+            )}
           </button>
         )}
       </div>
 
-      {open && (
+      {sent && (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: "auto" }}
           transition={{ duration: 0.25 }}
-          className="mt-5 space-y-3"
+          className="mt-4 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700"
         >
-          {/* Current password */}
-          <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">
-              Current Password
-            </label>
-            <div className="relative">
-              <input
-                type={showCurrent ? "text" : "password"}
-                value={current}
-                onChange={(e) => setCurrent(e.target.value)}
-                className="w-full text-[13.5px] text-portal-text bg-portal-bg border border-portal-border rounded-lg px-3 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-portal-accent/30 focus:border-portal-accent transition-all"
-                placeholder="Enter current password"
-              />
-              <button
-                type="button"
-                onClick={() => setShowCurrent(!showCurrent)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-portal-muted hover:text-portal-text"
-              >
-                {showCurrent ? (
-                  <EyeOff className="w-4 h-4" />
-                ) : (
-                  <Eye className="w-4 h-4" />
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* New password */}
-          <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">
-              New Password
-            </label>
-            <div className="relative">
-              <input
-                type={showNew ? "text" : "password"}
-                value={newPass}
-                onChange={(e) => setNewPass(e.target.value)}
-                className={`w-full text-[13.5px] text-portal-text bg-portal-bg border rounded-lg px-3 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-portal-accent/30 transition-all ${
-                  tooShort
-                    ? "border-red-300 focus:border-red-400"
-                    : "border-portal-border focus:border-portal-accent"
-                }`}
-                placeholder="Min 8 characters"
-              />
-              <button
-                type="button"
-                onClick={() => setShowNew(!showNew)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-portal-muted hover:text-portal-text"
-              >
-                {showNew ? (
-                  <EyeOff className="w-4 h-4" />
-                ) : (
-                  <Eye className="w-4 h-4" />
-                )}
-              </button>
-            </div>
-            {tooShort && (
-              <p className="text-[11px] text-red-500 mt-1">
-                Password must be at least 8 characters
-              </p>
-            )}
-          </div>
-
-          {/* Confirm */}
-          <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">
-              Confirm New Password
-            </label>
-            <input
-              type="password"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              className={`w-full text-[13.5px] text-portal-text bg-portal-bg border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-portal-accent/30 transition-all ${
-                mismatch
-                  ? "border-red-300 focus:border-red-400"
-                  : "border-portal-border focus:border-portal-accent"
-              }`}
-              placeholder="Re-enter new password"
-            />
-            {mismatch && (
-              <p className="text-[11px] text-red-500 mt-1">
-                Passwords don&apos;t match
-              </p>
-            )}
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-2 pt-1">
-            <button
-              onClick={() => {
-                setOpen(false);
-                setCurrent("");
-                setNewPass("");
-                setConfirm("");
-              }}
-              className="text-[12px] font-medium text-portal-muted hover:text-portal-text px-3 py-1.5 rounded-lg border border-portal-border transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={!current || !newPass || tooShort || mismatch || saved}
-              className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-white bg-portal-accent hover:bg-portal-accent2 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-1.5 rounded-lg transition-colors"
-            >
-              {saved ? (
-                <>
-                  <Check className="w-3.5 h-3.5" />
-                  Saved!
-                </>
-              ) : (
-                "Update Password"
-              )}
-            </button>
-          </div>
+          Check your email for next steps. The link expires in 1 hour.
         </motion.div>
       )}
     </motion.div>

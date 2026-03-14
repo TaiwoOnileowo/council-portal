@@ -15,7 +15,7 @@ const TAGLINES = [
   "Because last-minute scrambling is so last semester",
 ];
 
-const QUICK_AMOUNTS = [1000, 2500, 5000, 10000, 20000, 50000];
+const QUICK_AMOUNTS = [10000, 25000, 50000, 100000, 200000, 500000];
 
 function formatWithCommas(value: string) {
   const digits = value.replace(/\D/g, "");
@@ -36,7 +36,7 @@ export default function TopUpModal({
 }) {
   const [step, setStep] = useState<Step>("enter-amount");
   const [amountInput, setAmountInput] = useState("");
-  const [tagline] = useState(
+  const [tagline, setTagline] = useState(
     () => TAGLINES[Math.floor(Math.random() * TAGLINES.length)],
   );
   const [ref, setRef] = useState("");
@@ -59,12 +59,15 @@ export default function TopUpModal({
   // Reset on open
   useEffect(() => {
     if (open) {
+      setTimeout(() => inputRef.current?.focus(), 300);
+    }
+    return () => {
+      setTagline(TAGLINES[Math.floor(Math.random() * TAGLINES.length)]);
       setStep("enter-amount");
       setAmountInput("");
       setRef("");
       setCopied(false);
-      setTimeout(() => inputRef.current?.focus(), 300);
-    }
+    };
   }, [open]);
 
   const amountNaira = parseAmount(amountInput);
@@ -94,8 +97,7 @@ export default function TopUpModal({
     onClose();
   }
 
-  const taglineForHeader =
-    step === "enter-amount" ? tagline : undefined;
+  const taglineForHeader = step === "enter-amount" ? tagline : undefined;
 
   return (
     <Modal

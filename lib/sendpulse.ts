@@ -63,6 +63,42 @@ async function sendEmail(
   }
 }
 
+export async function sendPasswordResetEmail(
+  email: string,
+  firstName: string,
+  resetUrl: string,
+) {
+  const html = `
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px">
+      <h2 style="color:#1a1a1a;margin-bottom:8px">Reset your password</h2>
+      <p style="color:#555;margin-bottom:24px">
+        Hi ${firstName}, click the button below to set a new password for your Council Portal account.
+        This link expires in <strong>1 hour</strong>.
+      </p>
+      <a href="${resetUrl}" style="display:inline-block;background:#2563eb;color:#fff;font-weight:600;text-decoration:none;padding:14px 28px;border-radius:8px;font-size:15px;margin-bottom:24px">
+        Change my password
+      </a>
+      <p style="color:#888;font-size:13px">
+        If you didn't request this, you can safely ignore this email. Your password will not change.
+      </p>
+    </div>
+  `;
+  const text = `Hi ${firstName},\n\nClick the link below to reset your Council Portal password (expires in 1 hour):\n\n${resetUrl}\n\nIf you didn't request this, ignore this email.`;
+
+  let token = await getAccessToken();
+
+  try {
+    await sendEmail(token, { name: firstName, email }, "Change your Council Portal password", html, text);
+  } catch (err) {
+    if (err instanceof Error && err.message === "SENDPULSE_TOKEN_EXPIRED") {
+      token = await getAccessToken();
+      await sendEmail(token, { name: firstName, email }, "Change your Council Portal password", html, text);
+    } else {
+      throw err;
+    }
+  }
+}
+
 export async function sendVerificationEmail(
   email: string,
   firstName: string,

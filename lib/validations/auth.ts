@@ -60,6 +60,17 @@ export const updateProfileSchema = z.object({
   }),
 });
 
+export const newPasswordSchema = z
+  .object({
+    password: z.string().min(6, "Password must be at least 6 characters"),
+    confirmPassword: z.string(),
+  })
+  .refine((d) => d.password === d.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
 export type SignInInput = z.infer<typeof signInSchema>;
 export type SignUpInput = z.infer<typeof signUpSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+export type NewPasswordInput = z.infer<typeof newPasswordSchema>;
