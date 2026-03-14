@@ -67,10 +67,14 @@ export default function MyReviews() {
             >
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2.5">
-                  <div
-                    className="w-[30px] h-[30px] rounded-lg overflow-hidden"
-                  >
-                    <Image src={review.vendorLogo} alt={review.vendorName} width={30} height={30} className="w-full h-full object-cover" />
+                  <div className="w-[30px] h-[30px] rounded-lg overflow-hidden">
+                    <Image
+                      src={review.vendorLogo}
+                      alt={review.vendorName}
+                      width={30}
+                      height={30}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                   <div>
                     <p className="text-[13px] font-semibold text-portal-text">
