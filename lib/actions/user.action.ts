@@ -168,5 +168,5 @@ export async function updateProfile({
 }
 
 export async function signOutUser() {
-  await signOut({ redirectTo: "/gate" });
+  await signOut();
 }

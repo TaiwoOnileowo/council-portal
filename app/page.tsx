@@ -24,11 +24,13 @@ export default async function Home() {
     }
   }
 
+  const firstName = sidebarUser?.name.trim().split(/\s+/)[0] ?? "there";
+
   return (
     <div className="flex min-h-screen bg-portal-bg">
       <Sidebar user={sidebarUser} />
       <main className="ml-[260px] flex-1 px-10 py-8 max-w-[calc(100vw-260px)]">
-        <TopBar />
+        <TopBar firstName={firstName} />
         <AnnouncementBanner />
         <StatsRow />
 
