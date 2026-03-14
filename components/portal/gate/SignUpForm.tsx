@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 import { signUpUser } from "@/lib/actions/user.action";
 import { signUpBaseSchema, signUpSchema, LEVELS } from "@/lib/validations/auth";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type Fields = {
   firstName: string;
@@ -21,6 +23,8 @@ type Fields = {
 
 type FieldErrors = Partial<Record<keyof Fields, string>>;
 
+// ─── Constants ────────────────────────────────────────────────────────────────
+
 const step1Fields = [
   "firstName",
   "lastName",
@@ -28,9 +32,11 @@ const step1Fields = [
   "password",
   "confirmPassword",
 ] as const;
-const step2Fields = ["matricNumber", "phone", "department", "level"] as const;
-
+const step3Fields = ["matricNumber", "phone", "department", "level"] as const;
+const RESEND_COOLDOWN = 60; // seconds
 const fieldSchemas = signUpBaseSchema.shape;
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function validateField(
   field: keyof Omit<Fields, "confirmPassword">,
@@ -69,10 +75,124 @@ const inputClass = (err?: string) =>
       : "border-portal-border focus:border-portal-accent focus:ring-portal-accent"
   } bg-white px-4 py-3 text-[15px] text-portal-text placeholder:text-portal-muted outline-none focus:ring-1 transition`;
 
+// ─── Step indicator ────────────────────────────────────────────────────────────
+
+function StepIndicator({ step }: { step: 1 | 2 | 3 }) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
+        {[1, 2, 3].map((s, i) => (
+          <div key={s} className="flex items-center gap-1.5">
+            <div
+              className={`h-2 w-2 rounded-full transition-colors ${
+                step >= s ? "bg-portal-accent" : "bg-portal-border"
+              }`}
+            />
+            {i < 2 && (
+              <div
+                className={`h-0.5 w-8 transition-colors ${
+                  step > s ? "bg-portal-accent" : "bg-portal-border"
+                }`}
+              />
+            )}
+          </div>
+        ))}
+      </div>
+      <span className="text-xs text-portal-muted ml-1">Step {step} of 3</span>
+    </div>
+  );
+}
+
+// ─── OTP Input ────────────────────────────────────────────────────────────────
+
+function OtpInput({
+  value,
+  onChange,
+  disabled,
+  error,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+  error?: string;
+}) {
+  const inputs = useRef<(HTMLInputElement | null)[]>([]);
+
+  const digits = value.padEnd(6, "").split("").slice(0, 6);
+
+  function handleKey(
+    i: number,
+    e: React.KeyboardEvent<HTMLInputElement>,
+  ) {
+    if (e.key === "Backspace") {
+      e.preventDefault();
+      if (digits[i]) {
+        const next = digits.map((d, idx) => (idx === i ? "" : d)).join("").trimEnd();
+        onChange(next.padEnd(i, digits.slice(0, i).join("")));
+        // re-derive: replace index i with empty
+        const arr = [...digits];
+        arr[i] = "";
+        onChange(arr.join("").trimEnd());
+      } else if (i > 0) {
+        const arr = [...digits];
+        arr[i - 1] = "";
+        onChange(arr.join("").trimEnd());
+        inputs.current[i - 1]?.focus();
+      }
+    }
+  }
+
+  function handleInput(i: number, raw: string) {
+    const digit = raw.replace(/\D/g, "").slice(-1);
+    if (!digit) return;
+    const arr = [...digits];
+    arr[i] = digit;
+    onChange(arr.join("").trimEnd());
+    if (i < 5) inputs.current[i + 1]?.focus();
+  }
+
+  function handlePaste(e: React.ClipboardEvent) {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    onChange(pasted);
+    const focusIdx = Math.min(pasted.length, 5);
+    inputs.current[focusIdx]?.focus();
+  }
+
+  return (
+    <div>
+      <div className="flex gap-2 justify-center">
+        {digits.map((d, i) => (
+          <input
+            key={i}
+            ref={(el) => { inputs.current[i] = el; }}
+            type="text"
+            inputMode="numeric"
+            maxLength={1}
+            value={d}
+            disabled={disabled}
+            onPaste={handlePaste}
+            onChange={(e) => handleInput(i, e.target.value)}
+            onKeyDown={(e) => handleKey(i, e)}
+            className={`w-11 h-13 text-center rounded-lg border text-xl font-semibold text-portal-text outline-none transition
+              ${error ? "border-red-400 focus:border-red-400 focus:ring-1 focus:ring-red-400" : "border-portal-border focus:border-portal-accent focus:ring-1 focus:ring-portal-accent"}
+              ${disabled ? "bg-gray-50 text-portal-muted cursor-not-allowed" : "bg-white"}`}
+            style={{ height: "52px" }}
+          />
+        ))}
+      </div>
+      {error && <p className="mt-2 text-xs text-red-500 text-center">{error}</p>}
+    </div>
+  );
+}
+
+// ─── Main component ────────────────────────────────────────────────────────────
+
 export default function SignUpForm() {
   const router = useRouter();
 
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+
   const [fields, setFields] = useState<Fields>({
     firstName: "",
     lastName: "",
@@ -84,14 +204,32 @@ export default function SignUpForm() {
     department: "",
     level: "",
   });
-  const [touched, setTouched] = useState<
-    Partial<Record<keyof Fields, boolean>>
-  >({});
+  const [touched, setTouched] = useState<Partial<Record<keyof Fields, boolean>>>({});
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [loading, setLoading] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // OTP state
+  const [otp, setOtp] = useState("");
+  const [otpError, setOtpError] = useState<string | undefined>();
+  const [verifying, setVerifying] = useState(false);
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
+  // Step 3
+  const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  // ── Cooldown timer ────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const id = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(id);
+  }, [cooldown]);
+
+  // ── Field handlers ────────────────────────────────────────────────────────
 
   function handleChange(field: keyof Fields, value: string) {
     const updated = { ...fields, [field]: value };
@@ -101,26 +239,14 @@ export default function SignUpForm() {
 
     let errs = { ...fieldErrors };
     if (field === "confirmPassword") {
-      errs = setOrDelete(
-        errs,
-        "confirmPassword",
-        validateConfirmPassword(updated.password, value),
-      );
+      errs = setOrDelete(errs, "confirmPassword", validateConfirmPassword(updated.password, value));
     } else if (field === "password") {
       errs = setOrDelete(errs, "password", validateField("password", value));
       if (touched.confirmPassword) {
-        errs = setOrDelete(
-          errs,
-          "confirmPassword",
-          validateConfirmPassword(value, updated.confirmPassword),
-        );
+        errs = setOrDelete(errs, "confirmPassword", validateConfirmPassword(value, updated.confirmPassword));
       }
     } else {
-      errs = setOrDelete(
-        errs,
-        field,
-        validateField(field as keyof Omit<Fields, "confirmPassword">, value),
-      );
+      errs = setOrDelete(errs, field, validateField(field as keyof Omit<Fields, "confirmPassword">, value));
     }
     setFieldErrors(errs);
   }
@@ -129,25 +255,46 @@ export default function SignUpForm() {
     setTouched((prev) => ({ ...prev, [field]: true }));
     let errs = { ...fieldErrors };
     if (field === "confirmPassword") {
-      errs = setOrDelete(
-        errs,
-        "confirmPassword",
-        validateConfirmPassword(fields.password, fields.confirmPassword),
-      );
+      errs = setOrDelete(errs, "confirmPassword", validateConfirmPassword(fields.password, fields.confirmPassword));
     } else {
-      errs = setOrDelete(
-        errs,
-        field,
-        validateField(
-          field as keyof Omit<Fields, "confirmPassword">,
-          fields[field],
-        ),
-      );
+      errs = setOrDelete(errs, field, validateField(field as keyof Omit<Fields, "confirmPassword">, fields[field]));
     }
     setFieldErrors(errs);
   }
 
-  function handleNext(e: React.FormEvent) {
+  // ── Send OTP ──────────────────────────────────────────────────────────────
+
+  const sendOtp = useCallback(
+    async (email: string, firstName: string) => {
+      setSendingOtp(true);
+      setOtpError(undefined);
+      try {
+        const res = await fetch("/api/auth/send-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, firstName }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setOtpError(data.error ?? "Failed to send code.");
+          if (res.status !== 429) toast.error(data.error ?? "Failed to send code.");
+          return false;
+        }
+        setCooldown(RESEND_COOLDOWN);
+        return true;
+      } catch {
+        toast.error("Network error. Please try again.");
+        return false;
+      } finally {
+        setSendingOtp(false);
+      }
+    },
+    [],
+  );
+
+  // ── Step 1 → Step 2 ───────────────────────────────────────────────────────
+
+  async function handleNext(e: { preventDefault(): void }) {
     e.preventDefault();
 
     const newTouched = { ...touched };
@@ -157,26 +304,70 @@ export default function SignUpForm() {
     let errs = { ...fieldErrors };
     for (const f of step1Fields) {
       if (f === "confirmPassword") {
-        errs = setOrDelete(
-          errs,
-          "confirmPassword",
-          validateConfirmPassword(fields.password, fields.confirmPassword),
-        );
+        errs = setOrDelete(errs, "confirmPassword", validateConfirmPassword(fields.password, fields.confirmPassword));
       } else {
         errs = setOrDelete(errs, f, validateField(f, fields[f]));
       }
     }
     setFieldErrors(errs);
 
-    const hasErrors = step1Fields.some((f) => errs[f]);
-    if (!hasErrors) setStep(2);
+    if (step1Fields.some((f) => errs[f])) return;
+
+    const ok = await sendOtp(fields.email, fields.firstName);
+    if (ok) {
+      setOtp("");
+      setOtpError(undefined);
+      setStep(2);
+    }
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  // ── Resend ────────────────────────────────────────────────────────────────
+
+  async function handleResend() {
+    if (cooldown > 0 || sendingOtp) return;
+    await sendOtp(fields.email, fields.firstName);
+    setOtp("");
+  }
+
+  // ── Verify OTP ────────────────────────────────────────────────────────────
+
+  async function handleVerify(e: { preventDefault(): void }) {
+    e.preventDefault();
+    if (otp.length < 6) {
+      setOtpError("Please enter the full 6-digit code.");
+      return;
+    }
+    setVerifying(true);
+    setOtpError(undefined);
+    try {
+      const res = await fetch("/api/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: fields.email, code: otp }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setOtpError(data.error);
+        if (data.invalidated) {
+          setOtp("");
+        }
+        return;
+      }
+      setStep(3);
+    } catch {
+      toast.error("Network error. Please try again.");
+    } finally {
+      setVerifying(false);
+    }
+  }
+
+  // ── Step 3 submit ─────────────────────────────────────────────────────────
+
+  async function handleSubmit(e: { preventDefault(): void }) {
     e.preventDefault();
 
     const newTouched = { ...touched };
-    for (const f of step2Fields) newTouched[f] = true;
+    for (const f of step3Fields) newTouched[f] = true;
     setTouched(newTouched);
 
     const parsed = signUpSchema.safeParse(fields);
@@ -202,35 +393,21 @@ export default function SignUpForm() {
       router.push("/");
       router.refresh();
     } catch (error: unknown) {
-      toast.error(
-        error instanceof Error ? error.message : "Something went wrong. Please try again.",
-      );
+      toast.error(error instanceof Error ? error.message : "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
   }
 
+  // ── Render ────────────────────────────────────────────────────────────────
+
   return (
     <div className="space-y-5">
-      {/* Step indicator */}
-      <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1.5">
-          <div
-            className={`h-2 w-2 rounded-full ${step === 1 ? "bg-portal-accent" : "bg-portal-accent"}`}
-          />
-          <div
-            className={`h-0.5 w-8 ${step === 2 ? "bg-portal-accent" : "bg-portal-border"}`}
-          />
-          <div
-            className={`h-2 w-2 rounded-full ${step === 2 ? "bg-portal-accent" : "bg-portal-border"}`}
-          />
-        </div>
-        <span className="text-xs text-portal-muted ml-1">Step {step} of 2</span>
-      </div>
+      <StepIndicator step={step} />
 
-      {step === 1 ? (
+      {/* ── Step 1: Account info ─────────────────────────────────────────── */}
+      {step === 1 && (
         <form onSubmit={handleNext} className="space-y-5">
-          {/* First + Last name row */}
           <div className="flex gap-3">
             <div className="flex-1">
               <label className="block text-sm font-medium text-portal-text mb-1.5">
@@ -245,9 +422,7 @@ export default function SignUpForm() {
                 className={inputClass(fieldErrors.firstName)}
               />
               {fieldErrors.firstName && (
-                <p className="mt-1 text-xs text-red-500">
-                  {fieldErrors.firstName}
-                </p>
+                <p className="mt-1 text-xs text-red-500">{fieldErrors.firstName}</p>
               )}
             </div>
             <div className="flex-1">
@@ -263,14 +438,11 @@ export default function SignUpForm() {
                 className={inputClass(fieldErrors.lastName)}
               />
               {fieldErrors.lastName && (
-                <p className="mt-1 text-xs text-red-500">
-                  {fieldErrors.lastName}
-                </p>
+                <p className="mt-1 text-xs text-red-500">{fieldErrors.lastName}</p>
               )}
             </div>
           </div>
 
-          {/* Email */}
           <div>
             <label className="block text-sm font-medium text-portal-text mb-1.5">
               Email<span className="text-portal-accent">*</span>
@@ -288,7 +460,6 @@ export default function SignUpForm() {
             )}
           </div>
 
-          {/* Password */}
           <div>
             <label className="block text-sm font-medium text-portal-text mb-1.5">
               Password<span className="text-portal-accent">*</span>
@@ -312,13 +483,10 @@ export default function SignUpForm() {
               </button>
             </div>
             {fieldErrors.password && (
-              <p className="mt-1 text-xs text-red-500">
-                {fieldErrors.password}
-              </p>
+              <p className="mt-1 text-xs text-red-500">{fieldErrors.password}</p>
             )}
           </div>
 
-          {/* Confirm password */}
           <div>
             <label className="block text-sm font-medium text-portal-text mb-1.5">
               Confirm password<span className="text-portal-accent">*</span>
@@ -327,9 +495,7 @@ export default function SignUpForm() {
               <input
                 type={showConfirmPassword ? "text" : "password"}
                 value={fields.confirmPassword}
-                onChange={(e) =>
-                  handleChange("confirmPassword", e.target.value)
-                }
+                onChange={(e) => handleChange("confirmPassword", e.target.value)}
                 onBlur={() => handleBlur("confirmPassword")}
                 placeholder="••••••••••••••••"
                 className={`${inputClass(fieldErrors.confirmPassword)} pr-11`}
@@ -344,22 +510,74 @@ export default function SignUpForm() {
               </button>
             </div>
             {fieldErrors.confirmPassword && (
-              <p className="mt-1 text-xs text-red-500">
-                {fieldErrors.confirmPassword}
-              </p>
+              <p className="mt-1 text-xs text-red-500">{fieldErrors.confirmPassword}</p>
             )}
           </div>
 
           <button
             type="submit"
-            className="w-full rounded-lg bg-portal-accent hover:bg-portal-accent2 text-white font-medium py-3 text-[15px] transition-colors mt-2"
+            disabled={sendingOtp}
+            className="w-full rounded-lg bg-portal-accent hover:bg-portal-accent2 text-white font-medium py-3 text-[15px] transition-colors mt-2 disabled:opacity-60"
           >
-            Continue
+            {sendingOtp ? "Sending code…" : "Continue"}
           </button>
         </form>
-      ) : (
+      )}
+
+      {/* ── Step 2: Email verification ───────────────────────────────────── */}
+      {step === 2 && (
+        <form onSubmit={handleVerify} className="space-y-5">
+          <div className="text-center space-y-1">
+            <p className="text-sm text-portal-text">
+              We sent a 6-digit code to
+            </p>
+            <p className="font-medium text-portal-accent break-all">{fields.email}</p>
+          </div>
+
+          <OtpInput
+            value={otp}
+            onChange={setOtp}
+            disabled={verifying}
+            error={otpError}
+          />
+
+          <button
+            type="submit"
+            disabled={verifying || otp.length < 6}
+            className="w-full rounded-lg bg-portal-accent hover:bg-portal-accent2 text-white font-medium py-3 text-[15px] transition-colors disabled:opacity-60"
+          >
+            {verifying ? "Verifying…" : "Verify email"}
+          </button>
+
+          <div className="flex items-center justify-between text-sm">
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              className="flex items-center gap-1 text-portal-muted hover:text-portal-text transition-colors"
+            >
+              <ChevronLeft size={15} />
+              Change email
+            </button>
+
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={cooldown > 0 || sendingOtp}
+              className="text-portal-accent hover:underline disabled:text-portal-muted disabled:no-underline disabled:cursor-not-allowed transition-colors"
+            >
+              {sendingOtp
+                ? "Sending…"
+                : cooldown > 0
+                  ? `Resend in ${cooldown}s`
+                  : "Resend code"}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* ── Step 3: Academic details ─────────────────────────────────────── */}
+      {step === 3 && (
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Matric number */}
           <div>
             <label className="block text-sm font-medium text-portal-text mb-1.5">
               Matric number<span className="text-portal-accent">*</span>
@@ -373,13 +591,10 @@ export default function SignUpForm() {
               className={inputClass(fieldErrors.matricNumber)}
             />
             {fieldErrors.matricNumber && (
-              <p className="mt-1 text-xs text-red-500">
-                {fieldErrors.matricNumber}
-              </p>
+              <p className="mt-1 text-xs text-red-500">{fieldErrors.matricNumber}</p>
             )}
           </div>
 
-          {/* Phone */}
           <div>
             <label className="block text-sm font-medium text-portal-text mb-1.5">
               Phone number<span className="text-portal-accent">*</span>
@@ -402,7 +617,6 @@ export default function SignUpForm() {
             )}
           </div>
 
-          {/* Department */}
           <div>
             <label className="block text-sm font-medium text-portal-text mb-1.5">
               Department<span className="text-portal-accent">*</span>
@@ -416,13 +630,10 @@ export default function SignUpForm() {
               className={inputClass(fieldErrors.department)}
             />
             {fieldErrors.department && (
-              <p className="mt-1 text-xs text-red-500">
-                {fieldErrors.department}
-              </p>
+              <p className="mt-1 text-xs text-red-500">{fieldErrors.department}</p>
             )}
           </div>
 
-          {/* Level */}
           <div>
             <label className="block text-sm font-medium text-portal-text mb-1.5">
               Level<span className="text-portal-accent">*</span>
@@ -433,13 +644,9 @@ export default function SignUpForm() {
               onBlur={() => handleBlur("level")}
               className={inputClass(fieldErrors.level)}
             >
-              <option value="" disabled>
-                Select your level
-              </option>
+              <option value="" disabled>Select your level</option>
               {LEVELS.map((l) => (
-                <option key={l} value={l}>
-                  {l} Level
-                </option>
+                <option key={l} value={l}>{l} Level</option>
               ))}
             </select>
             {fieldErrors.level && (
@@ -456,7 +663,7 @@ export default function SignUpForm() {
           <div className="flex gap-3 mt-2">
             <button
               type="button"
-              onClick={() => setStep(1)}
+              onClick={() => setStep(2)}
               className="flex items-center gap-1 rounded-lg border border-portal-border text-portal-text font-medium py-3 px-4 text-[15px] transition-colors hover:bg-portal-border/30"
             >
               <ChevronLeft size={16} />
@@ -467,7 +674,7 @@ export default function SignUpForm() {
               disabled={loading}
               className="flex-1 rounded-lg bg-portal-accent hover:bg-portal-accent2 text-white font-medium py-3 text-[15px] transition-colors disabled:opacity-60"
             >
-              {loading ? "Creating account..." : "Create account"}
+              {loading ? "Creating account…" : "Create account"}
             </button>
           </div>
         </form>
