@@ -21,6 +21,18 @@ enum Level {
   L500
 }
 
+enum TransactionType {
+  TOP_UP
+  PAYMENT
+  REFUND
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
 model User {
   id           String   @id @default(uuid())
   name         String
@@ -34,4 +46,27 @@ model User {
   image        String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  wallet       Wallet?
+}
+
+model Wallet {
+  id           String        @id @default(uuid())
+  userId       String        @unique
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  balance      Int           @default(0) // stored in kobo (smallest unit)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  transactions Transaction[]
+}
+
+model Transaction {
+  id          String            @id @default(uuid())
+  walletId    String
+  wallet      Wallet            @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  type        TransactionType
+  status      TransactionStatus @default(PENDING)
+  amount      Int               // in kobo
+  description String
+  ref         String            @unique
+  createdAt   DateTime          @default(now())
 }

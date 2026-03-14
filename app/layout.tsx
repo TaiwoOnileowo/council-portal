@@ -3,6 +3,7 @@ import { Bricolage_Grotesque, Instrument_Sans } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/sonner";
+import QueryProvider from "@/components/providers/QueryProvider";
 
 const bricolage = Bricolage_Grotesque({
   subsets: ["latin"],
@@ -35,8 +36,10 @@ export default function RootLayout({
           "font-sans antialiased",
         )}
       >
-        {children}
-        <Toaster /> 
+        <QueryProvider>
+          {children}
+        </QueryProvider>
+        <Toaster />
       </body>
     </html>
   );
