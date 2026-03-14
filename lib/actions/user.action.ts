@@ -27,12 +27,12 @@ export async function signInUser({
   } catch (error: unknown) {
     // NextAuth v5 wraps authorize() errors in CallbackRouteError.
     // The original message lives in error.cause.err — unwrap it first.
-    const cause =
-      error instanceof CallbackRouteError ? (error.cause?.err ?? error) : null;
-    const message =
-      cause instanceof Error ? cause.message : "Something went wrong";
-
-    return { error: message };
+    if (error instanceof CallbackRouteError) {
+      const cause = error.cause?.err;
+      const message = cause instanceof Error ? cause.message : "Invalid credentials";
+      return { error: message };
+    }
+    return { error: "Something went wrong. Please try again." };
   }
 }
 
@@ -79,12 +79,12 @@ export async function signUpUser({
       data: { name, email, phone, matricNumber, passwordHash },
     });
   } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : "Failed to create account";
+    const msg = error instanceof Error ? error.message : "";
     // Prisma unique constraint violation
     if (msg.includes("Unique constraint")) {
       return { error: "An account with this email, phone, or matric number already exists" };
     }
-    return { error: msg };
+    return { error: "Failed to create account. Please try again." };
   }
 
   return await signInUser({ email, password });
