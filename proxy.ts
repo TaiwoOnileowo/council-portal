@@ -19,6 +19,11 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // New-keys (password reset): always public — user is unauthenticated by definition
+  if (/^\/new-keys(\/.*)?$/.test(pathname)) {
+    return NextResponse.next();
+  }
+
   // Every other route requires a session
   const session = await auth();
 
@@ -26,7 +31,7 @@ export async function proxy(req: NextRequest) {
     if (pathname.startsWith("/api")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    // return NextResponse.redirect(new URL("/gate", req.url));
+    return NextResponse.redirect(new URL("/gate", req.url));
   }
 
   return NextResponse.next();

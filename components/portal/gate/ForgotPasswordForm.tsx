@@ -15,24 +15,21 @@ export default function ForgotPasswordForm({
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
-    setLoading(true);
+    setEmailError(null);
 
-    try {
-      await requestPasswordReset(email);
-      setStep("sent");
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Something went wrong. Please try again.",
-      );
-    } finally {
-      setLoading(false);
+    if (!email.endsWith("@stu.cu.edu.ng")) {
+      setEmailError("Only @stu.cu.edu.ng email addresses are allowed");
+      return;
     }
+
+    setLoading(true);
+    await requestPasswordReset(email);
+    setLoading(false);
+    setStep("sent");
   }
 
   if (step === "sent") {
@@ -44,8 +41,7 @@ export default function ForgotPasswordForm({
           </p>
           <p className="text-sm text-green-700">
             If <span className="font-medium">{email}</span> is registered,
-            we&apos;ve sent a link to change your password. It expires in 1
-            hour.
+            we&apos;ve sent a link to change your keys. It expires in 1 hour.
           </p>
         </div>
         <button
@@ -63,7 +59,7 @@ export default function ForgotPasswordForm({
     <form onSubmit={handleSubmit} className="space-y-5">
       <p className="text-sm text-portal-text2">
         Enter the email address linked to your account and we&apos;ll send you a
-        link to change your password.
+        link to change your keys.
       </p>
 
       <div>
@@ -73,18 +69,22 @@ export default function ForgotPasswordForm({
         <input
           type="email"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            setEmailError(null);
+          }}
           placeholder="you@stu.cu.edu.ng"
           required
-          className="w-full rounded-lg border border-portal-border bg-white px-4 py-3 text-[15px] text-portal-text placeholder:text-portal-muted outline-none focus:border-portal-accent focus:ring-1 focus:ring-portal-accent transition"
+          className={`w-full rounded-lg border bg-white px-4 py-3 text-[15px] text-portal-text placeholder:text-portal-muted outline-none focus:ring-1 transition ${
+            emailError
+              ? "border-red-300 focus:border-red-400 focus:ring-red-200"
+              : "border-portal-border focus:border-portal-accent focus:ring-portal-accent"
+          }`}
         />
+        {emailError && (
+          <p className="text-xs text-red-500 mt-1">{emailError}</p>
+        )}
       </div>
-
-      {error && (
-        <p className="rounded-lg bg-red-50 border border-red-200 px-4 py-2.5 text-sm text-red-600">
-          {error}
-        </p>
-      )}
 
       <button
         type="submit"
