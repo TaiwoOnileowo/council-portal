@@ -20,7 +20,9 @@ export const signUpBaseSchema = z.object({
     .refine((v) => v.endsWith("@stu.cu.edu.ng"), {
       message: "Only @stu.cu.edu.ng email addresses are allowed",
     }),
-  phone: z.string().min(10, "Enter a valid phone number"),
+  phone: z
+    .string()
+    .regex(/^\d{11}$/, "Phone number must be exactly 11 digits"),
   matricNumber: z.string().min(10, "Enter a valid matric number"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   confirmPassword: z.string(),

@@ -129,7 +129,7 @@ export default function SignUpForm() {
     setFieldErrors(errs);
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     setServerError("");
 
@@ -231,9 +231,14 @@ export default function SignUpForm() {
         <input
           type="tel"
           value={fields.phone}
-          onChange={(e) => handleChange("phone", e.target.value)}
+          onChange={(e) => {
+            const digits = e.target.value.replace(/\D/g, "").slice(0, 11);
+            handleChange("phone", digits);
+          }}
           onBlur={() => handleBlur("phone")}
-          placeholder="+234 800 000 0000"
+          placeholder="08012345678"
+          inputMode="numeric"
+          maxLength={11}
           className={inputClass(fieldErrors.phone)}
         />
         {fieldErrors.phone && (
