@@ -11,9 +11,10 @@ export default function GatePage() {
   const [tab, setTab] = useState<Tab>("login");
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen overflow-hidden">
       {/* Left: Form */}
-      <div className="flex flex-1 flex-col justify-center px-16 py-12 max-w-[600px]">
+      <div className="flex-1 overflow-y-auto max-w-[600px]">
+      <div className="flex flex-col justify-center min-h-full px-16 py-12">
         {/* Logo / Brand */}
         <div className="mb-10">
           <Image
@@ -53,6 +54,7 @@ export default function GatePage() {
         </div>
 
         {tab === "login" ? <LoginForm /> : <SignUpForm />}
+      </div>
       </div>
 
       {/* Right: Image */}

@@ -1,11 +1,8 @@
-import Sidebar from "@/components/portal/Sidebar";
-import TopBar from "@/components/portal/TopBar";
 import AnnouncementBanner from "@/components/portal/AnnouncementBanner";
-import { StatsRow } from "@/components/portal/StatsRow";
-import ModuleCards from "@/components/portal/ModuleCards";
 import BookingsList from "@/components/portal/BookingsList";
-import QuickActions from "@/components/portal/QuickActions";
-import ActivityList from "@/components/portal/ActivityList";
+import Sidebar from "@/components/portal/Sidebar";
+import { StatsRow } from "@/components/portal/StatsRow";
+import TopBar from "@/components/portal/TopBar";
 
 export default function Home() {
   return (
@@ -16,10 +13,8 @@ export default function Home() {
         <AnnouncementBanner />
         <StatsRow />
 
-        {/* Two column: bookings + quick actions */}
         <div className="grid grid-cols-[1.4fr_1fr] gap-5 mb-7">
           <BookingsList />
-          {/* <QuickActions /> */}
         </div>
       </main>
     </div>

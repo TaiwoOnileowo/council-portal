@@ -3,6 +3,7 @@
 import { motion } from "motion/react";
 
 export default function TopBar() {
+  
   return (
     <motion.div
       className="flex items-start justify-between mb-7"
