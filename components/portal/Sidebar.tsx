@@ -3,45 +3,28 @@
 import { cn } from "@/lib/utils";
 import {
   Home,
-  Wallet,
-  CalendarCheck,
-  Bell,
   Bus,
-  Tent,
-  TicketCheck,
   Store,
   User,
-  Settings,
-  ChevronDown,
+  LogOut,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "motion/react";
 import Image from "next/image";
+import { signOutUser } from "@/lib/actions/user.action";
 
 const mainNav = [
   { label: "Home", icon: Home, href: "/", badge: null },
-  // { label: "My Wallet", icon: Wallet, href: "/wallet", badge: null },
-  // { label: "My Bookings", icon: CalendarCheck, href: "/bookings", badge: null },
-  //   { label: "Notifications", icon: Bell, href: "/notifications", badge: 3 },
 ];
 
 const servicesNav = [
   { label: "Transport", icon: Bus, href: "/transport", badge: null },
-  {
-    label: "Vendor Dashboard",
-    icon: Store,
-    href: "/vendor-dashboard",
-    badge: null,
-  },
-  //   { label: "Canopy Booking", icon: Tent, href: "/canopy", badge: null },
-  //   { label: "Help Desk", icon: TicketCheck, href: "/helpdesk", badge: 1 },
-  //   { label: "Vendor Registry", icon: Store, href: "/vendors", badge: null },
+  { label: "Vendor Dashboard", icon: Store, href: "/vendor-dashboard", badge: null },
 ];
 
 const accountNav = [
   { label: "Profile", icon: User, href: "/profile", badge: null },
-  //   { label: "Settings", icon: Settings, href: "/settings", badge: null },
 ];
 
 interface NavGroupProps {
@@ -99,7 +82,13 @@ function NavGroup({ label, items, pathname }: NavGroupProps) {
   );
 }
 
-export default function Sidebar() {
+type SidebarUser = {
+  name: string;
+  matricNumber: string;
+  level: string;
+};
+
+export default function Sidebar({ user }: { user?: SidebarUser | null }) {
   const pathname = usePathname();
 
   return (
@@ -107,9 +96,6 @@ export default function Sidebar() {
       <div className="px-4 pt-6 pb-5">
         {/* Logo */}
         <div className="flex items-center gap-2.5 pb-5 border-b border-portal-border mb-5">
-          {/* <div className="w-9 h-9 bg-portal-accent rounded-[10px] flex items-center justify-center text-white text-base font-extrabold font-heading flex-shrink-0">
-            SC
-          </div> */}
           <Image
             src="/logo.png"
             alt="Logo"
@@ -135,15 +121,24 @@ export default function Sidebar() {
 
       {/* User pill */}
       <div className="mt-auto border-t border-portal-border px-4 py-4">
-        <div className="flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl bg-portal-bg hover:bg-portal-bg2 transition-colors ">
-          <div className="min-w-0">
+        <div className="flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl bg-portal-bg hover:bg-portal-bg2 transition-colors">
+          <div className="min-w-0 flex-1">
             <div className="text-[13px] font-semibold text-portal-text truncate">
-              Adeola Okafor
+              {user?.name ?? "Student"}
             </div>
             <div className="text-[11px] text-portal-muted truncate">
-              23CG034136 · 300L
+              {user ? `${user.matricNumber} · ${user.level}L` : ""}
             </div>
           </div>
+          <form action={signOutUser}>
+            <button
+              type="submit"
+              title="Logout"
+              className="p-1.5 rounded-lg text-portal-muted hover:text-red-500 hover:bg-red-50 transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </form>
         </div>
       </div>
     </aside>

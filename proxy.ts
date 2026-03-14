@@ -11,13 +11,13 @@ export async function proxy(req: NextRequest) {
   }
 
   // Gate: let unauthenticated users in, bounce authenticated users home
-  if (/^\/gate(\/.*)?$/.test(pathname)) {
-    const session = await auth();
-    if (session) {
-      return NextResponse.redirect(new URL("/", req.url));
-    }
-    return NextResponse.next();
-  }
+  // if (/^\/gate(\/.*)?$/.test(pathname)) {
+  //   const session = await auth();
+  //   if (session) {
+  //     return NextResponse.redirect(new URL("/", req.url));
+  //   }
+  //   return NextResponse.next();
+  // }
 
   // Every other route requires a session
   const session = await auth();

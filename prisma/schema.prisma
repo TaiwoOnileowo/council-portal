@@ -13,12 +13,22 @@ enum Role {
   VENDOR
 }
 
+enum Level {
+  L100
+  L200
+  L300
+  L400
+  L500
+}
+
 model User {
   id           String   @id @default(uuid())
   name         String
   email        String   @unique
   phone        String   @unique
   matricNumber String   @unique
+  department   String
+  level        Level
   passwordHash String?
   role         Role     @default(STUDENT)
   image        String?

@@ -10,9 +10,11 @@ export default function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setFormError(null);
     setLoading(true);
 
     const result = await signInUser({ email, password });
@@ -21,6 +23,7 @@ export default function LoginForm() {
 
     if (result?.error) {
       toast.error(result.error);
+      setFormError(result.error);
       return;
     }
 
@@ -57,6 +60,12 @@ export default function LoginForm() {
         />
       </div>
 
+
+      {formError && (
+        <p className="rounded-lg bg-red-50 border border-red-200 px-4 py-2.5 text-sm text-red-600">
+          {formError}
+        </p>
+      )}
 
       <button
         type="submit"

@@ -1,9 +1,10 @@
 "use server";
 
-import { signIn } from "@/auth";
+import { signIn, signOut } from "@/auth";
+import { Level } from "@/generated/prisma/enums";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
-import { signInSchema, signUpSchema } from "@/lib/validations/auth";
+import { signInSchema, signUpSchema, updateProfileSchema } from "@/lib/validations/auth";
 import { CallbackRouteError } from "@auth/core/errors";
 export async function getUserFromDb(email: string) {
   return db.user.findUnique({ where: { email } });
@@ -43,6 +44,8 @@ export async function signUpUser({
   email,
   phone,
   matricNumber,
+  department,
+  level,
   password,
   confirmPassword,
 }: {
@@ -51,6 +54,8 @@ export async function signUpUser({
   email: string;
   phone: string;
   matricNumber: string;
+  department: string;
+  level: string;
   password: string;
   confirmPassword: string;
 }) {
@@ -60,6 +65,8 @@ export async function signUpUser({
     email,
     phone,
     matricNumber,
+    department,
+    level,
     password,
     confirmPassword,
   });
@@ -74,10 +81,19 @@ export async function signUpUser({
 
   const passwordHash = await hashPassword(password);
   const name = `${firstName} ${lastName}`;
+  const dbLevel = `L${level}` as Level;
 
   try {
     await db.user.create({
-      data: { name, email, phone, matricNumber, passwordHash },
+      data: {
+        name,
+        email,
+        phone,
+        matricNumber,
+        department,
+        level: dbLevel,
+        passwordHash,
+      },
     });
   } catch (error: unknown) {
     console.error("Error creating user:", error);
@@ -93,4 +109,64 @@ export async function signUpUser({
   }
 
   return await signInUser({ email, password });
+}
+
+export async function updateProfile({
+  userId,
+  firstName,
+  lastName,
+  email,
+  phone,
+  matricNumber,
+  department,
+  level,
+}: {
+  userId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  matricNumber: string;
+  department: string;
+  level: string;
+}) {
+  const parsed = updateProfileSchema.safeParse({
+    firstName,
+    lastName,
+    email,
+    phone,
+    matricNumber,
+    department,
+    level,
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message };
+  }
+
+  const dbLevel = `L${level}` as Level;
+
+  try {
+    await db.user.update({
+      where: { id: userId },
+      data: {
+        name: `${firstName} ${lastName}`,
+        email,
+        phone,
+        matricNumber,
+        department,
+        level: dbLevel,
+      },
+    });
+    return { success: true };
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : "";
+    if (msg.includes("Unique constraint")) {
+      return { error: "Email, phone, or matric number is already in use" };
+    }
+    return { error: "Failed to update profile. Please try again." };
+  }
+}
+
+export async function signOutUser() {
+  await signOut({ redirectTo: "/gate" });
 }

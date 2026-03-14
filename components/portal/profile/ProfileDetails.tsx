@@ -12,45 +12,84 @@ import {
   Building2,
   BookOpen,
 } from "lucide-react";
-import { mockProfile, type UserProfile } from "./profileData";
+import { toast } from "sonner";
+import { updateProfile } from "@/lib/actions/user.action";
+import { updateProfileSchema, LEVELS } from "@/lib/validations/auth";
 
-const fields: {
-  key: keyof UserProfile;
-  label: string;
-  icon: typeof Mail;
-  editable: boolean;
-}[] = [
-  { key: "email", label: "Email Address", icon: Mail, editable: true },
-  { key: "phone", label: "Phone Number", icon: Phone, editable: true },
-  {
-    key: "matricNumber",
-    label: "Matric Number",
-    icon: GraduationCap,
-    editable: false,
-  },
-  { key: "level", label: "Level", icon: BookOpen, editable: false },
-  { key: "department", label: "Department", icon: Building2, editable: false },
-  { key: "faculty", label: "Faculty", icon: Building2, editable: false },
-];
+type ProfileFields = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  matricNumber: string;
+  level: string;
+  department: string;
+};
 
-export default function ProfileDetails() {
+type FieldErrors = Partial<Record<keyof ProfileFields, string>>;
+
+type Props = {
+  user: ProfileFields & { id: string };
+};
+
+const inputCls = (err?: string) =>
+  `w-full text-[13.5px] text-portal-text bg-portal-bg border ${
+    err
+      ? "border-red-400 focus:ring-red-300"
+      : "border-portal-border focus:border-portal-accent focus:ring-portal-accent/30"
+  } rounded-lg px-3 py-2 focus:outline-none focus:ring-2 transition-all`;
+
+export default function ProfileDetails({ user }: Props) {
   const [editing, setEditing] = useState(false);
-  const [profile, setProfile] = useState<UserProfile>(mockProfile);
-  const [draft, setDraft] = useState<UserProfile>(mockProfile);
+  const [profile, setProfile] = useState<ProfileFields>({
+    firstName: user.firstName,
+    lastName: user.lastName,
+    email: user.email,
+    phone: user.phone,
+    matricNumber: user.matricNumber,
+    level: user.level,
+    department: user.department,
+  });
+  const [draft, setDraft] = useState<ProfileFields>({ ...profile });
+  const [errors, setErrors] = useState<FieldErrors>({});
+  const [loading, setLoading] = useState(false);
 
   function startEdit() {
     setDraft({ ...profile });
+    setErrors({});
     setEditing(true);
   }
 
   function cancelEdit() {
     setDraft({ ...profile });
+    setErrors({});
     setEditing(false);
   }
 
-  function saveEdit() {
+  async function saveEdit() {
+    const parsed = updateProfileSchema.safeParse(draft);
+    if (!parsed.success) {
+      const errs: FieldErrors = {};
+      for (const issue of parsed.error.issues) {
+        const key = issue.path[0] as keyof ProfileFields;
+        if (!errs[key]) errs[key] = issue.message;
+      }
+      setErrors(errs);
+      return;
+    }
+
+    setLoading(true);
+    const result = await updateProfile({ userId: user.id, ...draft });
+    setLoading(false);
+
+    if (result?.error) {
+      toast.error(result.error);
+      return;
+    }
+
     setProfile({ ...draft });
     setEditing(false);
+    toast.success("Profile updated successfully");
   }
 
   return (
@@ -83,10 +122,11 @@ export default function ProfileDetails() {
             </button>
             <button
               onClick={saveEdit}
-              className="inline-flex items-center gap-1 text-[12px] font-semibold text-white bg-portal-accent hover:bg-portal-accent2 px-3 py-1.5 rounded-lg transition-colors"
+              disabled={loading}
+              className="inline-flex items-center gap-1 text-[12px] font-semibold text-white bg-portal-accent hover:bg-portal-accent2 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-60"
             >
               <Check className="w-3.5 h-3.5" />
-              Save
+              {loading ? "Saving..." : "Save"}
             </button>
           </div>
         )}
@@ -99,14 +139,17 @@ export default function ProfileDetails() {
             First Name
           </label>
           {editing ? (
-            <input
-              type="text"
-              value={draft.firstName}
-              onChange={(e) =>
-                setDraft({ ...draft, firstName: e.target.value })
-              }
-              className="w-full text-[13.5px] text-portal-text bg-portal-bg border border-portal-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-portal-accent/30 focus:border-portal-accent transition-all"
-            />
+            <>
+              <input
+                type="text"
+                value={draft.firstName}
+                onChange={(e) => setDraft({ ...draft, firstName: e.target.value })}
+                className={inputCls(errors.firstName)}
+              />
+              {errors.firstName && (
+                <p className="mt-1 text-xs text-red-500">{errors.firstName}</p>
+              )}
+            </>
           ) : (
             <p className="text-[13.5px] font-medium text-portal-text py-2">
               {profile.firstName}
@@ -118,12 +161,17 @@ export default function ProfileDetails() {
             Last Name
           </label>
           {editing ? (
-            <input
-              type="text"
-              value={draft.lastName}
-              onChange={(e) => setDraft({ ...draft, lastName: e.target.value })}
-              className="w-full text-[13.5px] text-portal-text bg-portal-bg border border-portal-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-portal-accent/30 focus:border-portal-accent transition-all"
-            />
+            <>
+              <input
+                type="text"
+                value={draft.lastName}
+                onChange={(e) => setDraft({ ...draft, lastName: e.target.value })}
+                className={inputCls(errors.lastName)}
+              />
+              {errors.lastName && (
+                <p className="mt-1 text-xs text-red-500">{errors.lastName}</p>
+              )}
+            </>
           ) : (
             <p className="text-[13.5px] font-medium text-portal-text py-2">
               {profile.lastName}
@@ -132,47 +180,159 @@ export default function ProfileDetails() {
         </div>
       </div>
 
-      {/* Other fields */}
-      <div className="space-y-3">
-        {fields.map((field) => {
-          const Icon = field.icon;
-          const value = editing ? draft[field.key] : profile[field.key];
-          return (
-            <div key={field.key}>
-              <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">
-                {field.label}
-              </label>
+      <div className="space-y-4">
+        {/* Email */}
+        <div>
+          <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">
+            Email Address
+          </label>
+          {editing ? (
+            <>
               <div className="flex items-center gap-2.5">
-                <Icon className="w-4 h-4 text-portal-muted flex-shrink-0" />
-                {editing && field.editable ? (
-                  <input
-                    type={field.key === "email" ? "email" : "text"}
-                    value={value as string}
-                    onChange={(e) =>
-                      setDraft({ ...draft, [field.key]: e.target.value })
-                    }
-                    className="flex-1 text-[13.5px] text-portal-text bg-portal-bg border border-portal-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-portal-accent/30 focus:border-portal-accent transition-all"
-                  />
-                ) : (
-                  <p
-                    className={`text-[13.5px] py-2 ${
-                      field.editable
-                        ? "font-medium text-portal-text"
-                        : "text-portal-text2"
-                    }`}
-                  >
-                    {value as string}
-                    {!field.editable && (
-                      <span className="ml-2 text-[10px] text-portal-muted bg-portal-bg px-1.5 py-0.5 rounded">
-                        Read-only
-                      </span>
-                    )}
-                  </p>
-                )}
+                <Mail className="w-4 h-4 text-portal-muted flex-shrink-0" />
+                <input
+                  type="email"
+                  value={draft.email}
+                  onChange={(e) => setDraft({ ...draft, email: e.target.value })}
+                  placeholder="you@stu.cu.edu.ng"
+                  className={inputCls(errors.email)}
+                />
               </div>
+              {errors.email && (
+                <p className="mt-1 text-xs text-red-500 pl-6">{errors.email}</p>
+              )}
+            </>
+          ) : (
+            <div className="flex items-center gap-2.5 py-2">
+              <Mail className="w-4 h-4 text-portal-muted flex-shrink-0" />
+              <p className="text-[13.5px] font-medium text-portal-text">{profile.email}</p>
             </div>
-          );
-        })}
+          )}
+        </div>
+
+        {/* Phone */}
+        <div>
+          <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">
+            Phone Number
+          </label>
+          {editing ? (
+            <>
+              <div className="flex items-center gap-2.5">
+                <Phone className="w-4 h-4 text-portal-muted flex-shrink-0" />
+                <input
+                  type="tel"
+                  value={draft.phone}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, "").slice(0, 11);
+                    setDraft({ ...draft, phone: digits });
+                  }}
+                  placeholder="08012345678"
+                  inputMode="numeric"
+                  maxLength={11}
+                  className={inputCls(errors.phone)}
+                />
+              </div>
+              {errors.phone && (
+                <p className="mt-1 text-xs text-red-500 pl-6">{errors.phone}</p>
+              )}
+            </>
+          ) : (
+            <div className="flex items-center gap-2.5 py-2">
+              <Phone className="w-4 h-4 text-portal-muted flex-shrink-0" />
+              <p className="text-[13.5px] font-medium text-portal-text">{profile.phone}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Matric Number */}
+        <div>
+          <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">
+            Matric Number
+          </label>
+          {editing ? (
+            <>
+              <div className="flex items-center gap-2.5">
+                <GraduationCap className="w-4 h-4 text-portal-muted flex-shrink-0" />
+                <input
+                  type="text"
+                  value={draft.matricNumber}
+                  onChange={(e) => setDraft({ ...draft, matricNumber: e.target.value })}
+                  placeholder="23CG03000"
+                  className={inputCls(errors.matricNumber)}
+                />
+              </div>
+              {errors.matricNumber && (
+                <p className="mt-1 text-xs text-red-500 pl-6">{errors.matricNumber}</p>
+              )}
+            </>
+          ) : (
+            <div className="flex items-center gap-2.5 py-2">
+              <GraduationCap className="w-4 h-4 text-portal-muted flex-shrink-0" />
+              <p className="text-[13.5px] font-medium text-portal-text">{profile.matricNumber}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Level */}
+        <div>
+          <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">
+            Level
+          </label>
+          {editing ? (
+            <>
+              <div className="flex items-center gap-2.5">
+                <BookOpen className="w-4 h-4 text-portal-muted flex-shrink-0" />
+                <select
+                  value={draft.level}
+                  onChange={(e) => setDraft({ ...draft, level: e.target.value })}
+                  className={inputCls(errors.level)}
+                >
+                  <option value="" disabled>Select level</option>
+                  {LEVELS.map((l) => (
+                    <option key={l} value={l}>{l} Level</option>
+                  ))}
+                </select>
+              </div>
+              {errors.level && (
+                <p className="mt-1 text-xs text-red-500 pl-6">{errors.level}</p>
+              )}
+            </>
+          ) : (
+            <div className="flex items-center gap-2.5 py-2">
+              <BookOpen className="w-4 h-4 text-portal-muted flex-shrink-0" />
+              <p className="text-[13.5px] font-medium text-portal-text">{profile.level} Level</p>
+            </div>
+          )}
+        </div>
+
+        {/* Department */}
+        <div>
+          <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">
+            Department
+          </label>
+          {editing ? (
+            <>
+              <div className="flex items-center gap-2.5">
+                <Building2 className="w-4 h-4 text-portal-muted flex-shrink-0" />
+                <input
+                  type="text"
+                  value={draft.department}
+                  onChange={(e) => setDraft({ ...draft, department: e.target.value })}
+                  placeholder="Computer Engineering"
+                  className={inputCls(errors.department)}
+                />
+              </div>
+              {errors.department && (
+                <p className="mt-1 text-xs text-red-500 pl-6">{errors.department}</p>
+              )}
+            </>
+          ) : (
+            <div className="flex items-center gap-2.5 py-2">
+              <Building2 className="w-4 h-4 text-portal-muted flex-shrink-0" />
+              <p className="text-[13.5px] font-medium text-portal-text">{profile.department}</p>
+            </div>
+          )}
+        </div>
       </div>
     </motion.div>
   );
