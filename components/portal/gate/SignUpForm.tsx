@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
+import { toast } from "sonner";
 import { signUpUser } from "@/lib/actions/user.action";
 import { signUpBaseSchema, signUpSchema } from "@/lib/validations/auth";
 
@@ -73,7 +74,6 @@ export default function SignUpForm() {
     Partial<Record<keyof Fields, boolean>>
   >({});
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [serverError, setServerError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -131,7 +131,6 @@ export default function SignUpForm() {
 
   async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
-    setServerError("");
 
     setTouched({
       firstName: true,
@@ -159,7 +158,7 @@ export default function SignUpForm() {
     setLoading(false);
 
     if (result?.error) {
-      setServerError(result.error);
+      toast.error(result.error);
       return;
     }
 
@@ -321,12 +320,6 @@ export default function SignUpForm() {
           </p>
         )}
       </div>
-
-      {serverError && (
-        <p className="text-sm text-red-500 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5">
-          {serverError}
-        </p>
-      )}
 
       <button
         type="submit"

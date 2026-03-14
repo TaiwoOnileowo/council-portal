@@ -28,7 +28,12 @@ const mainNav = [
 
 const servicesNav = [
   { label: "Transport", icon: Bus, href: "/transport", badge: null },
-  { label: "Vendor Dashboard", icon: Store, href: "/vendor-dashboard", badge: null },
+  {
+    label: "Vendor Dashboard",
+    icon: Store,
+    href: "/vendor-dashboard",
+    badge: null,
+  },
   //   { label: "Canopy Booking", icon: Tent, href: "/canopy", badge: null },
   //   { label: "Help Desk", icon: TicketCheck, href: "/helpdesk", badge: 1 },
   //   { label: "Vendor Registry", icon: Store, href: "/vendors", badge: null },
@@ -131,9 +136,6 @@ export default function Sidebar() {
       {/* User pill */}
       <div className="mt-auto border-t border-portal-border px-4 py-4">
         <div className="flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl bg-portal-bg hover:bg-portal-bg2 transition-colors ">
-          <div className="w-[34px] h-[34px] rounded-full bg-gradient-to-br from-portal-accent to-portal-gold flex items-center justify-center text-[13px] font-bold text-white flex-shrink-0">
-            AO
-          </div>
           <div className="min-w-0">
             <div className="text-[13px] font-semibold text-portal-text truncate">
               Adeola Okafor

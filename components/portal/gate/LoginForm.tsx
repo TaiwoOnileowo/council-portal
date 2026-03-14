@@ -2,18 +2,17 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { signInUser } from "@/lib/actions/user.action";
 
 export default function LoginForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
     setLoading(true);
 
     const result = await signInUser({ email, password });
@@ -21,7 +20,7 @@ export default function LoginForm() {
     setLoading(false);
 
     if (result?.error) {
-      setError(result.error);
+      toast.error(result.error);
       return;
     }
 
@@ -58,11 +57,6 @@ export default function LoginForm() {
         />
       </div>
 
-      {error && (
-        <p className="text-sm text-red-500 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5">
-          {error}
-        </p>
-      )}
 
       <button
         type="submit"

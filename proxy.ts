@@ -2,30 +2,31 @@ import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const unprotectedPaths = [
-  /^\/gate(\/.*)?$/,
-  /^\/api\/auth(\/.*)?$/,
-];
-
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  const isUnprotected = unprotectedPaths.some((pattern) =>
-    pattern.test(pathname)
-  );
-
-  if (isUnprotected) {
+  // Always allow NextAuth internals through
+  if (/^\/api\/auth(\/.*)?$/.test(pathname)) {
     return NextResponse.next();
   }
 
+  // Gate: let unauthenticated users in, bounce authenticated users home
+  if (/^\/gate(\/.*)?$/.test(pathname)) {
+    const session = await auth();
+    if (session) {
+      return NextResponse.redirect(new URL("/", req.url));
+    }
+    return NextResponse.next();
+  }
+
+  // Every other route requires a session
   const session = await auth();
 
   if (!session) {
     if (pathname.startsWith("/api")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const redirectUrl = new URL("/gate", req.url);
-    return NextResponse.redirect(redirectUrl);
+    return NextResponse.redirect(new URL("/gate", req.url));
   }
 
   return NextResponse.next();

@@ -29,7 +29,8 @@ export async function signInUser({
     // The original message lives in error.cause.err — unwrap it first.
     if (error instanceof CallbackRouteError) {
       const cause = error.cause?.err;
-      const message = cause instanceof Error ? cause.message : "Invalid credentials";
+      const message =
+        cause instanceof Error ? cause.message : "Invalid credentials";
       return { error: message };
     }
     return { error: "Something went wrong. Please try again." };
@@ -79,10 +80,14 @@ export async function signUpUser({
       data: { name, email, phone, matricNumber, passwordHash },
     });
   } catch (error: unknown) {
+    console.error("Error creating user:", error);
     const msg = error instanceof Error ? error.message : "";
     // Prisma unique constraint violation
     if (msg.includes("Unique constraint")) {
-      return { error: "An account with this email, phone, or matric number already exists" };
+      return {
+        error:
+          "An account with this email, phone, or matric number already exists",
+      };
     }
     return { error: "Failed to create account. Please try again." };
   }
