@@ -12,9 +12,7 @@ export type IncomingBooking = {
 export type Route = {
   id: string;
   destination: string;
-  price: string;
-  priceNum: number;
-  estimatedTime: string;
+  price: number;
 };
 
 export type EarningsData = {

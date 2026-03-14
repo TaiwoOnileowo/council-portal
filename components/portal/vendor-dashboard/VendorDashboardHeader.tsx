@@ -1,8 +1,7 @@
 "use client";
 
-import { ArrowLeft, Star } from "lucide-react";
+import { Star } from "lucide-react";
 import { motion } from "motion/react";
-import Link from "next/link";
 import { vendorProfile } from "./vendorDashboardData";
 
 export default function VendorDashboardHeader() {
@@ -12,14 +11,6 @@ export default function VendorDashboardHeader() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: "easeOut" }}
     >
-      <Link
-        href="/transport"
-        className="inline-flex items-center gap-1.5 text-[13px] text-portal-muted hover:text-portal-text hover:bg-portal-bg2 px-2.5 py-1.5 rounded-lg transition-all mb-2"
-      >
-        <ArrowLeft className="w-3.5 h-3.5" />
-        Back to Transport
-      </Link>
-
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3.5">
           <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-[15px] font-extrabold text-blue-700 flex-shrink-0">
@@ -27,10 +18,9 @@ export default function VendorDashboardHeader() {
           </div>
           <div>
             <h1 className="font-heading text-[24px] font-extrabold text-portal-text">
-              Vendor Dashboard
+              {vendorProfile.name}
             </h1>
             <p className="text-[13px] text-portal-muted mt-0.5 flex items-center gap-1.5">
-              {vendorProfile.name}
               <span className="inline-flex items-center gap-0.5 text-portal-gold">
                 <Star className="w-3 h-3 fill-portal-gold" />
                 {vendorProfile.rating}

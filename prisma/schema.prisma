@@ -70,3 +70,20 @@ model Transaction {
   ref         String            @unique
   createdAt   DateTime          @default(now())
 }
+
+model Vendor {
+  id            String   @id @default(uuid())
+  firstName     String
+  lastName      String
+  email         String   @unique
+  passwordHash  String
+  transportName String
+  image         String?
+  tagline       String?
+  description   String?
+  tiktok        String?
+  instagram     String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}

@@ -1,24 +1,21 @@
 "use client";
 
+import { Check, MapPin, Pencil, Plus, Trash2, X } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import { MapPin, Clock, Pencil, Trash2, Plus, X, Check } from "lucide-react";
 import { vendorRoutes, type Route } from "./vendorDashboardData";
 
 export default function RouteManagement() {
   const [routes, setRoutes] = useState<Route[]>(vendorRoutes);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editPrice, setEditPrice] = useState("");
-  const [editTime, setEditTime] = useState("");
   const [adding, setAdding] = useState(false);
   const [newDest, setNewDest] = useState("");
   const [newPrice, setNewPrice] = useState("");
-  const [newTime, setNewTime] = useState("");
 
   function startEdit(route: Route) {
     setEditingId(route.id);
-    setEditPrice(String(route.priceNum));
-    setEditTime(route.estimatedTime);
+    setEditPrice(String(route.price));
   }
 
   function saveEdit(id: string) {
@@ -29,12 +26,10 @@ export default function RouteManagement() {
         r.id === id
           ? {
               ...r,
-              priceNum,
-              price: `₦${priceNum.toLocaleString()}`,
-              estimatedTime: editTime,
+              price: priceNum,
             }
-          : r
-      )
+          : r,
+      ),
     );
     setEditingId(null);
   }
@@ -45,20 +40,16 @@ export default function RouteManagement() {
 
   function addRoute() {
     const priceNum = parseInt(newPrice, 10);
-    if (!newDest.trim() || isNaN(priceNum) || priceNum <= 0 || !newTime.trim())
-      return;
+    if (!newDest.trim() || isNaN(priceNum) || priceNum <= 0) return;
     const newRoute: Route = {
       id: `RT-${Date.now()}`,
       destination: newDest.trim(),
-      price: `₦${priceNum.toLocaleString()}`,
-      priceNum,
-      estimatedTime: newTime.trim(),
+      price: priceNum,
     };
     setRoutes((prev) => [...prev, newRoute]);
     setAdding(false);
     setNewDest("");
     setNewPrice("");
-    setNewTime("");
   }
 
   return (
@@ -68,9 +59,7 @@ export default function RouteManagement() {
       transition={{ duration: 0.4, delay: 0.28, ease: "easeOut" }}
     >
       <div className="flex items-center justify-between mb-3.5">
-        <h2 className="font-heading text-[17px] font-bold">
-          Routes & Pricing
-        </h2>
+        <h2 className="font-heading text-[17px] font-bold">Routes & Pricing</h2>
         <button
           onClick={() => setAdding(true)}
           className="inline-flex items-center gap-1.5 text-[13px] font-medium text-portal-accent hover:text-portal-accent2 transition-colors"
@@ -89,13 +78,57 @@ export default function RouteManagement() {
           <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-portal-muted">
             Price
           </span>
-          <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-portal-muted">
-            Est. Time
-          </span>
+
           <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-portal-muted text-right">
             Actions
           </span>
         </div>
+
+        {/* Add new route row */}
+        <AnimatePresence>
+          {adding && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="grid grid-cols-[1.5fr_1fr_1fr_80px] gap-3 px-5 py-3.5 items-center border-b border-portal-border bg-portal-bg"
+            >
+              <input
+                type="text"
+                value={newDest}
+                onChange={(e) => setNewDest(e.target.value)}
+                className="w-full px-2 py-1.5 text-[13px] border border-portal-border rounded-lg bg-white focus:outline-none focus:border-portal-accent"
+                placeholder="Destination name"
+              />
+              <input
+                type="number"
+                value={newPrice}
+                onChange={(e) => setNewPrice(e.target.value)}
+                className="w-full px-2 py-1.5 text-[13px] border border-portal-border rounded-lg bg-white focus:outline-none focus:border-portal-accent"
+                placeholder="Price (₦)"
+              />
+
+              <div className="flex items-center justify-end gap-1">
+                <button
+                  onClick={() => {
+                    setAdding(false);
+                    setNewDest("");
+                    setNewPrice("");
+                  }}
+                  className="w-7 h-7 rounded-md flex items-center justify-center text-portal-muted hover:bg-white transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={addRoute}
+                  className="w-7 h-7 rounded-md flex items-center justify-center text-portal-green hover:bg-portal-green-bg transition-colors"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Routes */}
         <AnimatePresence mode="popLayout">
@@ -126,23 +159,7 @@ export default function RouteManagement() {
                 />
               ) : (
                 <span className="font-bold text-portal-text">
-                  {route.price}
-                </span>
-              )}
-
-              {/* Time */}
-              {editingId === route.id ? (
-                <input
-                  type="text"
-                  value={editTime}
-                  onChange={(e) => setEditTime(e.target.value)}
-                  className="w-full px-2 py-1 text-[13px] border border-portal-border rounded-lg bg-portal-bg focus:outline-none focus:border-portal-accent"
-                  placeholder="e.g. 30 mins"
-                />
-              ) : (
-                <span className="text-portal-muted flex items-center gap-1">
-                  <Clock className="w-3 h-3" />
-                  {route.estimatedTime}
+                  ₦{route.price.toLocaleString()},
                 </span>
               )}
 
@@ -182,59 +199,6 @@ export default function RouteManagement() {
               </div>
             </motion.div>
           ))}
-        </AnimatePresence>
-
-        {/* Add new route row */}
-        <AnimatePresence>
-          {adding && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              className="grid grid-cols-[1.5fr_1fr_1fr_80px] gap-3 px-5 py-3.5 items-center border-t border-portal-border bg-portal-bg"
-            >
-              <input
-                type="text"
-                value={newDest}
-                onChange={(e) => setNewDest(e.target.value)}
-                className="w-full px-2 py-1.5 text-[13px] border border-portal-border rounded-lg bg-white focus:outline-none focus:border-portal-accent"
-                placeholder="Destination name"
-              />
-              <input
-                type="number"
-                value={newPrice}
-                onChange={(e) => setNewPrice(e.target.value)}
-                className="w-full px-2 py-1.5 text-[13px] border border-portal-border rounded-lg bg-white focus:outline-none focus:border-portal-accent"
-                placeholder="Price (₦)"
-              />
-              <input
-                type="text"
-                value={newTime}
-                onChange={(e) => setNewTime(e.target.value)}
-                className="w-full px-2 py-1.5 text-[13px] border border-portal-border rounded-lg bg-white focus:outline-none focus:border-portal-accent"
-                placeholder="e.g. 30 mins"
-              />
-              <div className="flex items-center justify-end gap-1">
-                <button
-                  onClick={() => {
-                    setAdding(false);
-                    setNewDest("");
-                    setNewPrice("");
-                    setNewTime("");
-                  }}
-                  className="w-7 h-7 rounded-md flex items-center justify-center text-portal-muted hover:bg-white transition-colors"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={addRoute}
-                  className="w-7 h-7 rounded-md flex items-center justify-center text-portal-green hover:bg-portal-green-bg transition-colors"
-                >
-                  <Check className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </motion.div>
-          )}
         </AnimatePresence>
       </div>
     </motion.div>
