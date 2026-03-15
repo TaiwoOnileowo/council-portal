@@ -3,8 +3,9 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import VendorProfileDetails from "@/components/portal/vendor/profile/VendorProfileDetails";
 import VendorTransportProfile from "@/components/portal/vendor/profile/VendorTransportProfile";
-import VendorChangePassword from "@/components/portal/vendor/profile/VendorChangePassword";
+import ChangePassword from "@/components/portal/profile/ChangePassword";
 import VendorReviews from "@/components/portal/vendor/profile/VendorReviews";
+import VendorBankDetails from "@/components/portal/vendor/profile/VendorBankDetails";
 
 export default async function VendorProfilePage() {
   const session = await auth();
@@ -32,7 +33,16 @@ export default async function VendorProfilePage() {
               email: vendor.email,
             }}
           />
-          <VendorChangePassword vendorId={vendor.id} />
+          <ChangePassword email={vendor.email} />
+          <VendorBankDetails
+            vendor={{
+              id: vendor.id,
+              bankCode: vendor.bankCode ?? undefined,
+              bankName: vendor.bankName ?? undefined,
+              accountNumber: vendor.accountNumber ?? undefined,
+              accountName: vendor.accountName ?? undefined,
+            }}
+          />
         </div>
 
         <div className="space-y-5">

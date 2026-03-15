@@ -1,11 +1,23 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, ChevronLeft, Upload, Check, X } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  ChevronLeft,
+  Upload,
+  Check,
+  X,
+  ChevronDown,
+  Loader2,
+  ShieldCheck,
+} from "lucide-react";
 import { toast } from "sonner";
 import { signUpVendor, checkVendorEmail } from "@/lib/actions/vendor.action";
-import { vendorStep1Schema, vendorStep2Schema } from "@/lib/validations/vendor";
+import { getBanks, verifyBankAccount } from "@/lib/actions/bank.action";
+import type { Bank } from "@/lib/actions/bank.action";
+import { vendorStep1Schema, vendorStep2Schema, vendorBankSchema } from "@/lib/validations/vendor";
 import { uploadFiles } from "@/lib/uploadthing";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -26,6 +38,13 @@ type Step2Fields = {
   instagram: string;
 };
 
+type Step3Fields = {
+  bankCode: string;
+  bankName: string;
+  accountNumber: string;
+  accountName: string;
+};
+
 type FieldErrors = Partial<Record<string, string>>;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -39,18 +58,18 @@ const inputClass = (err?: string) =>
 
 // ─── Step indicator ────────────────────────────────────────────────────────────
 
-function StepIndicator({ step }: { step: 1 | 2 | 3 }) {
+function StepIndicator({ step }: { step: 1 | 2 | 3 | 4 }) {
   return (
     <div className="flex items-center gap-2">
       <div className="flex items-center gap-1.5">
-        {[1, 2, 3].map((s, i) => (
+        {[1, 2, 3, 4].map((s, i) => (
           <div key={s} className="flex items-center gap-1.5">
             <div
               className={`h-2 w-2 rounded-full transition-colors ${
                 step >= s ? "bg-portal-accent" : "bg-portal-border"
               }`}
             />
-            {i < 2 && (
+            {i < 3 && (
               <div
                 className={`h-0.5 w-8 transition-colors ${
                   step > s ? "bg-portal-accent" : "bg-portal-border"
@@ -60,7 +79,7 @@ function StepIndicator({ step }: { step: 1 | 2 | 3 }) {
           </div>
         ))}
       </div>
-      <span className="text-xs text-portal-muted ml-1">Step {step} of 3</span>
+      <span className="text-xs text-portal-muted ml-1">Step {step} of 4</span>
     </div>
   );
 }
@@ -102,11 +121,7 @@ function ImageUpload({
         onClick={() => fileInputRef.current?.click()}
       >
         {value ? (
-          <img
-            src={value}
-            alt="Profile"
-            className="w-full h-full object-cover"
-          />
+          <img src={value} alt="Profile" className="w-full h-full object-cover" />
         ) : (
           <div className="flex flex-col items-center gap-1 text-portal-muted">
             <Upload className="w-6 h-6" />
@@ -143,6 +158,294 @@ function ImageUpload({
   );
 }
 
+// ─── Bank Selector ────────────────────────────────────────────────────────────
+
+function BankSelector({
+  banks,
+  value,
+  onChange,
+  error,
+}: {
+  banks: Bank[];
+  value: { code: string; name: string } | null;
+  onChange: (bank: { code: string; name: string }) => void;
+  error?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+
+  const filtered = banks.filter((b) =>
+    b.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  // Close on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={`w-full rounded-lg border ${
+          error
+            ? "border-red-400"
+            : "border-portal-border focus:border-portal-accent focus:ring-portal-accent"
+        } bg-white px-4 py-3 text-[15px] text-left flex items-center justify-between outline-none focus:ring-1 transition`}
+      >
+        <span className={value ? "text-portal-text" : "text-portal-muted"}>
+          {value ? value.name : "Select your bank"}
+        </span>
+        <ChevronDown
+          className={`w-4 h-4 text-portal-muted transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {open && (
+        <div className="absolute z-50 mt-1 w-full rounded-xl border border-portal-border bg-white shadow-lg overflow-hidden">
+          <div className="p-2 border-b border-portal-border">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search banks..."
+              className="w-full px-3 py-2 text-[14px] rounded-lg border border-portal-border outline-none focus:border-portal-accent bg-portal-bg"
+              autoFocus
+            />
+          </div>
+          <div className="max-h-52 overflow-y-auto">
+            {filtered.length === 0 ? (
+              <p className="text-[13px] text-portal-muted text-center py-4">No banks found</p>
+            ) : (
+              filtered.map((bank) => (
+                <button
+                  key={bank.id}
+                  type="button"
+                  onClick={() => {
+                    onChange({ code: bank.code, name: bank.name });
+                    setOpen(false);
+                    setSearch("");
+                  }}
+                  className={`w-full text-left px-4 py-2.5 text-[14px] hover:bg-portal-accent-bg transition-colors ${
+                    value?.code === bank.code
+                      ? "bg-portal-accent-bg text-portal-accent font-medium"
+                      : "text-portal-text"
+                  }`}
+                >
+                  {bank.name}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Bank Step ────────────────────────────────────────────────────────────────
+
+function BankStep({
+  value,
+  onChange,
+  onBack,
+  onNext,
+}: {
+  value: Step3Fields;
+  onChange: (fields: Step3Fields) => void;
+  onBack: () => void;
+  onNext: () => void;
+}) {
+  const [banks, setBanks] = useState<Bank[]>([]);
+  const [banksLoading, setBanksLoading] = useState(true);
+  const [banksError, setBanksError] = useState<string | null>(null);
+  const [verifying, setVerifying] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+
+  useEffect(() => {
+    getBanks().then(({ banks, error }) => {
+      if (error || !banks) {
+        setBanksError(error ?? "Failed to load banks.");
+      } else {
+        setBanks(banks);
+      }
+      setBanksLoading(false);
+    });
+  }, []);
+
+  const selectedBank =
+    value.bankCode ? { code: value.bankCode, name: value.bankName } : null;
+
+  function handleBankChange(bank: { code: string; name: string }) {
+    // Reset verification when bank changes
+    onChange({ ...value, bankCode: bank.code, bankName: bank.name, accountName: "" });
+    setFieldErrors({});
+  }
+
+  function handleAccountNumberChange(accountNumber: string) {
+    const digits = accountNumber.replace(/\D/g, "").slice(0, 10);
+    // Reset verification when account number changes
+    onChange({ ...value, accountNumber: digits, accountName: "" });
+    setFieldErrors({});
+  }
+
+  async function handleVerify() {
+    const errs: FieldErrors = {};
+    if (!value.bankCode) errs.bankCode = "Please select a bank";
+    if (!/^\d{10}$/.test(value.accountNumber))
+      errs.accountNumber = "Account number must be exactly 10 digits";
+    if (Object.keys(errs).length) {
+      setFieldErrors(errs);
+      return;
+    }
+
+    setVerifying(true);
+    const result = await verifyBankAccount(value.accountNumber, value.bankCode);
+    setVerifying(false);
+
+    if (result.error || !result.account) {
+      setFieldErrors({ accountNumber: result.error ?? "Verification failed." });
+      return;
+    }
+
+    onChange({ ...value, accountName: result.account.accountName });
+    toast.success("Account verified!");
+  }
+
+  function handleNext() {
+    const parsed = vendorBankSchema.safeParse(value);
+    if (!parsed.success) {
+      const errs: FieldErrors = {};
+      for (const issue of parsed.error.issues) {
+        const key = issue.path[0] as string;
+        if (!errs[key]) errs[key] = issue.message;
+      }
+      setFieldErrors(errs);
+      return;
+    }
+    onNext();
+  }
+
+  return (
+    <div className="space-y-5">
+      {/* Bank */}
+      <div>
+        <label className="block text-sm font-medium text-portal-text mb-1.5">
+          Bank<span className="text-portal-accent">*</span>
+        </label>
+        {banksLoading ? (
+          <div className="flex items-center gap-2 rounded-lg border border-portal-border px-4 py-3 text-portal-muted text-[14px]">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Loading banks...
+          </div>
+        ) : banksError ? (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+            {banksError}
+          </div>
+        ) : (
+          <BankSelector
+            banks={banks}
+            value={selectedBank}
+            onChange={handleBankChange}
+            error={fieldErrors.bankCode}
+          />
+        )}
+        {fieldErrors.bankCode && (
+          <p className="mt-1 text-xs text-red-500">{fieldErrors.bankCode}</p>
+        )}
+      </div>
+
+      {/* Account Number + Verify */}
+      <div>
+        <label className="block text-sm font-medium text-portal-text mb-1.5">
+          Account Number<span className="text-portal-accent">*</span>
+        </label>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            inputMode="numeric"
+            value={value.accountNumber}
+            onChange={(e) => handleAccountNumberChange(e.target.value)}
+            placeholder="0123456789"
+            maxLength={10}
+            className={`${inputClass(fieldErrors.accountNumber)} flex-1`}
+          />
+          <button
+            type="button"
+            onClick={handleVerify}
+            disabled={
+              verifying ||
+              !value.bankCode ||
+              value.accountNumber.length !== 10
+            }
+            className="px-4 rounded-lg bg-portal-accent hover:bg-portal-accent2 text-white text-[14px] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-1.5"
+          >
+            {verifying ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <ShieldCheck className="w-4 h-4" />
+            )}
+            {verifying ? "Verifying…" : "Verify"}
+          </button>
+        </div>
+        {fieldErrors.accountNumber && (
+          <p className="mt-1 text-xs text-red-500">{fieldErrors.accountNumber}</p>
+        )}
+      </div>
+
+      {/* Verified Account Name */}
+      {value.accountName ? (
+        <div className="flex items-center gap-3 rounded-xl bg-green-50 border border-green-200 px-4 py-3">
+          <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+            <Check className="w-4 h-4 text-green-600" />
+          </div>
+          <div>
+            <p className="text-[12px] text-green-700 font-medium uppercase tracking-wide">
+              Account Verified
+            </p>
+            <p className="text-[15px] font-semibold text-portal-text">{value.accountName}</p>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-portal-border bg-portal-bg px-4 py-3 text-[13px] text-portal-muted">
+          Enter your account number and click <span className="font-medium text-portal-text">Verify</span> to confirm your account details.
+        </div>
+      )}
+
+      {fieldErrors.accountName && (
+        <p className="text-xs text-red-500">{fieldErrors.accountName}</p>
+      )}
+
+      <div className="flex gap-3 mt-2">
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex items-center gap-1 rounded-lg border border-portal-border text-portal-text font-medium py-3 px-4 text-[15px] transition-colors hover:bg-portal-border/30"
+        >
+          <ChevronLeft size={16} />
+          Back
+        </button>
+        <button
+          type="button"
+          onClick={handleNext}
+          disabled={!value.accountName}
+          className="flex-1 rounded-lg bg-portal-accent hover:bg-portal-accent2 text-white font-medium py-3 text-[15px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Continue
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Unapproved screen ────────────────────────────────────────────────────────
 
 function UnapprovedScreen({
@@ -158,15 +461,11 @@ function UnapprovedScreen({
         <X className="w-7 h-7 text-red-500" />
       </div>
       <div className="space-y-1.5">
-        <h3 className="font-heading font-bold text-portal-text text-lg">
-          Not approved
-        </h3>
+        <h3 className="font-heading font-bold text-portal-text text-lg">Not approved</h3>
         <p className="text-portal-muted text-sm leading-relaxed">
-          <span className="text-portal-text font-medium break-all">
-            {email}
-          </span>{" "}
-          is not on our approved vendor list. If you believe this is a mistake,
-          please contact the Student Council.
+          <span className="text-portal-text font-medium break-all">{email}</span>{" "}
+          is not on our approved vendor list. If you believe this is a mistake, please contact the
+          Student Council.
         </p>
       </div>
       <button
@@ -198,20 +497,15 @@ function CommissionStep({
           <div className="w-8 h-8 rounded-full bg-portal-accent flex items-center justify-center flex-shrink-0">
             <Check className="w-4 h-4 text-white" />
           </div>
-          <h3 className="font-heading font-bold text-portal-text">
-            Commission Structure
-          </h3>
+          <h3 className="font-heading font-bold text-portal-text">Commission Structure</h3>
         </div>
         <p className="text-portal-text2 text-sm leading-relaxed">
-          As a transport vendor on the CU Student Council portal, a flat
-          commission of{" "}
-          <span className="font-semibold text-portal-text">₦1,000</span> is
-          charged per completed, booked ride.
+          As a transport vendor on the CU Student Council portal, a flat commission of{" "}
+          <span className="font-semibold text-portal-text">₦1,000</span> is charged per completed,
+          booked ride.
         </p>
-
         <p className="text-[12px] text-portal-muted pt-1">
-          By clicking &ldquo;Accept &amp; Create Account&rdquo; you agree to
-          these terms.
+          By clicking &ldquo;Accept &amp; Create Account&rdquo; you agree to these terms.
         </p>
       </div>
 
@@ -242,7 +536,7 @@ function CommissionStep({
 export default function VendorSignUpForm() {
   const router = useRouter();
 
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [unapproved, setUnapproved] = useState(false);
 
   const [step1, setStep1] = useState<Step1Fields>({
@@ -258,6 +552,12 @@ export default function VendorSignUpForm() {
     description: "",
     tiktok: "",
     instagram: "",
+  });
+  const [step3, setStep3] = useState<Step3Fields>({
+    bankCode: "",
+    bankName: "",
+    accountNumber: "",
+    accountName: "",
   });
   const [image, setImage] = useState("");
 
@@ -319,7 +619,7 @@ export default function VendorSignUpForm() {
     setStep(3);
   }
 
-  // ── Step 3: accept commission & submit ─────────────────────────────────────
+  // ── Step 4: accept commission & submit ─────────────────────────────────────
 
   async function handleSubmit() {
     setLoading(true);
@@ -327,6 +627,7 @@ export default function VendorSignUpForm() {
       const result = await signUpVendor({
         ...step1,
         ...step2,
+        ...step3,
         image: image || undefined,
       });
       if (result?.error) {
@@ -363,7 +664,7 @@ export default function VendorSignUpForm() {
     <div className="space-y-5">
       <StepIndicator step={step} />
 
-      {/* ── Step 1: Account credentials ────────────────────────────────────── */}
+      {/* ── Step 1: Account credentials ─────────────────────────────────────── */}
       {step === 1 && (
         <form onSubmit={handleStep1} className="space-y-5">
           <div className="flex gap-3">
@@ -374,16 +675,12 @@ export default function VendorSignUpForm() {
               <input
                 type="text"
                 value={step1.firstName}
-                onChange={(e) =>
-                  setStep1((p) => ({ ...p, firstName: e.target.value }))
-                }
+                onChange={(e) => setStep1((p) => ({ ...p, firstName: e.target.value }))}
                 placeholder="John"
                 className={inputClass(fieldErrors.firstName)}
               />
               {fieldErrors.firstName && (
-                <p className="mt-1 text-xs text-red-500">
-                  {fieldErrors.firstName}
-                </p>
+                <p className="mt-1 text-xs text-red-500">{fieldErrors.firstName}</p>
               )}
             </div>
             <div className="flex-1">
@@ -393,16 +690,12 @@ export default function VendorSignUpForm() {
               <input
                 type="text"
                 value={step1.lastName}
-                onChange={(e) =>
-                  setStep1((p) => ({ ...p, lastName: e.target.value }))
-                }
+                onChange={(e) => setStep1((p) => ({ ...p, lastName: e.target.value }))}
                 placeholder="Doe"
                 className={inputClass(fieldErrors.lastName)}
               />
               {fieldErrors.lastName && (
-                <p className="mt-1 text-xs text-red-500">
-                  {fieldErrors.lastName}
-                </p>
+                <p className="mt-1 text-xs text-red-500">{fieldErrors.lastName}</p>
               )}
             </div>
           </div>
@@ -414,9 +707,7 @@ export default function VendorSignUpForm() {
             <input
               type="email"
               value={step1.email}
-              onChange={(e) =>
-                setStep1((p) => ({ ...p, email: e.target.value }))
-              }
+              onChange={(e) => setStep1((p) => ({ ...p, email: e.target.value }))}
               placeholder="yourname@vendor.council.ng"
               className={inputClass(fieldErrors.email)}
             />
@@ -433,9 +724,7 @@ export default function VendorSignUpForm() {
               <input
                 type={showPassword ? "text" : "password"}
                 value={step1.password}
-                onChange={(e) =>
-                  setStep1((p) => ({ ...p, password: e.target.value }))
-                }
+                onChange={(e) => setStep1((p) => ({ ...p, password: e.target.value }))}
                 placeholder="••••••••••••••••"
                 className={`${inputClass(fieldErrors.password)} pr-11`}
               />
@@ -449,9 +738,7 @@ export default function VendorSignUpForm() {
               </button>
             </div>
             {fieldErrors.password && (
-              <p className="mt-1 text-xs text-red-500">
-                {fieldErrors.password}
-              </p>
+              <p className="mt-1 text-xs text-red-500">{fieldErrors.password}</p>
             )}
           </div>
 
@@ -463,9 +750,7 @@ export default function VendorSignUpForm() {
               <input
                 type={showConfirmPassword ? "text" : "password"}
                 value={step1.confirmPassword}
-                onChange={(e) =>
-                  setStep1((p) => ({ ...p, confirmPassword: e.target.value }))
-                }
+                onChange={(e) => setStep1((p) => ({ ...p, confirmPassword: e.target.value }))}
                 placeholder="••••••••••••••••"
                 className={`${inputClass(fieldErrors.confirmPassword)} pr-11`}
               />
@@ -479,9 +764,7 @@ export default function VendorSignUpForm() {
               </button>
             </div>
             {fieldErrors.confirmPassword && (
-              <p className="mt-1 text-xs text-red-500">
-                {fieldErrors.confirmPassword}
-              </p>
+              <p className="mt-1 text-xs text-red-500">{fieldErrors.confirmPassword}</p>
             )}
           </div>
 
@@ -495,7 +778,7 @@ export default function VendorSignUpForm() {
         </form>
       )}
 
-      {/* ── Step 2: Profile info ────────────────────────────────────────────── */}
+      {/* ── Step 2: Profile info ─────────────────────────────────────────────── */}
       {step === 2 && (
         <form onSubmit={handleStep2} className="space-y-5">
           <div>
@@ -505,9 +788,7 @@ export default function VendorSignUpForm() {
             <input
               type="text"
               value={step2.transportName}
-              onChange={(e) =>
-                setStep2((p) => ({ ...p, transportName: e.target.value }))
-              }
+              onChange={(e) => setStep2((p) => ({ ...p, transportName: e.target.value }))}
               placeholder="e.g. SwiftMove NG"
               maxLength={60}
               className={inputClass(fieldErrors.transportName)}
@@ -528,9 +809,7 @@ export default function VendorSignUpForm() {
             <input
               type="text"
               value={step2.tagline}
-              onChange={(e) =>
-                setStep2((p) => ({ ...p, tagline: e.target.value }))
-              }
+              onChange={(e) => setStep2((p) => ({ ...p, tagline: e.target.value }))}
               placeholder="Your campus ride, always on time"
               maxLength={80}
               className={inputClass(fieldErrors.tagline)}
@@ -541,9 +820,7 @@ export default function VendorSignUpForm() {
               ) : (
                 <span />
               )}
-              <span className="text-xs text-portal-muted">
-                {step2.tagline.length}/80
-              </span>
+              <span className="text-xs text-portal-muted">{step2.tagline.length}/80</span>
             </div>
           </div>
 
@@ -554,9 +831,7 @@ export default function VendorSignUpForm() {
             </label>
             <textarea
               value={step2.description}
-              onChange={(e) =>
-                setStep2((p) => ({ ...p, description: e.target.value }))
-              }
+              onChange={(e) => setStep2((p) => ({ ...p, description: e.target.value }))}
               placeholder="Tell students about your transport service, vehicles, and what makes you stand out..."
               rows={4}
               maxLength={500}
@@ -564,59 +839,42 @@ export default function VendorSignUpForm() {
             />
             <div className="flex justify-between mt-1">
               {fieldErrors.description ? (
-                <p className="text-xs text-red-500">
-                  {fieldErrors.description}
-                </p>
+                <p className="text-xs text-red-500">{fieldErrors.description}</p>
               ) : (
                 <span />
               )}
-              <span className="text-xs text-portal-muted">
-                {step2.description.length}/500
-              </span>
+              <span className="text-xs text-portal-muted">{step2.description.length}/500</span>
             </div>
           </div>
 
           <div className="space-y-3">
             <p className="text-sm font-medium text-portal-text">
-              Socials{" "}
-              <span className="text-portal-muted font-normal">(optional)</span>
+              Socials <span className="text-portal-muted font-normal">(optional)</span>
             </p>
             <div>
-              <label className="block text-xs text-portal-muted mb-1">
-                Instagram URL
-              </label>
+              <label className="block text-xs text-portal-muted mb-1">Instagram URL</label>
               <input
                 type="url"
                 value={step2.instagram}
-                onChange={(e) =>
-                  setStep2((p) => ({ ...p, instagram: e.target.value }))
-                }
+                onChange={(e) => setStep2((p) => ({ ...p, instagram: e.target.value }))}
                 placeholder="https://instagram.com/youraccount"
                 className={inputClass(fieldErrors.instagram)}
               />
               {fieldErrors.instagram && (
-                <p className="mt-1 text-xs text-red-500">
-                  {fieldErrors.instagram}
-                </p>
+                <p className="mt-1 text-xs text-red-500">{fieldErrors.instagram}</p>
               )}
             </div>
             <div>
-              <label className="block text-xs text-portal-muted mb-1">
-                TikTok URL
-              </label>
+              <label className="block text-xs text-portal-muted mb-1">TikTok URL</label>
               <input
                 type="url"
                 value={step2.tiktok}
-                onChange={(e) =>
-                  setStep2((p) => ({ ...p, tiktok: e.target.value }))
-                }
+                onChange={(e) => setStep2((p) => ({ ...p, tiktok: e.target.value }))}
                 placeholder="https://tiktok.com/@youraccount"
                 className={inputClass(fieldErrors.tiktok)}
               />
               {fieldErrors.tiktok && (
-                <p className="mt-1 text-xs text-red-500">
-                  {fieldErrors.tiktok}
-                </p>
+                <p className="mt-1 text-xs text-red-500">{fieldErrors.tiktok}</p>
               )}
             </div>
           </div>
@@ -640,10 +898,20 @@ export default function VendorSignUpForm() {
         </form>
       )}
 
-      {/* ── Step 3: Commission acknowledgment ──────────────────────────────── */}
+      {/* ── Step 3: Bank details ─────────────────────────────────────────────── */}
       {step === 3 && (
-        <CommissionStep
+        <BankStep
+          value={step3}
+          onChange={setStep3}
           onBack={() => setStep(2)}
+          onNext={() => setStep(4)}
+        />
+      )}
+
+      {/* ── Step 4: Commission acknowledgment ───────────────────────────────── */}
+      {step === 4 && (
+        <CommissionStep
+          onBack={() => setStep(3)}
           onAccept={handleSubmit}
           loading={loading}
         />

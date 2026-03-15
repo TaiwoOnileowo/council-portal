@@ -9,6 +9,7 @@ import {
   vendorSignInSchema,
   updateVendorProfileSchema,
   changeVendorPasswordSchema,
+  vendorBankSchema,
 } from "@/lib/validations/vendor";
 import { CallbackRouteError } from "@auth/core/errors";
 
@@ -28,6 +29,10 @@ export async function signUpVendor(input: {
   description?: string;
   tiktok?: string;
   instagram?: string;
+  bankCode?: string;
+  bankName?: string;
+  accountNumber?: string;
+  accountName?: string;
 }) {
   const parsed = vendorSignUpSchema.safeParse(input);
   if (!parsed.success) {
@@ -58,6 +63,10 @@ export async function signUpVendor(input: {
         description: input.description || null,
         tiktok: input.tiktok || null,
         instagram: input.instagram || null,
+        bankCode: input.bankCode || null,
+        bankName: input.bankName || null,
+        accountNumber: input.accountNumber || null,
+        accountName: input.accountName || null,
       },
     });
   } catch (error: unknown) {
@@ -194,6 +203,35 @@ export async function updateVendorProfile({
       return { error: "This email is already in use by another vendor." };
     }
     return { error: "Failed to update profile. Please try again." };
+  }
+}
+
+export async function updateVendorBankDetails({
+  vendorId,
+  bankCode,
+  bankName,
+  accountNumber,
+  accountName,
+}: {
+  vendorId: string;
+  bankCode: string;
+  bankName: string;
+  accountNumber: string;
+  accountName: string;
+}) {
+  const parsed = vendorBankSchema.safeParse({ bankCode, bankName, accountNumber, accountName });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message };
+  }
+
+  try {
+    await db.vendor.update({
+      where: { id: vendorId },
+      data: { bankCode, bankName, accountNumber, accountName },
+    });
+    return { success: true };
+  } catch {
+    return { error: "Failed to save bank details. Please try again." };
   }
 }
 

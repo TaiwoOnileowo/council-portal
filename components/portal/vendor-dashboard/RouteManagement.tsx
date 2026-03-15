@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { motion } from "motion/react";
-import { Plus, Trash2, X } from "lucide-react";
+import { House, Plus, Rocket, Trash2, X } from "lucide-react";
 import {
   Drawer,
   DrawerContent,
   DrawerClose,
+  DrawerTitle,
 } from "@/components/ui/drawer";
 import {
   vendorPriceLists,
@@ -17,7 +18,13 @@ import {
 } from "./vendorDashboardData";
 
 const DAYS = [
-  "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
 ];
 
 // --- Draft types for the drawer form ---
@@ -88,10 +95,14 @@ function formFromPriceList(pl: PriceList): DrawerForm {
 function priceListFromForm(id: string, form: DrawerForm): PriceList {
   const availability: PriceListAvailability =
     form.availType === "scheduled"
-      ? { type: "scheduled", startDate: form.schedStart, endDate: form.schedEnd }
+      ? {
+          type: "scheduled",
+          startDate: form.schedStart,
+          endDate: form.schedEnd,
+        }
       : form.availType === "active"
-      ? { type: "active" }
-      : { type: "inactive" };
+        ? { type: "active" }
+        : { type: "inactive" };
   return {
     id,
     name: form.name.trim(),
@@ -130,6 +141,79 @@ function newDraftRoute(): DraftRoute {
 }
 
 // --- Small reusable pieces ---
+
+// Converts "HH:MM" (24hr) ↔ { hours12, minutes, isPM }
+function parse24(time: string) {
+  const [h, m] = time.split(":").map(Number);
+  const isPM = h >= 12;
+  const hours12 = h % 12 || 12;
+  return { hours12, minutes: m ?? 0, isPM };
+}
+function to24(hours12: number, minutes: number, isPM: boolean) {
+  const h = isPM ? (hours12 % 12) + 12 : hours12 % 12;
+  return `${String(h).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
+
+function TimeInput({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const { hours12, minutes, isPM } = parse24(value);
+  return (
+    <div className="flex items-center gap-1 flex-shrink-0">
+      <select
+        value={hours12}
+        onChange={(e) => onChange(to24(Number(e.target.value), minutes, isPM))}
+        className="w-12 px-1 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
+      >
+        {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
+          <option key={h} value={h}>
+            {h}
+          </option>
+        ))}
+      </select>
+      <span className="text-portal-muted text-[13px]">:</span>
+      <select
+        value={minutes}
+        onChange={(e) => onChange(to24(hours12, Number(e.target.value), isPM))}
+        className="w-14 px-1 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
+      >
+        {[0, 15, 30, 45].map((m) => (
+          <option key={m} value={m}>
+            {String(m).padStart(2, "0")}
+          </option>
+        ))}
+      </select>
+      <div className="flex rounded-md border border-portal-border overflow-hidden">
+        <button
+          type="button"
+          onClick={() => onChange(to24(hours12, minutes, false))}
+          className={`px-2 py-1.5 text-[12px] font-semibold transition-colors ${
+            !isPM
+              ? "bg-portal-accent text-white"
+              : "bg-portal-bg text-portal-muted hover:bg-portal-bg2"
+          }`}
+        >
+          AM
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange(to24(hours12, minutes, true))}
+          className={`px-2 py-1.5 text-[12px] font-semibold transition-colors ${
+            isPM
+              ? "bg-portal-accent text-white"
+              : "bg-portal-bg text-portal-muted hover:bg-portal-bg2"
+          }`}
+        >
+          PM
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function Toggle({
   on,
@@ -182,13 +266,7 @@ function StatusPill({ availability }: { availability: PriceListAvailability }) {
   );
 }
 
-function PriceListCard({
-  pl,
-  onEdit,
-}: {
-  pl: PriceList;
-  onEdit: () => void;
-}) {
+function PriceListCard({ pl, onEdit }: { pl: PriceList; onEdit: () => void }) {
   return (
     <button
       onClick={onEdit}
@@ -274,7 +352,7 @@ export default function RouteManagement() {
     setForm((p) => ({
       ...p,
       departureTimes: p.departureTimes.map((d) =>
-        d.id === id ? { ...d, ...patch } : d
+        d.id === id ? { ...d, ...patch } : d,
       ),
     }));
   }
@@ -291,8 +369,8 @@ export default function RouteManagement() {
     if (editingId) {
       setPriceLists((p) =>
         p.map((pl) =>
-          pl.id === editingId ? priceListFromForm(editingId, form) : pl
-        )
+          pl.id === editingId ? priceListFromForm(editingId, form) : pl,
+        ),
       );
     } else {
       setPriceLists((p) => [...p, priceListFromForm(`PL-${Date.now()}`, form)]);
@@ -302,8 +380,7 @@ export default function RouteManagement() {
 
   const canSave =
     form.name.trim().length > 0 &&
-    (form.availType !== "scheduled" ||
-      (!!form.schedStart && !!form.schedEnd));
+    (form.availType !== "scheduled" || (!!form.schedStart && !!form.schedEnd));
 
   return (
     <>
@@ -319,8 +396,9 @@ export default function RouteManagement() {
         {/* Leaving School */}
         <div className="mb-7">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-[14px] font-semibold text-portal-text">
-              🚀 Leaving School
+           <h3 className="text-[14px] font-semibold text-portal-text flex items-center gap-1.5">
+              <Rocket className="text-primary " size={18} />
+              Leaving School  
             </h3>
             <button
               onClick={() => openNew("leaving")}
@@ -343,8 +421,9 @@ export default function RouteManagement() {
         {/* Returning to School */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-[14px] font-semibold text-portal-text">
-              🏠 Returning to School
+            <h3 className="text-[14px] font-semibold text-portal-text flex items-center gap-1.5">
+              <House className="text-primary " size={18} />
+              Returning to School
             </h3>
             <button
               onClick={() => openNew("returning")}
@@ -367,7 +446,15 @@ export default function RouteManagement() {
 
       {/* Drawer */}
       <Drawer open={drawerOpen} onOpenChange={setDrawerOpen} direction="right">
-        <DrawerContent className="bg-portal-surface sm:max-w-[480px] flex flex-col overflow-hidden p-0">
+        <DrawerContent
+          style={{ width: 560, maxWidth: "calc(100vw - 32px)" }}
+          className="bg-portal-surface flex flex-col overflow-hidden p-0"
+        >
+          {/* Visually hidden title for screen readers */}
+          <DrawerTitle className="sr-only">
+            {editingId ? "Edit Price List" : "New Price List"}
+          </DrawerTitle>
+
           {/* Header — name as editable heading */}
           <div className="flex items-center gap-3 px-5 py-4 border-b border-portal-border flex-shrink-0">
             <input
@@ -393,7 +480,7 @@ export default function RouteManagement() {
             {/* Routes table */}
             <div className="border-b border-portal-border">
               {/* Table column headers */}
-              <div className="grid grid-cols-[1fr_88px_100px_36px_32px] gap-2 px-5 py-2.5 bg-portal-bg border-b border-portal-border">
+              <div className="grid grid-cols-[1fr_80px_160px_36px_32px] gap-2 px-5 py-2.5 bg-portal-bg border-b border-portal-border">
                 {["Route", "Price (₦)", "Capacity", "", ""].map((h, i) => (
                   <span
                     key={i}
@@ -408,7 +495,7 @@ export default function RouteManagement() {
               {form.routes.map((route) => (
                 <div
                   key={route.id}
-                  className="grid grid-cols-[1fr_88px_100px_36px_32px] gap-2 px-5 py-2.5 items-center border-b border-portal-border last:border-b-0"
+                  className="grid grid-cols-[1fr_80px_160px_36px_32px] gap-2 px-5 py-2.5 items-center border-b border-portal-border last:border-b-0"
                 >
                   {/* Name */}
                   <input
@@ -434,7 +521,19 @@ export default function RouteManagement() {
                   />
 
                   {/* Capacity */}
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5">
+                    <select
+                      value={route.capacityType}
+                      onChange={(e) =>
+                        setRoute(route.id, {
+                          capacityType: e.target.value as "unlimited" | "number",
+                        })
+                      }
+                      className="flex-1 min-w-0 px-2 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
+                    >
+                      <option value="unlimited">Unlimited</option>
+                      <option value="number">Limited</option>
+                    </select>
                     {route.capacityType === "number" && (
                       <input
                         type="number"
@@ -444,32 +543,9 @@ export default function RouteManagement() {
                         }
                         placeholder="Max"
                         min="1"
-                        className="w-12 px-1.5 py-1.5 text-[12px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
+                        className="w-14 px-1.5 py-1.5 text-[12px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
                       />
                     )}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setRoute(route.id, {
-                          capacityType:
-                            route.capacityType === "unlimited"
-                              ? "number"
-                              : "unlimited",
-                        })
-                      }
-                      title={
-                        route.capacityType === "unlimited"
-                          ? "Switch to limited"
-                          : "Set unlimited"
-                      }
-                      className={`flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-md border text-[13px] font-semibold transition-colors ${
-                        route.capacityType === "unlimited"
-                          ? "border-portal-accent bg-portal-accent/5 text-portal-accent"
-                          : "border-portal-border text-portal-muted hover:border-portal-text"
-                      }`}
-                    >
-                      ∞
-                    </button>
                   </div>
 
                   {/* Active toggle */}
@@ -514,7 +590,7 @@ export default function RouteManagement() {
                         onChange={(e) =>
                           setDeparture(dt.id, { day: e.target.value })
                         }
-                        className="flex-1 px-2 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
+                        className="flex-1 min-w-0 px-2 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
                       >
                         {DAYS.map((d) => (
                           <option key={d} value={d}>
@@ -522,13 +598,9 @@ export default function RouteManagement() {
                           </option>
                         ))}
                       </select>
-                      <input
-                        type="time"
+                      <TimeInput
                         value={dt.time}
-                        onChange={(e) =>
-                          setDeparture(dt.id, { time: e.target.value })
-                        }
-                        className="w-28 px-2 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
+                        onChange={(v) => setDeparture(dt.id, { time: v })}
                       />
                       <button
                         type="button"

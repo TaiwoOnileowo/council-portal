@@ -2,10 +2,7 @@ import { z } from "zod";
 
 const vendorEmailField = z
   .string()
-  .email("Please enter a valid email address")
-  .refine((v) => v.endsWith("@stu.cu.edu.ng"), {
-    message: "Only @stu.cu.edu.ng email addresses are allowed",
-  });
+  .email("Please enter a valid email address");
 
 export const vendorStep1Schema = z
   .object({
@@ -101,6 +98,15 @@ export const updateVendorProfileSchema = z.object({
   tiktok: z.string().url("Please enter a valid URL").optional().or(z.literal("")),
   instagram: z.string().url("Please enter a valid URL").optional().or(z.literal("")),
   image: z.string().optional().or(z.literal("")),
+});
+
+export const vendorBankSchema = z.object({
+  bankCode: z.string().min(1, "Please select a bank"),
+  bankName: z.string().min(1, "Bank name is required"),
+  accountNumber: z
+    .string()
+    .regex(/^\d{10}$/, "Account number must be exactly 10 digits"),
+  accountName: z.string().min(1, "Please verify your account first"),
 });
 
 export const changeVendorPasswordSchema = z
