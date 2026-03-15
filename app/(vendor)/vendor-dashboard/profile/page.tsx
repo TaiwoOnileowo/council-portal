@@ -1,6 +1,10 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import VendorProfileDetails from "@/components/portal/vendor/profile/VendorProfileDetails";
+import VendorTransportProfile from "@/components/portal/vendor/profile/VendorTransportProfile";
+import VendorChangePassword from "@/components/portal/vendor/profile/VendorChangePassword";
+import VendorReviews from "@/components/portal/vendor/profile/VendorReviews";
 
 export default async function VendorProfilePage() {
   const session = await auth();
@@ -10,73 +14,45 @@ export default async function VendorProfilePage() {
   if (!vendor) redirect("/vendor-gate");
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-heading text-2xl font-bold text-portal-text">Vendor Profile</h1>
-        <p className="text-portal-muted text-sm mt-1">Manage your public vendor profile</p>
+    <>
+      <div className="mb-6">
+        <h1 className="font-heading text-[24px] font-extrabold text-portal-text">Profile</h1>
+        <p className="text-[13px] text-portal-muted mt-1">
+          Manage your personal information and transport profile
+        </p>
       </div>
 
-      <div className="bg-portal-surface rounded-2xl border border-portal-border p-6 space-y-4">
-        <div className="flex items-center gap-4">
-          {vendor.image ? (
-            <img
-              src={vendor.image}
-              alt={`${vendor.firstName} ${vendor.lastName}`}
-              className="w-16 h-16 rounded-full object-cover"
-            />
-          ) : (
-            <div className="w-16 h-16 rounded-full bg-portal-accent flex items-center justify-center">
-              <span className="text-white text-xl font-bold">
-                {vendor.firstName.charAt(0)}
-              </span>
-            </div>
-          )}
-          <div>
-            <h2 className="font-heading text-lg font-bold text-portal-text">
-              {vendor.firstName} {vendor.lastName}
-            </h2>
-            <p className="text-portal-muted text-sm">{vendor.email}</p>
-            {vendor.tagline && (
-              <p className="text-portal-text2 text-sm mt-1 italic">"{vendor.tagline}"</p>
-            )}
-          </div>
+      <div className="grid grid-cols-[1.2fr_1fr] gap-5">
+        <div className="space-y-5">
+          <VendorProfileDetails
+            vendor={{
+              id: vendor.id,
+              firstName: vendor.firstName,
+              lastName: vendor.lastName,
+              email: vendor.email,
+            }}
+          />
+          <VendorChangePassword vendorId={vendor.id} />
         </div>
 
-        {vendor.description && (
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-portal-muted mb-1">About</p>
-            <p className="text-portal-text2 text-sm">{vendor.description}</p>
-          </div>
-        )}
-
-        {(vendor.tiktok || vendor.instagram) && (
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-portal-muted mb-2">Socials</p>
-            <div className="flex gap-3">
-              {vendor.instagram && (
-                <a
-                  href={vendor.instagram}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-portal-accent hover:underline"
-                >
-                  Instagram
-                </a>
-              )}
-              {vendor.tiktok && (
-                <a
-                  href={vendor.tiktok}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-portal-accent hover:underline"
-                >
-                  TikTok
-                </a>
-              )}
-            </div>
-          </div>
-        )}
+        <div className="space-y-5">
+          <VendorTransportProfile
+            vendor={{
+              id: vendor.id,
+              firstName: vendor.firstName,
+              lastName: vendor.lastName,
+              email: vendor.email,
+              transportName: vendor.transportName,
+              tagline: vendor.tagline ?? "",
+              description: vendor.description ?? "",
+              instagram: vendor.instagram ?? "",
+              tiktok: vendor.tiktok ?? "",
+              image: vendor.image ?? "",
+            }}
+          />
+          <VendorReviews />
+        </div>
       </div>
-    </div>
+    </>
   );
 }

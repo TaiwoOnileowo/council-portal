@@ -4,7 +4,12 @@ import { signIn } from "@/auth";
 import { db } from "@/lib/db";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { isApprovedVendor } from "@/lib/vendorData";
-import { vendorSignUpSchema, vendorSignInSchema } from "@/lib/validations/vendor";
+import {
+  vendorSignUpSchema,
+  vendorSignInSchema,
+  updateVendorProfileSchema,
+  changeVendorPasswordSchema,
+} from "@/lib/validations/vendor";
 import { CallbackRouteError } from "@auth/core/errors";
 
 export async function checkVendorEmail(email: string): Promise<{ approved: boolean }> {
@@ -97,4 +102,129 @@ export async function verifyVendorPassword(email: string, password: string): Pro
   const vendor = await db.vendor.findUnique({ where: { email } });
   if (!vendor) return false;
   return verifyPassword(password, vendor.passwordHash);
+}
+
+export async function updateVendorPersonalInfo({
+  vendorId,
+  firstName,
+  lastName,
+  email,
+}: {
+  vendorId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+}) {
+  if (firstName.trim().length < 2) return { error: "First name must be at least 2 characters" };
+  if (lastName.trim().length < 2) return { error: "Last name must be at least 2 characters" };
+  if (!email.includes("@")) return { error: "Please enter a valid email address" };
+
+  try {
+    await db.vendor.update({
+      where: { id: vendorId },
+      data: { firstName, lastName, email },
+    });
+    return { success: true };
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : "";
+    if (msg.includes("Unique constraint")) {
+      return { error: "This email is already in use by another vendor." };
+    }
+    return { error: "Failed to update profile. Please try again." };
+  }
+}
+
+export async function updateVendorProfile({
+  vendorId,
+  firstName,
+  lastName,
+  email,
+  transportName,
+  tagline,
+  description,
+  tiktok,
+  instagram,
+  image,
+}: {
+  vendorId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  transportName: string;
+  tagline?: string;
+  description?: string;
+  tiktok?: string;
+  instagram?: string;
+  image?: string;
+}) {
+  const parsed = updateVendorProfileSchema.safeParse({
+    firstName,
+    lastName,
+    email,
+    transportName,
+    tagline,
+    description,
+    tiktok,
+    instagram,
+    image,
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message };
+  }
+
+  try {
+    await db.vendor.update({
+      where: { id: vendorId },
+      data: {
+        firstName,
+        lastName,
+        email,
+        transportName,
+        tagline: tagline || null,
+        description: description || null,
+        tiktok: tiktok || null,
+        instagram: instagram || null,
+        image: image || null,
+      },
+    });
+    return { success: true };
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : "";
+    if (msg.includes("Unique constraint")) {
+      return { error: "This email is already in use by another vendor." };
+    }
+    return { error: "Failed to update profile. Please try again." };
+  }
+}
+
+export async function changeVendorPassword({
+  vendorId,
+  currentPassword,
+  newPassword,
+  confirmNewPassword,
+}: {
+  vendorId: string;
+  currentPassword: string;
+  newPassword: string;
+  confirmNewPassword: string;
+}) {
+  const parsed = changeVendorPasswordSchema.safeParse({
+    currentPassword,
+    newPassword,
+    confirmNewPassword,
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message };
+  }
+
+  const vendor = await db.vendor.findUnique({ where: { id: vendorId } });
+  if (!vendor) return { error: "Account not found." };
+
+  const valid = await verifyPassword(currentPassword, vendor.passwordHash);
+  if (!valid) return { error: "Current password is incorrect." };
+
+  const passwordHash = await hashPassword(newPassword);
+  await db.vendor.update({ where: { id: vendorId }, data: { passwordHash } });
+
+  return { success: true };
 }

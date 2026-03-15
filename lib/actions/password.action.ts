@@ -13,12 +13,16 @@ export async function requestPasswordReset(email: string) {
   if (!email || !email.includes("@")) return { success: true };
 
   const user = await db.user.findUnique({ where: { email } });
-  if (!user) return { success: true };
+  const vendor = !user ? await db.vendor.findUnique({ where: { email } }) : null;
+
+  if (!user && !vendor) return { success: true };
 
   const token = crypto.randomBytes(32).toString("hex");
   await redis.setex(`${RESET_PREFIX}${token}`, TOKEN_TTL, email);
 
-  const firstName = user.name.trim().split(/\s+/)[0] ?? "Student";
+  const firstName = user
+    ? user.name.trim().split(/\s+/)[0] ?? "Student"
+    : vendor!.firstName;
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
   const resetUrl = `${appUrl}/new-keys?email=${encodeURIComponent(email)}&token=${token}`;
 
@@ -48,11 +52,17 @@ export async function resetPassword(token: string, newPassword: string) {
   if (!email) return { error: "This link is invalid or has expired." };
 
   const user = await db.user.findUnique({ where: { email } });
-  if (!user) return { error: "Account not found." };
+  const vendor = !user ? await db.vendor.findUnique({ where: { email } }) : null;
+
+  if (!user && !vendor) return { error: "Account not found." };
 
   const passwordHash = await hashPassword(newPassword);
 
-  await db.user.update({ where: { email }, data: { passwordHash } });
+  if (user) {
+    await db.user.update({ where: { email }, data: { passwordHash } });
+  } else {
+    await db.vendor.update({ where: { email }, data: { passwordHash } });
+  }
 
   // Delete token immediately — single-use
   await redis.del(`${RESET_PREFIX}${token}`);

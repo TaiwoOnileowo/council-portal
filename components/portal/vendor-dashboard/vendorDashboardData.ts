@@ -9,18 +9,34 @@ export type IncomingBooking = {
   status: "pending" | "accepted" | "declined";
 };
 
-export type Route = {
+export type PriceListRoute = {
   id: string;
-  from: string;
-  to: string;
-  goingPrice: number;
-  returnPrice: number;
+  name: string;
+  price: number;
   capacity: number | "unlimited";
   active: boolean;
-  unavailability?: {
-    startDate: string;
-    endDate: string;
-  };
+};
+
+export type PriceListAvailability =
+  | { type: "active" }
+  | { type: "inactive" }
+  | { type: "scheduled"; startDate: string; endDate: string };
+
+export type DepartureTime = {
+  id: string;
+  day: string;
+  time: string;
+};
+
+export type PriceList = {
+  id: string;
+  name: string;
+  direction: "leaving" | "returning";
+  routes: PriceListRoute[];
+  departureTimes: DepartureTime[];
+  luggagePolicy: string;
+  notes: string;
+  availability: PriceListAvailability;
 };
 
 export type EarningsData = {
@@ -96,59 +112,71 @@ export const incomingBookings: IncomingBooking[] = [
   },
 ];
 
-export const vendorRoutes: Route[] = [
+export const vendorPriceLists: PriceList[] = [
   {
-    id: "RT-001",
-    from: "University Gate",
-    to: "Yaba",
-    goingPrice: 8500,
-    returnPrice: 7500,
-    capacity: 14,
-    active: true,
+    id: "PL-001",
+    name: "Mar 2026 Resumption",
+    direction: "leaving",
+    routes: [
+      { id: "R-001", name: "Yaba", price: 8500, capacity: 14, active: true },
+      { id: "R-002", name: "Victoria Island", price: 25000, capacity: "unlimited", active: true },
+      { id: "R-003", name: "Ikeja", price: 15000, capacity: 10, active: true },
+      { id: "R-004", name: "Lekki Phase 1", price: 18000, capacity: 8, active: false },
+    ],
+    departureTimes: [
+      { id: "DT-001", day: "Monday", time: "07:00" },
+      { id: "DT-002", day: "Wednesday", time: "07:00" },
+      { id: "DT-003", day: "Friday", time: "07:00" },
+    ],
+    luggagePolicy: "1 big bag + 1 hand luggage. Extra bags attract additional charge.",
+    notes: "Contact driver 30 mins before departure.",
+    availability: { type: "active" },
   },
   {
-    id: "RT-002",
-    from: "University Gate",
-    to: "Victoria Island",
-    goingPrice: 25000,
-    returnPrice: 22000,
-    capacity: "unlimited",
-    active: true,
+    id: "PL-002",
+    name: "Dec 2025 End of Semester",
+    direction: "leaving",
+    routes: [
+      { id: "R-005", name: "Surulere", price: 6000, capacity: 14, active: true },
+      { id: "R-006", name: "Maryland", price: 10000, capacity: "unlimited", active: true },
+    ],
+    departureTimes: [
+      { id: "DT-004", day: "Saturday", time: "09:00" },
+    ],
+    luggagePolicy: "",
+    notes: "",
+    availability: { type: "inactive" },
   },
   {
-    id: "RT-003",
-    from: "University Gate",
-    to: "Ikeja",
-    goingPrice: 15000,
-    returnPrice: 13000,
-    capacity: 10,
-    active: true,
+    id: "PL-003",
+    name: "Mar 2026 Resumption",
+    direction: "returning",
+    routes: [
+      { id: "R-007", name: "Yaba", price: 7500, capacity: 14, active: true },
+      { id: "R-008", name: "Victoria Island", price: 22000, capacity: "unlimited", active: true },
+    ],
+    departureTimes: [
+      { id: "DT-005", day: "Sunday", time: "14:00" },
+      { id: "DT-006", day: "Sunday", time: "17:00" },
+    ],
+    luggagePolicy: "1 bag per passenger. No oversized items.",
+    notes: "",
+    availability: { type: "scheduled", startDate: "2026-04-01", endDate: "2026-04-30" },
   },
   {
-    id: "RT-004",
-    from: "University Gate",
-    to: "Lekki Phase 1",
-    goingPrice: 18000,
-    returnPrice: 16000,
-    capacity: 8,
-    active: false,
-  },
-  {
-    id: "RT-005",
-    from: "University Gate",
-    to: "Surulere",
-    goingPrice: 6000,
-    returnPrice: 5500,
-    capacity: 14,
-    active: true,
-  },
-  {
-    id: "RT-006",
-    from: "University Gate",
-    to: "Maryland",
-    goingPrice: 10000,
-    returnPrice: 9000,
-    capacity: "unlimited",
-    active: true,
+    id: "PL-004",
+    name: "Weekend Express",
+    direction: "returning",
+    routes: [
+      { id: "R-009", name: "Ikeja", price: 13000, capacity: 10, active: true },
+      { id: "R-010", name: "Maryland", price: 9000, capacity: "unlimited", active: true },
+    ],
+    departureTimes: [
+      { id: "DT-007", day: "Saturday", time: "16:00" },
+      { id: "DT-008", day: "Sunday", time: "18:00" },
+    ],
+    luggagePolicy: "",
+    notes: "No food items allowed on board.",
+    availability: { type: "active" },
   },
 ];
