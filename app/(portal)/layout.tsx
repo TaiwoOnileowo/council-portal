@@ -1,9 +1,14 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import Sidebar from "@/components/portal/Sidebar";
+import { redirect } from "next/navigation";
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
+
+  if (session?.user?.isVendor) {
+    redirect("/vendor-dashboard");
+  }
 
   let sidebarUser = null;
   if (session?.user?.id && !session.user.isVendor) {
