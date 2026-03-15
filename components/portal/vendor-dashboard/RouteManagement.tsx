@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "motion/react";
-import { House, Plus, Rocket, Trash2, X } from "lucide-react";
+import { House, Loader2, Plus, Rocket, Trash2, X } from "lucide-react";
 import {
   Drawer,
   DrawerContent,
@@ -10,12 +10,23 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import {
-  vendorPriceLists,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
   type PriceList,
   type PriceListAvailability,
   type PriceListRoute,
   type DepartureTime,
 } from "./vendorDashboardData";
+import {
+  useVendorPriceLists,
+  useCreatePriceList,
+  useUpdatePriceList,
+} from "@/lib/hooks/useVendorPriceLists";
+import type { PriceListBody } from "@/lib/validations/vendor";
 
 const DAYS = [
   "Monday",
@@ -27,12 +38,24 @@ const DAYS = [
   "Sunday",
 ];
 
+// --- Formatting helpers ---
+
+function formatWithCommas(value: string) {
+  const digits = value.replace(/\D/g, "");
+  if (!digits) return "";
+  return Number(digits).toLocaleString("en-NG");
+}
+
+function parseAmount(value: string) {
+  return parseInt(value.replace(/,/g, ""), 10) || 0;
+}
+
 // --- Draft types for the drawer form ---
 
 type DraftRoute = {
   id: string;
   name: string;
-  price: string;
+  price: string; // formatted with commas
   capacityType: "number" | "unlimited";
   capacityValue: string;
   active: boolean;
@@ -56,23 +79,10 @@ function draftFromRoute(r: PriceListRoute): DraftRoute {
   return {
     id: r.id,
     name: r.name,
-    price: String(r.price),
+    price: r.price > 0 ? r.price.toLocaleString("en-NG") : "",
     capacityType: r.capacity === "unlimited" ? "unlimited" : "number",
     capacityValue: r.capacity === "unlimited" ? "" : String(r.capacity),
     active: r.active,
-  };
-}
-
-function routeFromDraft(d: DraftRoute): PriceListRoute {
-  return {
-    id: d.id,
-    name: d.name.trim(),
-    price: parseInt(d.price, 10) || 0,
-    capacity:
-      d.capacityType === "unlimited"
-        ? "unlimited"
-        : Math.max(1, parseInt(d.capacityValue, 10) || 1),
-    active: d.active,
   };
 }
 
@@ -92,23 +102,34 @@ function formFromPriceList(pl: PriceList): DrawerForm {
   };
 }
 
-function priceListFromForm(id: string, form: DrawerForm): PriceList {
-  const availability: PriceListAvailability =
+function buildBody(form: DrawerForm): PriceListBody {
+  const routes = form.routes.map((r) => ({
+    name: r.name.trim(),
+    price: parseAmount(r.price),
+    capacity:
+      r.capacityType === "unlimited"
+        ? null
+        : Math.max(1, parseInt(r.capacityValue, 10) || 1),
+    active: r.active,
+  }));
+
+  const departureTimes = form.departureTimes.map((d) => ({
+    day: d.day,
+    time: d.time,
+  }));
+
+  const availability: PriceListBody["availability"] =
     form.availType === "scheduled"
-      ? {
-          type: "scheduled",
-          startDate: form.schedStart,
-          endDate: form.schedEnd,
-        }
-      : form.availType === "active"
-        ? { type: "active" }
-        : { type: "inactive" };
+      ? { type: "scheduled", startDate: form.schedStart, endDate: form.schedEnd }
+      : form.availType === "inactive"
+        ? { type: "inactive" }
+        : { type: "active" };
+
   return {
-    id,
     name: form.name.trim(),
     direction: form.direction,
-    routes: form.routes.map(routeFromDraft),
-    departureTimes: form.departureTimes,
+    routes,
+    departureTimes,
     luggagePolicy: form.luggagePolicy,
     notes: form.notes,
     availability,
@@ -142,13 +163,13 @@ function newDraftRoute(): DraftRoute {
 
 // --- Small reusable pieces ---
 
-// Converts "HH:MM" (24hr) ↔ { hours12, minutes, isPM }
 function parse24(time: string) {
   const [h, m] = time.split(":").map(Number);
   const isPM = h >= 12;
   const hours12 = h % 12 || 12;
   return { hours12, minutes: m ?? 0, isPM };
 }
+
 function to24(hours12: number, minutes: number, isPM: boolean) {
   const h = isPM ? (hours12 % 12) + 12 : hours12 % 12;
   return `${String(h).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
@@ -300,24 +321,52 @@ function EmptyCard({ onNew }: { onNew: () => void }) {
 // --- Main component ---
 
 export default function RouteManagement() {
-  const [priceLists, setPriceLists] = useState<PriceList[]>(vendorPriceLists);
+  const { data: priceLists, isLoading } = useVendorPriceLists();
+  const createMutation = useCreatePriceList();
+  const updateMutation = useUpdatePriceList();
+
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<DrawerForm>(emptyForm("leaving"));
+  const [savedForm, setSavedForm] = useState<DrawerForm>(emptyForm("leaving"));
+  const [discardOpen, setDiscardOpen] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  const leaving = priceLists.filter((p) => p.direction === "leaving");
-  const returning = priceLists.filter((p) => p.direction === "returning");
+  const isDirty =
+    JSON.stringify(form) !== JSON.stringify(savedForm);
+
+  const leaving = (priceLists ?? []).filter((p) => p.direction === "leaving");
+  const returning = (priceLists ?? []).filter((p) => p.direction === "returning");
 
   function openNew(direction: "leaving" | "returning") {
+    const f = emptyForm(direction);
     setEditingId(null);
-    setForm(emptyForm(direction));
+    setForm(f);
+    setSavedForm(f);
+    setSaveError(null);
     setDrawerOpen(true);
   }
 
   function openEdit(pl: PriceList) {
+    const f = formFromPriceList(pl);
     setEditingId(pl.id);
-    setForm(formFromPriceList(pl));
+    setForm(f);
+    setSavedForm(f);
+    setSaveError(null);
     setDrawerOpen(true);
+  }
+
+  function handleDrawerOpenChange(open: boolean) {
+    if (!open && isDirty) {
+      setDiscardOpen(true);
+      return;
+    }
+    setDrawerOpen(open);
+  }
+
+  function confirmDiscard() {
+    setDiscardOpen(false);
+    setDrawerOpen(false);
   }
 
   function setF<K extends keyof DrawerForm>(key: K, value: DrawerForm[K]) {
@@ -364,23 +413,32 @@ export default function RouteManagement() {
     }));
   }
 
-  function save() {
-    if (!canSave) return;
-    if (editingId) {
-      setPriceLists((p) =>
-        p.map((pl) =>
-          pl.id === editingId ? priceListFromForm(editingId, form) : pl,
-        ),
-      );
-    } else {
-      setPriceLists((p) => [...p, priceListFromForm(`PL-${Date.now()}`, form)]);
-    }
-    setDrawerOpen(false);
-  }
-
   const canSave =
     form.name.trim().length > 0 &&
+    form.routes.length >= 1 &&
+    form.departureTimes.length >= 1 &&
     (form.availType !== "scheduled" || (!!form.schedStart && !!form.schedEnd));
+
+  const isSaving = createMutation.isPending || updateMutation.isPending;
+
+  async function save() {
+    if (!canSave || isSaving) return;
+    setSaveError(null);
+
+    const body = buildBody(form);
+
+    try {
+      if (editingId) {
+        await updateMutation.mutateAsync({ id: editingId, ...body });
+      } else {
+        await createMutation.mutateAsync(body);
+      }
+      setSavedForm(form);
+      setDrawerOpen(false);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Something went wrong");
+    }
+  }
 
   return (
     <>
@@ -393,83 +451,120 @@ export default function RouteManagement() {
           Routes & Pricing
         </h2>
 
-        {/* Leaving School */}
-        <div className="mb-7">
-          <div className="flex items-center justify-between mb-3">
-           <h3 className="text-[14px] font-semibold text-portal-text flex items-center gap-1.5">
-              <Rocket className="text-primary " size={18} />
-              Leaving School  
-            </h3>
-            <button
-              onClick={() => openNew("leaving")}
-              className="inline-flex items-center gap-1.5 text-[13px] font-medium text-portal-accent hover:text-portal-accent2 transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              New Price List
-            </button>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-16 text-portal-muted">
+            <Loader2 className="w-5 h-5 animate-spin mr-2" />
+            <span className="text-[13px]">Loading price lists…</span>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {leaving.map((pl) => (
-              <PriceListCard key={pl.id} pl={pl} onEdit={() => openEdit(pl)} />
-            ))}
-            {leaving.length === 0 && (
-              <EmptyCard onNew={() => openNew("leaving")} />
-            )}
-          </div>
-        </div>
+        ) : (
+          <>
+            {/* Leaving School */}
+            <div className="mb-7">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-[14px] font-semibold text-portal-text flex items-center gap-1.5">
+                  <Rocket className="text-primary" size={18} />
+                  Leaving School
+                </h3>
+                <button
+                  onClick={() => openNew("leaving")}
+                  className="inline-flex items-center gap-1.5 text-[13px] font-medium text-portal-accent hover:text-portal-accent2 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  New Price List
+                </button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {leaving.map((pl) => (
+                  <PriceListCard key={pl.id} pl={pl} onEdit={() => openEdit(pl)} />
+                ))}
+                {leaving.length === 0 && (
+                  <EmptyCard onNew={() => openNew("leaving")} />
+                )}
+              </div>
+            </div>
 
-        {/* Returning to School */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-[14px] font-semibold text-portal-text flex items-center gap-1.5">
-              <House className="text-primary " size={18} />
-              Returning to School
-            </h3>
-            <button
-              onClick={() => openNew("returning")}
-              className="inline-flex items-center gap-1.5 text-[13px] font-medium text-portal-accent hover:text-portal-accent2 transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              New Price List
-            </button>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {returning.map((pl) => (
-              <PriceListCard key={pl.id} pl={pl} onEdit={() => openEdit(pl)} />
-            ))}
-            {returning.length === 0 && (
-              <EmptyCard onNew={() => openNew("returning")} />
-            )}
-          </div>
-        </div>
+            {/* Returning to School */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-[14px] font-semibold text-portal-text flex items-center gap-1.5">
+                  <House className="text-primary" size={18} />
+                  Returning to School
+                </h3>
+                <button
+                  onClick={() => openNew("returning")}
+                  className="inline-flex items-center gap-1.5 text-[13px] font-medium text-portal-accent hover:text-portal-accent2 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  New Price List
+                </button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {returning.map((pl) => (
+                  <PriceListCard key={pl.id} pl={pl} onEdit={() => openEdit(pl)} />
+                ))}
+                {returning.length === 0 && (
+                  <EmptyCard onNew={() => openNew("returning")} />
+                )}
+              </div>
+            </div>
+          </>
+        )}
       </motion.div>
 
+      {/* Discard confirmation dialog — outside Drawer to avoid focus-trap conflict */}
+      <Dialog open={discardOpen} onOpenChange={setDiscardOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogTitle>Discard changes?</DialogTitle>
+          <DialogDescription>
+            You have unsaved changes. Are you sure you want to discard them?
+          </DialogDescription>
+          <div className="flex gap-3 mt-2">
+            <button
+              onClick={() => setDiscardOpen(false)}
+              className="flex-1 py-2 text-[13px] font-medium border border-portal-border rounded-lg text-portal-text hover:bg-portal-bg transition-colors"
+            >
+              Keep editing
+            </button>
+            <button
+              onClick={confirmDiscard}
+              className="flex-1 py-2 text-[13px] font-semibold bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+            >
+              Discard
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Drawer */}
-      <Drawer open={drawerOpen} onOpenChange={setDrawerOpen} direction="right">
+      <Drawer open={drawerOpen} onOpenChange={handleDrawerOpenChange} direction="right">
         <DrawerContent
           style={{ width: 560, maxWidth: "calc(100vw - 32px)" }}
           className="bg-portal-surface flex flex-col overflow-hidden p-0"
         >
-          {/* Visually hidden title for screen readers */}
           <DrawerTitle className="sr-only">
             {editingId ? "Edit Price List" : "New Price List"}
           </DrawerTitle>
 
-          {/* Header — name as editable heading */}
-          <div className="flex items-center gap-3 px-5 py-4 border-b border-portal-border flex-shrink-0">
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => setF("name", e.target.value)}
-              placeholder={
-                form.direction === "leaving"
-                  ? "e.g. Mar 2026 Resumption"
-                  : "e.g. Weekend Express"
-              }
-              className="font-heading text-[17px] font-bold bg-transparent focus:outline-none placeholder:text-portal-muted/40 flex-1 min-w-0 text-portal-text"
-            />
+          {/* Header */}
+          <div className="flex items-start gap-3 px-5 py-4 border-b border-portal-border flex-shrink-0">
+            <div className="flex-1 min-w-0">
+              <label className="block text-[10px] font-semibold uppercase tracking-[0.08em] text-portal-muted mb-1">
+                Price List Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={form.name}
+                onChange={(e) => setF("name", e.target.value)}
+                placeholder={
+                  form.direction === "leaving"
+                    ? "e.g. Mar 2026 Resumption"
+                    : "e.g. Weekend Express"
+                }
+                className="w-full px-3 py-2 text-[14px] font-semibold border border-portal-border rounded-lg bg-portal-bg focus:outline-none focus:border-portal-accent placeholder:text-portal-muted/50 text-portal-text"
+              />
+            </div>
             <DrawerClose asChild>
-              <button className="w-7 h-7 rounded-md flex items-center justify-center text-portal-muted hover:bg-portal-bg transition-colors flex-shrink-0">
+              <button className="mt-6 w-7 h-7 rounded-md flex items-center justify-center text-portal-muted hover:bg-portal-bg transition-colors flex-shrink-0">
                 <X className="w-4 h-4" />
               </button>
             </DrawerClose>
@@ -479,8 +574,7 @@ export default function RouteManagement() {
           <div className="flex-1 overflow-y-auto">
             {/* Routes table */}
             <div className="border-b border-portal-border">
-              {/* Table column headers */}
-              <div className="grid grid-cols-[1fr_80px_160px_36px_32px] gap-2 px-5 py-2.5 bg-portal-bg border-b border-portal-border">
+              <div className="grid grid-cols-[1fr_90px_160px_36px_32px] gap-2 px-5 py-2.5 bg-portal-bg border-b border-portal-border">
                 {["Route", "Price (₦)", "Capacity", "", ""].map((h, i) => (
                   <span
                     key={i}
@@ -491,11 +585,16 @@ export default function RouteManagement() {
                 ))}
               </div>
 
-              {/* Route rows */}
+              {form.routes.length === 0 && (
+                <p className="px-5 py-4 text-[13px] text-portal-muted/60 italic">
+                  No routes added yet. Add at least one.
+                </p>
+              )}
+
               {form.routes.map((route) => (
                 <div
                   key={route.id}
-                  className="grid grid-cols-[1fr_80px_160px_36px_32px] gap-2 px-5 py-2.5 items-center border-b border-portal-border last:border-b-0"
+                  className="grid grid-cols-[1fr_90px_160px_36px_32px] gap-2 px-5 py-2.5 items-center border-b border-portal-border last:border-b-0"
                 >
                   {/* Name */}
                   <input
@@ -508,15 +607,17 @@ export default function RouteManagement() {
                     className="w-full px-2 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
                   />
 
-                  {/* Price */}
+                  {/* Price — comma formatted */}
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
                     value={route.price}
                     onChange={(e) =>
-                      setRoute(route.id, { price: e.target.value })
+                      setRoute(route.id, {
+                        price: formatWithCommas(e.target.value),
+                      })
                     }
                     placeholder="0"
-                    min="0"
                     className="w-full px-2 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
                   />
 
@@ -582,6 +683,11 @@ export default function RouteManagement() {
                 <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-portal-muted mb-3">
                   Departure Times
                 </p>
+                {form.departureTimes.length === 0 && (
+                  <p className="text-[13px] text-portal-muted/60 italic mb-2">
+                    No departure times yet. Add at least one.
+                  </p>
+                )}
                 <div className="space-y-2">
                   {form.departureTimes.map((dt) => (
                     <div key={dt.id} className="flex items-center gap-2">
@@ -627,7 +733,10 @@ export default function RouteManagement() {
             <div className="border-b border-portal-border px-5 py-5 space-y-4">
               <div>
                 <label className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-portal-muted mb-1.5">
-                  Luggage Policy
+                  Luggage Policy{" "}
+                  <span className="normal-case font-normal text-portal-muted/60">
+                    (optional)
+                  </span>
                 </label>
                 <textarea
                   value={form.luggagePolicy}
@@ -714,11 +823,15 @@ export default function RouteManagement() {
 
           {/* Footer */}
           <div className="px-5 py-4 border-t border-portal-border flex-shrink-0">
+            {saveError && (
+              <p className="text-[12px] text-red-500 mb-2">{saveError}</p>
+            )}
             <button
               onClick={save}
-              disabled={!canSave}
-              className="w-full py-2.5 text-[14px] font-semibold bg-portal-accent text-white rounded-xl disabled:opacity-40 disabled:cursor-not-allowed hover:bg-portal-accent2 transition-colors"
+              disabled={!canSave || isSaving}
+              className="w-full py-2.5 text-[14px] font-semibold bg-portal-accent text-white rounded-xl disabled:opacity-40 disabled:cursor-not-allowed hover:bg-portal-accent2 transition-colors flex items-center justify-center gap-2"
             >
+              {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
               {editingId ? "Save Changes" : "Create Price List"}
             </button>
           </div>

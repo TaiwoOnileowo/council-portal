@@ -13,8 +13,17 @@ export async function proxy(req: NextRequest) {
   // Gate: let unauthenticated users in, bounce authenticated users home
   if (/^\/gate(\/.*)?$/.test(pathname)) {
     const session = await auth();
-    if (session) {
+    if (session && !session.user.isVendor) {
       return NextResponse.redirect(new URL("/", req.url));
+    }
+    return NextResponse.next();
+  }
+
+  // Vendor gate: same as /gate — unauthenticated users in, authenticated users bounce home
+  if (/^\/vendor-gate(\/.*)?$/.test(pathname)) {
+    const session = await auth();
+    if (session && session.user.isVendor) {
+      return NextResponse.redirect(new URL("/vendor-dashboard", req.url));
     }
     return NextResponse.next();
   }
@@ -39,6 +48,6 @@ export async function proxy(req: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|woff2?|ttf)).*)",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webop|ico|css|js|woff2?|ttf)).*)",
   ],
 };

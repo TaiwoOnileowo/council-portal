@@ -1,10 +1,28 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import AuthTabs from "@/components/portal/gate/AuthTabs";
+import VendorLoginForm from "@/components/portal/vendor-gate/VendorLoginForm";
 import VendorSignUpForm from "@/components/portal/vendor-gate/VendorSignUpForm";
 
+type View = "login" | "signup";
+
+const HEADINGS: Record<View, { title: string; subtitle: string }> = {
+  login: {
+    title: "Welcome back",
+    subtitle: "Sign in to your vendor account",
+  },
+  signup: {
+    title: "Join as a vendor",
+    subtitle: "Transport vendor registration · invite only",
+  },
+};
+
 export default function VendorGatePage() {
+  const [view, setView] = useState<View>("login");
+  const { title, subtitle } = HEADINGS[view];
+
   return (
     <>
       <div className="mb-10">
@@ -16,16 +34,28 @@ export default function VendorGatePage() {
           className="mb-4"
         />
         <h1 className="font-heading text-[28px] font-bold tracking-tight text-portal-text">
-          Join as a vendor
+          {title}
         </h1>
-        <p className="text-portal-muted text-sm mt-1">
-          Transport vendor registration, invite only
-        </p>
+        <p className="text-portal-muted text-sm mt-1">{subtitle}</p>
       </div>
 
-      <AuthTabs tabs={[{ label: "New Transport Vendor", active: true }]} />
+      <AuthTabs
+        tabs={[
+          {
+            label: "Log in",
+            active: view === "login",
+            onClick: () => setView("login"),
+          },
+          {
+            label: "Sign up",
+            active: view === "signup",
+            onClick: () => setView("signup"),
+          },
+        ]}
+      />
 
-      <VendorSignUpForm />
+      {view === "login" && <VendorLoginForm />}
+      {view === "signup" && <VendorSignUpForm />}
     </>
   );
 }

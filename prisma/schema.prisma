@@ -71,11 +71,22 @@ model Transaction {
   createdAt   DateTime          @default(now())
 }
 
+enum PriceListDirection {
+  LEAVING
+  RETURNING
+}
+
+enum AvailabilityType {
+  ACTIVE
+  INACTIVE
+  SCHEDULED
+}
+
 model Vendor {
-  id            String   @id @default(uuid())
+  id            String      @id @default(uuid())
   firstName     String
   lastName      String
-  email         String   @unique
+  email         String      @unique
   passwordHash  String
   transportName String
   image         String?
@@ -87,7 +98,43 @@ model Vendor {
   bankName      String?
   accountNumber String?
   accountName   String?
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  isActive      Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  priceLists    PriceList[]
+}
+
+model PriceList {
+  id            String             @id @default(uuid())
+  vendorId      String
+  vendor        Vendor             @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  name          String
+  direction     PriceListDirection
+  luggagePolicy String             @default("")
+  notes         String             @default("")
+  availType     AvailabilityType   @default(ACTIVE)
+  schedStart    DateTime?
+  schedEnd      DateTime?
+  routes        PriceListRoute[]
+  departureTimes DepartureTime[]
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+}
+
+model PriceListRoute {
+  id          String    @id @default(uuid())
+  priceListId String
+  priceList   PriceList @relation(fields: [priceListId], references: [id], onDelete: Cascade)
+  name        String
+  price       Int       // in naira
+  capacity    Int?      // null = unlimited
+  active      Boolean   @default(true)
+}
+
+model DepartureTime {
+  id          String    @id @default(uuid())
+  priceListId String
+  priceList   PriceList @relation(fields: [priceListId], references: [id], onDelete: Cascade)
+  day         String
+  time        String    // "HH:MM" 24hr format
 }
