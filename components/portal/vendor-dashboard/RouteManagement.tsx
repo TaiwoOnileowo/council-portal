@@ -448,6 +448,7 @@ export default function RouteManagement() {
   }
 
   const canSave =
+    (!editingId || formIsDirty) &&
     watchedName.trim().length > 0 &&
     watchedRoutes.length >= 1 &&
     watchedDepartureTimes.length >= 1 &&
