@@ -4,24 +4,11 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { signUpUser } from "@/lib/actions/user.action";
-import { signUpBaseSchema, signUpSchema, LEVELS } from "@/lib/validations/auth";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type Fields = {
-  firstName: string;
-  lastName: string;
-  email: string;
-  password: string;
-  confirmPassword: string;
-  matricNumber: string;
-  phone: string;
-  department: string;
-  level: string;
-};
-
-type FieldErrors = Partial<Record<keyof Fields, string>>;
+import { signUpSchema, LEVELS } from "@/lib/validations/auth";
+import type { SignUpInput } from "@/lib/validations/auth";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -32,41 +19,9 @@ const step1Fields = [
   "password",
   "confirmPassword",
 ] as const;
-const step3Fields = ["matricNumber", "phone", "department", "level"] as const;
 const RESEND_COOLDOWN = 60; // seconds
-const fieldSchemas = signUpBaseSchema.shape;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function validateField(
-  field: keyof Omit<Fields, "confirmPassword">,
-  value: string,
-): string | undefined {
-  const result = fieldSchemas[field].safeParse(value);
-  if (!result.success) return result.error.issues[0].message;
-}
-
-function validateConfirmPassword(
-  password: string,
-  confirmPassword: string,
-): string | undefined {
-  if (confirmPassword && password !== confirmPassword)
-    return "Passwords do not match";
-}
-
-function setOrDelete(
-  errors: FieldErrors,
-  field: keyof Fields,
-  msg: string | undefined,
-): FieldErrors {
-  const next = { ...errors };
-  if (msg) {
-    next[field] = msg;
-  } else {
-    delete next[field];
-  }
-  return next;
-}
 
 const inputClass = (err?: string) =>
   `w-full rounded-lg border ${
@@ -193,20 +148,6 @@ export default function SignUpForm() {
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
-  const [fields, setFields] = useState<Fields>({
-    firstName: "",
-    lastName: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-    matricNumber: "",
-    phone: "",
-    department: "",
-    level: "",
-  });
-  const [touched, setTouched] = useState<Partial<Record<keyof Fields, boolean>>>({});
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -217,9 +158,18 @@ export default function SignUpForm() {
   const [sendingOtp, setSendingOtp] = useState(false);
   const [cooldown, setCooldown] = useState(0);
 
-  // Step 3
-  const [loading, setLoading] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  const {
+    register,
+    handleSubmit,
+    trigger,
+    getValues,
+    control,
+    setError,
+    formState: { errors, isSubmitting },
+  } = useForm<SignUpInput>({
+    resolver: zodResolver(signUpSchema),
+    mode: "onTouched",
+  });
 
   // ── Cooldown timer ────────────────────────────────────────────────────────
 
@@ -228,39 +178,6 @@ export default function SignUpForm() {
     const id = setTimeout(() => setCooldown((c) => c - 1), 1000);
     return () => clearTimeout(id);
   }, [cooldown]);
-
-  // ── Field handlers ────────────────────────────────────────────────────────
-
-  function handleChange(field: keyof Fields, value: string) {
-    const updated = { ...fields, [field]: value };
-    setFields(updated);
-
-    if (!touched[field]) return;
-
-    let errs = { ...fieldErrors };
-    if (field === "confirmPassword") {
-      errs = setOrDelete(errs, "confirmPassword", validateConfirmPassword(updated.password, value));
-    } else if (field === "password") {
-      errs = setOrDelete(errs, "password", validateField("password", value));
-      if (touched.confirmPassword) {
-        errs = setOrDelete(errs, "confirmPassword", validateConfirmPassword(value, updated.confirmPassword));
-      }
-    } else {
-      errs = setOrDelete(errs, field, validateField(field as keyof Omit<Fields, "confirmPassword">, value));
-    }
-    setFieldErrors(errs);
-  }
-
-  function handleBlur(field: keyof Fields) {
-    setTouched((prev) => ({ ...prev, [field]: true }));
-    let errs = { ...fieldErrors };
-    if (field === "confirmPassword") {
-      errs = setOrDelete(errs, "confirmPassword", validateConfirmPassword(fields.password, fields.confirmPassword));
-    } else {
-      errs = setOrDelete(errs, field, validateField(field as keyof Omit<Fields, "confirmPassword">, fields[field]));
-    }
-    setFieldErrors(errs);
-  }
 
   // ── Send OTP ──────────────────────────────────────────────────────────────
 
@@ -294,26 +211,13 @@ export default function SignUpForm() {
 
   // ── Step 1 → Step 2 ───────────────────────────────────────────────────────
 
-  async function handleNext(e: { preventDefault(): void }) {
+  async function handleNext(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    const newTouched = { ...touched };
-    for (const f of step1Fields) newTouched[f] = true;
-    setTouched(newTouched);
+    const valid = await trigger(step1Fields);
+    if (!valid) return;
 
-    let errs = { ...fieldErrors };
-    for (const f of step1Fields) {
-      if (f === "confirmPassword") {
-        errs = setOrDelete(errs, "confirmPassword", validateConfirmPassword(fields.password, fields.confirmPassword));
-      } else {
-        errs = setOrDelete(errs, f, validateField(f, fields[f]));
-      }
-    }
-    setFieldErrors(errs);
-
-    if (step1Fields.some((f) => errs[f])) return;
-
-    const ok = await sendOtp(fields.email, fields.firstName);
+    const ok = await sendOtp(getValues("email"), getValues("firstName"));
     if (ok) {
       setOtp("");
       setOtpError(undefined);
@@ -325,7 +229,7 @@ export default function SignUpForm() {
 
   async function handleResend() {
     if (cooldown > 0 || sendingOtp) return;
-    await sendOtp(fields.email, fields.firstName);
+    await sendOtp(getValues("email"), getValues("firstName"));
     setOtp("");
   }
 
@@ -343,7 +247,7 @@ export default function SignUpForm() {
       const res = await fetch("/api/auth/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: fields.email, code: otp }),
+        body: JSON.stringify({ email: getValues("email"), code: otp }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -363,41 +267,16 @@ export default function SignUpForm() {
 
   // ── Step 3 submit ─────────────────────────────────────────────────────────
 
-  async function handleSubmit(e: { preventDefault(): void }) {
-    e.preventDefault();
-
-    const newTouched = { ...touched };
-    for (const f of step3Fields) newTouched[f] = true;
-    setTouched(newTouched);
-
-    const parsed = signUpSchema.safeParse(fields);
-    if (!parsed.success) {
-      const errs: FieldErrors = {};
-      for (const issue of parsed.error.issues) {
-        const key = issue.path[0] as keyof Fields;
-        if (!errs[key]) errs[key] = issue.message;
-      }
-      setFieldErrors(errs);
+  const onSubmit = handleSubmit(async (data) => {
+    const result = await signUpUser(data);
+    if (result?.error) {
+      toast.error(result.error);
+      setError("root", { message: result.error });
       return;
     }
-
-    setFormError(null);
-    setLoading(true);
-    try {
-      const result = await signUpUser(fields);
-      if (result?.error) {
-        toast.error(result.error);
-        setFormError(result.error);
-        return;
-      }
-      router.push("/");
-      router.refresh();
-    } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : "Something went wrong. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }
+    router.push("/");
+    router.refresh();
+  });
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -415,14 +294,12 @@ export default function SignUpForm() {
               </label>
               <input
                 type="text"
-                value={fields.firstName}
-                onChange={(e) => handleChange("firstName", e.target.value)}
-                onBlur={() => handleBlur("firstName")}
+                {...register("firstName")}
                 placeholder="John"
-                className={inputClass(fieldErrors.firstName)}
+                className={inputClass(errors.firstName?.message)}
               />
-              {fieldErrors.firstName && (
-                <p className="mt-1 text-xs text-red-500">{fieldErrors.firstName}</p>
+              {errors.firstName && (
+                <p className="mt-1 text-xs text-red-500">{errors.firstName.message}</p>
               )}
             </div>
             <div className="flex-1">
@@ -431,14 +308,12 @@ export default function SignUpForm() {
               </label>
               <input
                 type="text"
-                value={fields.lastName}
-                onChange={(e) => handleChange("lastName", e.target.value)}
-                onBlur={() => handleBlur("lastName")}
+                {...register("lastName")}
                 placeholder="Doe"
-                className={inputClass(fieldErrors.lastName)}
+                className={inputClass(errors.lastName?.message)}
               />
-              {fieldErrors.lastName && (
-                <p className="mt-1 text-xs text-red-500">{fieldErrors.lastName}</p>
+              {errors.lastName && (
+                <p className="mt-1 text-xs text-red-500">{errors.lastName.message}</p>
               )}
             </div>
           </div>
@@ -449,14 +324,12 @@ export default function SignUpForm() {
             </label>
             <input
               type="email"
-              value={fields.email}
-              onChange={(e) => handleChange("email", e.target.value)}
-              onBlur={() => handleBlur("email")}
+              {...register("email")}
               placeholder="john.23CG03000@stu.cu.edu.ng"
-              className={inputClass(fieldErrors.email)}
+              className={inputClass(errors.email?.message)}
             />
-            {fieldErrors.email && (
-              <p className="mt-1 text-xs text-red-500">{fieldErrors.email}</p>
+            {errors.email && (
+              <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>
             )}
           </div>
 
@@ -467,11 +340,9 @@ export default function SignUpForm() {
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
-                value={fields.password}
-                onChange={(e) => handleChange("password", e.target.value)}
-                onBlur={() => handleBlur("password")}
+                {...register("password")}
                 placeholder="••••••••••••••••"
-                className={`${inputClass(fieldErrors.password)} pr-11`}
+                className={`${inputClass(errors.password?.message)} pr-11`}
               />
               <button
                 type="button"
@@ -482,8 +353,8 @@ export default function SignUpForm() {
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
-            {fieldErrors.password && (
-              <p className="mt-1 text-xs text-red-500">{fieldErrors.password}</p>
+            {errors.password && (
+              <p className="mt-1 text-xs text-red-500">{errors.password.message}</p>
             )}
           </div>
 
@@ -494,11 +365,9 @@ export default function SignUpForm() {
             <div className="relative">
               <input
                 type={showConfirmPassword ? "text" : "password"}
-                value={fields.confirmPassword}
-                onChange={(e) => handleChange("confirmPassword", e.target.value)}
-                onBlur={() => handleBlur("confirmPassword")}
+                {...register("confirmPassword")}
                 placeholder="••••••••••••••••"
-                className={`${inputClass(fieldErrors.confirmPassword)} pr-11`}
+                className={`${inputClass(errors.confirmPassword?.message)} pr-11`}
               />
               <button
                 type="button"
@@ -509,8 +378,8 @@ export default function SignUpForm() {
                 {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
-            {fieldErrors.confirmPassword && (
-              <p className="mt-1 text-xs text-red-500">{fieldErrors.confirmPassword}</p>
+            {errors.confirmPassword && (
+              <p className="mt-1 text-xs text-red-500">{errors.confirmPassword.message}</p>
             )}
           </div>
 
@@ -531,7 +400,7 @@ export default function SignUpForm() {
             <p className="text-sm text-portal-text">
               We sent a 6-digit code to
             </p>
-            <p className="font-medium text-portal-accent break-all">{fields.email}</p>
+            <p className="font-medium text-portal-accent break-all">{getValues("email")}</p>
           </div>
 
           <OtpInput
@@ -577,21 +446,19 @@ export default function SignUpForm() {
 
       {/* ── Step 3: Academic details ─────────────────────────────────────── */}
       {step === 3 && (
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={onSubmit} className="space-y-5">
           <div>
             <label className="block text-sm font-medium text-portal-text mb-1.5">
               Matric number<span className="text-portal-accent">*</span>
             </label>
             <input
               type="text"
-              value={fields.matricNumber}
-              onChange={(e) => handleChange("matricNumber", e.target.value)}
-              onBlur={() => handleBlur("matricNumber")}
+              {...register("matricNumber")}
               placeholder="23CG03000"
-              className={inputClass(fieldErrors.matricNumber)}
+              className={inputClass(errors.matricNumber?.message)}
             />
-            {fieldErrors.matricNumber && (
-              <p className="mt-1 text-xs text-red-500">{fieldErrors.matricNumber}</p>
+            {errors.matricNumber && (
+              <p className="mt-1 text-xs text-red-500">{errors.matricNumber.message}</p>
             )}
           </div>
 
@@ -599,21 +466,23 @@ export default function SignUpForm() {
             <label className="block text-sm font-medium text-portal-text mb-1.5">
               Phone number<span className="text-portal-accent">*</span>
             </label>
-            <input
-              type="tel"
-              value={fields.phone}
-              onChange={(e) => {
-                const digits = e.target.value.replace(/\D/g, "").slice(0, 11);
-                handleChange("phone", digits);
-              }}
-              onBlur={() => handleBlur("phone")}
-              placeholder="08012345678"
-              inputMode="numeric"
-              maxLength={11}
-              className={inputClass(fieldErrors.phone)}
+            <Controller
+              name="phone"
+              control={control}
+              render={({ field }) => (
+                <input
+                  {...field}
+                  type="tel"
+                  onChange={(e) => field.onChange(e.target.value.replace(/\D/g, "").slice(0, 11))}
+                  inputMode="numeric"
+                  maxLength={11}
+                  placeholder="08012345678"
+                  className={inputClass(errors.phone?.message)}
+                />
+              )}
             />
-            {fieldErrors.phone && (
-              <p className="mt-1 text-xs text-red-500">{fieldErrors.phone}</p>
+            {errors.phone && (
+              <p className="mt-1 text-xs text-red-500">{errors.phone.message}</p>
             )}
           </div>
 
@@ -623,14 +492,12 @@ export default function SignUpForm() {
             </label>
             <input
               type="text"
-              value={fields.department}
-              onChange={(e) => handleChange("department", e.target.value)}
-              onBlur={() => handleBlur("department")}
+              {...register("department")}
               placeholder="Computer Engineering"
-              className={inputClass(fieldErrors.department)}
+              className={inputClass(errors.department?.message)}
             />
-            {fieldErrors.department && (
-              <p className="mt-1 text-xs text-red-500">{fieldErrors.department}</p>
+            {errors.department && (
+              <p className="mt-1 text-xs text-red-500">{errors.department.message}</p>
             )}
           </div>
 
@@ -639,24 +506,22 @@ export default function SignUpForm() {
               Level<span className="text-portal-accent">*</span>
             </label>
             <select
-              value={fields.level}
-              onChange={(e) => handleChange("level", e.target.value)}
-              onBlur={() => handleBlur("level")}
-              className={inputClass(fieldErrors.level)}
+              {...register("level")}
+              className={inputClass(errors.level?.message)}
             >
               <option value="" disabled>Select your level</option>
               {LEVELS.map((l) => (
                 <option key={l} value={l}>{l} Level</option>
               ))}
             </select>
-            {fieldErrors.level && (
-              <p className="mt-1 text-xs text-red-500">{fieldErrors.level}</p>
+            {errors.level && (
+              <p className="mt-1 text-xs text-red-500">{errors.level.message}</p>
             )}
           </div>
 
-          {formError && (
+          {errors.root && (
             <p className="rounded-lg bg-red-50 border border-red-200 px-4 py-2.5 text-sm text-red-600">
-              {formError}
+              {errors.root.message}
             </p>
           )}
 
@@ -671,10 +536,10 @@ export default function SignUpForm() {
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={isSubmitting}
               className="flex-1 rounded-lg bg-portal-accent hover:bg-portal-accent2 text-white font-medium py-3 text-[15px] transition-colors disabled:opacity-60"
             >
-              {loading ? "Creating account…" : "Create account"}
+              {isSubmitting ? "Creating account…" : "Create account"}
             </button>
           </div>
         </form>

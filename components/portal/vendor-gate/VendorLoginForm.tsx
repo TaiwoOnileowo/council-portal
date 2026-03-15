@@ -4,9 +4,15 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { signInVendor } from "@/lib/actions/vendor.action";
+import { vendorSignInSchema } from "@/lib/validations/vendor";
+import type { z } from "zod";
 
-const inputClass = (err?: string) =>
+type VendorSignInInput = z.infer<typeof vendorSignInSchema>;
+
+const inputClass = (err?: boolean) =>
   `w-full rounded-lg border ${
     err
       ? "border-red-400 focus:border-red-400 focus:ring-red-400"
@@ -15,27 +21,22 @@ const inputClass = (err?: string) =>
 
 export default function VendorLoginForm() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
+  const {
+    register,
+    handleSubmit,
+    setError,
+    formState: { errors, isSubmitting },
+  } = useForm<VendorSignInInput>({
+    resolver: zodResolver(vendorSignInSchema),
+  });
 
-    if (!email || !password) {
-      setError("Please enter your email and password.");
-      return;
-    }
-
-    setLoading(true);
-    const result = await signInVendor({ email, password });
-    setLoading(false);
+  async function onSubmit(data: VendorSignInInput) {
+    const result = await signInVendor({ email: data.email, password: data.password });
 
     if (result?.error) {
-      setError(result.error);
+      setError("root", { message: result.error });
       return;
     }
 
@@ -44,18 +45,17 @@ export default function VendorLoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
       <div>
         <label className="block text-sm font-medium text-portal-text mb-1.5">
           Email<span className="text-portal-accent">*</span>
         </label>
         <input
           type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          {...register("email")}
           placeholder="yourname@vendor.council.ng"
           autoComplete="email"
-          className={inputClass(error ? " " : undefined)}
+          className={inputClass(!!errors.root)}
         />
       </div>
 
@@ -66,11 +66,10 @@ export default function VendorLoginForm() {
         <div className="relative">
           <input
             type={showPassword ? "text" : "password"}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            {...register("password")}
             placeholder="••••••••••••••••"
             autoComplete="current-password"
-            className={`${inputClass(error ? " " : undefined)} pr-11`}
+            className={`${inputClass(!!errors.root)} pr-11`}
           />
           <button
             type="button"
@@ -83,16 +82,16 @@ export default function VendorLoginForm() {
         </div>
       </div>
 
-      {error && (
-        <p className="text-sm text-red-500 -mt-1">{error}</p>
+      {errors.root?.message && (
+        <p className="text-sm text-red-500 -mt-1">{errors.root.message}</p>
       )}
 
       <button
         type="submit"
-        disabled={loading}
+        disabled={isSubmitting}
         className="w-full rounded-lg bg-portal-accent hover:bg-portal-accent2 text-white font-medium py-3 text-[15px] transition-colors disabled:opacity-60"
       >
-        {loading ? "Signing in…" : "Sign in"}
+        {isSubmitting ? "Signing in…" : "Sign in"}
       </button>
     </form>
   );

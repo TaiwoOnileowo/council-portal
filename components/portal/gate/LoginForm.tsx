@@ -3,8 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { signInUser } from "@/lib/actions/user.action";
 import { Eye, EyeOff } from "lucide-react";
+import { signInSchema, SignInInput } from "@/lib/validations/auth";
 
 interface LoginFormProps {
   onForgotPassword?: () => void;
@@ -12,24 +15,23 @@ interface LoginFormProps {
 
 export default function LoginForm({ onForgotPassword }: LoginFormProps) {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setFormError(null);
-    setLoading(true);
+  const {
+    register,
+    handleSubmit,
+    setError,
+    formState: { errors, isSubmitting },
+  } = useForm<SignInInput>({
+    resolver: zodResolver(signInSchema),
+  });
 
-    const result = await signInUser({ email, password });
-
-    setLoading(false);
+  async function onSubmit(data: SignInInput) {
+    const result = await signInUser({ email: data.email, password: data.password });
 
     if (result?.error) {
       toast.error(result.error);
-      setFormError(result.error);
+      setError("root", { message: result.error });
       return;
     }
 
@@ -38,19 +40,20 @@ export default function LoginForm({ onForgotPassword }: LoginFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
       <div>
         <label className="block text-sm font-medium text-portal-text mb-1.5">
           Email<span className="text-portal-accent">*</span>
         </label>
         <input
           type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          {...register("email")}
           placeholder="you@email.com"
-          required
           className="w-full rounded-lg border border-portal-border bg-white px-4 py-3 text-[15px] text-portal-text placeholder:text-portal-muted outline-none focus:border-portal-accent focus:ring-1 focus:ring-portal-accent transition"
         />
+        {errors.email && (
+          <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>
+        )}
       </div>
       <div>
         <label className="block text-sm font-medium text-portal-text mb-1.5">
@@ -59,10 +62,8 @@ export default function LoginForm({ onForgotPassword }: LoginFormProps) {
         <div className="relative">
           <input
             type={showPassword ? "text" : "password"}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            {...register("password")}
             placeholder="••••••••••••••••"
-            required
             className="w-full rounded-lg border border-portal-border bg-white px-4 py-3 pr-11 text-[15px] text-portal-text placeholder:text-portal-muted outline-none focus:border-portal-accent focus:ring-1 focus:ring-portal-accent transition"
           />
           <button
@@ -74,20 +75,23 @@ export default function LoginForm({ onForgotPassword }: LoginFormProps) {
             {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
           </button>
         </div>
+        {errors.password && (
+          <p className="mt-1 text-xs text-red-500">{errors.password.message}</p>
+        )}
       </div>
 
-      {formError && (
+      {errors.root?.message && (
         <p className="rounded-lg bg-red-50 border border-red-200 px-4 py-2.5 text-sm text-red-600">
-          {formError}
+          {errors.root.message}
         </p>
       )}
 
       <button
         type="submit"
-        disabled={loading}
+        disabled={isSubmitting}
         className="w-full rounded-lg bg-portal-accent hover:bg-portal-accent2 text-white font-medium py-3 text-[15px] transition-colors mt-2 disabled:opacity-60"
       >
-        {loading ? "Logging in..." : "Log in"}
+        {isSubmitting ? "Logging in..." : "Log in"}
       </button>
 
       <p className="text-center">

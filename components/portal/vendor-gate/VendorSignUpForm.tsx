@@ -14,29 +14,16 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { signUpVendor, checkVendorEmail } from "@/lib/actions/vendor.action";
 import { getBanks, verifyBankAccount } from "@/lib/actions/bank.action";
 import type { Bank } from "@/lib/actions/bank.action";
-import { vendorStep1Schema, vendorStep2Schema, vendorBankSchema } from "@/lib/validations/vendor";
+import { vendorSignUpSchema, vendorBankSchema } from "@/lib/validations/vendor";
+import type { VendorSignUpInput } from "@/lib/validations/vendor";
 import { uploadFiles } from "@/lib/uploadthing";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-type Step1Fields = {
-  firstName: string;
-  lastName: string;
-  email: string;
-  password: string;
-  confirmPassword: string;
-};
-
-type Step2Fields = {
-  transportName: string;
-  tagline: string;
-  description: string;
-  tiktok: string;
-  instagram: string;
-};
 
 type Step3Fields = {
   bankCode: string;
@@ -533,26 +520,28 @@ function CommissionStep({
 
 // ─── Main component ────────────────────────────────────────────────────────────
 
+const step1Fields = [
+  "firstName",
+  "lastName",
+  "email",
+  "password",
+  "confirmPassword",
+] as const;
+
+const step2Fields = [
+  "transportName",
+  "tagline",
+  "description",
+  "tiktok",
+  "instagram",
+] as const;
+
 export default function VendorSignUpForm() {
   const router = useRouter();
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [unapproved, setUnapproved] = useState(false);
 
-  const [step1, setStep1] = useState<Step1Fields>({
-    firstName: "",
-    lastName: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-  });
-  const [step2, setStep2] = useState<Step2Fields>({
-    transportName: "",
-    tagline: "",
-    description: "",
-    tiktok: "",
-    instagram: "",
-  });
   const [step3, setStep3] = useState<Step3Fields>({
     bankCode: "",
     bankName: "",
@@ -561,32 +550,34 @@ export default function VendorSignUpForm() {
   });
   const [image, setImage] = useState("");
 
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [checking, setChecking] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const {
+    register,
+    trigger,
+    getValues,
+    watch,
+    control,
+    formState: { errors },
+  } = useForm<VendorSignUpInput>({
+    resolver: zodResolver(vendorSignUpSchema),
+    mode: "onTouched",
+  });
+
   // ── Step 1: credentials ────────────────────────────────────────────────────
 
-  async function handleStep1(e: React.FormEvent) {
+  async function handleStep1(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    const result = vendorStep1Schema.safeParse(step1);
-    if (!result.success) {
-      const errs: FieldErrors = {};
-      for (const issue of result.error.issues) {
-        const key = issue.path[0] as string;
-        if (!errs[key]) errs[key] = issue.message;
-      }
-      setFieldErrors(errs);
-      return;
-    }
+    const valid = await trigger(step1Fields);
+    if (!valid) return;
 
-    setFieldErrors({});
     setChecking(true);
     try {
-      const { approved } = await checkVendorEmail(step1.email);
+      const { approved } = await checkVendorEmail(getValues("email"));
       if (!approved) {
         setUnapproved(true);
         return;
@@ -601,34 +592,28 @@ export default function VendorSignUpForm() {
 
   // ── Step 2: profile info ───────────────────────────────────────────────────
 
-  function handleStep2(e: React.FormEvent) {
+  async function handleStep2(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    const result = vendorStep2Schema.safeParse(step2);
-    if (!result.success) {
-      const errs: FieldErrors = {};
-      for (const issue of result.error.issues) {
-        const key = issue.path[0] as string;
-        if (!errs[key]) errs[key] = issue.message;
-      }
-      setFieldErrors(errs);
-      return;
-    }
+    const valid = await trigger(step2Fields);
+    if (!valid) return;
 
-    setFieldErrors({});
     setStep(3);
   }
 
   // ── Step 4: accept commission & submit ─────────────────────────────────────
 
-  async function handleSubmit() {
+  async function handleFinalSubmit() {
     setLoading(true);
     try {
+      const formData = getValues();
       const result = await signUpVendor({
-        ...step1,
-        ...step2,
-        ...step3,
+        ...formData,
         image: image || undefined,
+        bankCode: step3.bankCode,
+        bankName: step3.bankName,
+        accountNumber: step3.accountNumber,
+        accountName: step3.accountName,
       });
       if (result?.error) {
         toast.error(result.error);
@@ -650,10 +635,9 @@ export default function VendorSignUpForm() {
       <div className="space-y-5">
         <StepIndicator step={1} />
         <UnapprovedScreen
-          email={step1.email}
+          email={getValues("email")}
           onBack={() => {
             setUnapproved(false);
-            setStep1((prev) => ({ ...prev, email: "" }));
           }}
         />
       </div>
@@ -674,13 +658,12 @@ export default function VendorSignUpForm() {
               </label>
               <input
                 type="text"
-                value={step1.firstName}
-                onChange={(e) => setStep1((p) => ({ ...p, firstName: e.target.value }))}
+                {...register("firstName")}
                 placeholder="John"
-                className={inputClass(fieldErrors.firstName)}
+                className={inputClass(errors.firstName?.message)}
               />
-              {fieldErrors.firstName && (
-                <p className="mt-1 text-xs text-red-500">{fieldErrors.firstName}</p>
+              {errors.firstName && (
+                <p className="mt-1 text-xs text-red-500">{errors.firstName.message}</p>
               )}
             </div>
             <div className="flex-1">
@@ -689,13 +672,12 @@ export default function VendorSignUpForm() {
               </label>
               <input
                 type="text"
-                value={step1.lastName}
-                onChange={(e) => setStep1((p) => ({ ...p, lastName: e.target.value }))}
+                {...register("lastName")}
                 placeholder="Doe"
-                className={inputClass(fieldErrors.lastName)}
+                className={inputClass(errors.lastName?.message)}
               />
-              {fieldErrors.lastName && (
-                <p className="mt-1 text-xs text-red-500">{fieldErrors.lastName}</p>
+              {errors.lastName && (
+                <p className="mt-1 text-xs text-red-500">{errors.lastName.message}</p>
               )}
             </div>
           </div>
@@ -706,13 +688,12 @@ export default function VendorSignUpForm() {
             </label>
             <input
               type="email"
-              value={step1.email}
-              onChange={(e) => setStep1((p) => ({ ...p, email: e.target.value }))}
+              {...register("email")}
               placeholder="yourname@vendor.council.ng"
-              className={inputClass(fieldErrors.email)}
+              className={inputClass(errors.email?.message)}
             />
-            {fieldErrors.email && (
-              <p className="mt-1 text-xs text-red-500">{fieldErrors.email}</p>
+            {errors.email && (
+              <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>
             )}
           </div>
 
@@ -723,10 +704,9 @@ export default function VendorSignUpForm() {
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
-                value={step1.password}
-                onChange={(e) => setStep1((p) => ({ ...p, password: e.target.value }))}
+                {...register("password")}
                 placeholder="••••••••••••••••"
-                className={`${inputClass(fieldErrors.password)} pr-11`}
+                className={`${inputClass(errors.password?.message)} pr-11`}
               />
               <button
                 type="button"
@@ -737,8 +717,8 @@ export default function VendorSignUpForm() {
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
-            {fieldErrors.password && (
-              <p className="mt-1 text-xs text-red-500">{fieldErrors.password}</p>
+            {errors.password && (
+              <p className="mt-1 text-xs text-red-500">{errors.password.message}</p>
             )}
           </div>
 
@@ -749,10 +729,9 @@ export default function VendorSignUpForm() {
             <div className="relative">
               <input
                 type={showConfirmPassword ? "text" : "password"}
-                value={step1.confirmPassword}
-                onChange={(e) => setStep1((p) => ({ ...p, confirmPassword: e.target.value }))}
+                {...register("confirmPassword")}
                 placeholder="••••••••••••••••"
-                className={`${inputClass(fieldErrors.confirmPassword)} pr-11`}
+                className={`${inputClass(errors.confirmPassword?.message)} pr-11`}
               />
               <button
                 type="button"
@@ -763,8 +742,8 @@ export default function VendorSignUpForm() {
                 {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
-            {fieldErrors.confirmPassword && (
-              <p className="mt-1 text-xs text-red-500">{fieldErrors.confirmPassword}</p>
+            {errors.confirmPassword && (
+              <p className="mt-1 text-xs text-red-500">{errors.confirmPassword.message}</p>
             )}
           </div>
 
@@ -787,15 +766,14 @@ export default function VendorSignUpForm() {
             </label>
             <input
               type="text"
-              value={step2.transportName}
-              onChange={(e) => setStep2((p) => ({ ...p, transportName: e.target.value }))}
+              {...register("transportName")}
               placeholder="e.g. SwiftMove NG"
               maxLength={60}
-              className={inputClass(fieldErrors.transportName)}
+              className={inputClass(errors.transportName?.message)}
               autoFocus
             />
-            {fieldErrors.transportName && (
-              <p className="mt-1 text-xs text-red-500">{fieldErrors.transportName}</p>
+            {errors.transportName && (
+              <p className="mt-1 text-xs text-red-500">{errors.transportName.message}</p>
             )}
           </div>
 
@@ -808,19 +786,18 @@ export default function VendorSignUpForm() {
             </label>
             <input
               type="text"
-              value={step2.tagline}
-              onChange={(e) => setStep2((p) => ({ ...p, tagline: e.target.value }))}
+              {...register("tagline")}
               placeholder="Your campus ride, always on time"
               maxLength={80}
-              className={inputClass(fieldErrors.tagline)}
+              className={inputClass(errors.tagline?.message)}
             />
             <div className="flex justify-between mt-1">
-              {fieldErrors.tagline ? (
-                <p className="text-xs text-red-500">{fieldErrors.tagline}</p>
+              {errors.tagline ? (
+                <p className="text-xs text-red-500">{errors.tagline.message}</p>
               ) : (
                 <span />
               )}
-              <span className="text-xs text-portal-muted">{step2.tagline.length}/80</span>
+              <span className="text-xs text-portal-muted">{watch("tagline")?.length ?? 0}/80</span>
             </div>
           </div>
 
@@ -829,21 +806,26 @@ export default function VendorSignUpForm() {
               About your service{" "}
               <span className="text-portal-muted font-normal">(optional)</span>
             </label>
-            <textarea
-              value={step2.description}
-              onChange={(e) => setStep2((p) => ({ ...p, description: e.target.value }))}
-              placeholder="Tell students about your transport service, vehicles, and what makes you stand out..."
-              rows={4}
-              maxLength={500}
-              className={`${inputClass(fieldErrors.description)} resize-none`}
+            <Controller
+              name="description"
+              control={control}
+              render={({ field }) => (
+                <textarea
+                  {...field}
+                  placeholder="Tell students about your transport service, vehicles, and what makes you stand out..."
+                  rows={4}
+                  maxLength={500}
+                  className={`${inputClass(errors.description?.message)} resize-none`}
+                />
+              )}
             />
             <div className="flex justify-between mt-1">
-              {fieldErrors.description ? (
-                <p className="text-xs text-red-500">{fieldErrors.description}</p>
+              {errors.description ? (
+                <p className="text-xs text-red-500">{errors.description.message}</p>
               ) : (
                 <span />
               )}
-              <span className="text-xs text-portal-muted">{step2.description.length}/500</span>
+              <span className="text-xs text-portal-muted">{watch("description")?.length ?? 0}/500</span>
             </div>
           </div>
 
@@ -855,26 +837,24 @@ export default function VendorSignUpForm() {
               <label className="block text-xs text-portal-muted mb-1">Instagram URL</label>
               <input
                 type="url"
-                value={step2.instagram}
-                onChange={(e) => setStep2((p) => ({ ...p, instagram: e.target.value }))}
+                {...register("instagram")}
                 placeholder="https://instagram.com/youraccount"
-                className={inputClass(fieldErrors.instagram)}
+                className={inputClass(errors.instagram?.message)}
               />
-              {fieldErrors.instagram && (
-                <p className="mt-1 text-xs text-red-500">{fieldErrors.instagram}</p>
+              {errors.instagram && (
+                <p className="mt-1 text-xs text-red-500">{errors.instagram.message}</p>
               )}
             </div>
             <div>
               <label className="block text-xs text-portal-muted mb-1">TikTok URL</label>
               <input
                 type="url"
-                value={step2.tiktok}
-                onChange={(e) => setStep2((p) => ({ ...p, tiktok: e.target.value }))}
+                {...register("tiktok")}
                 placeholder="https://tiktok.com/@youraccount"
-                className={inputClass(fieldErrors.tiktok)}
+                className={inputClass(errors.tiktok?.message)}
               />
-              {fieldErrors.tiktok && (
-                <p className="mt-1 text-xs text-red-500">{fieldErrors.tiktok}</p>
+              {errors.tiktok && (
+                <p className="mt-1 text-xs text-red-500">{errors.tiktok.message}</p>
               )}
             </div>
           </div>
@@ -912,7 +892,7 @@ export default function VendorSignUpForm() {
       {step === 4 && (
         <CommissionStep
           onBack={() => setStep(3)}
-          onAccept={handleSubmit}
+          onAccept={handleFinalSubmit}
           loading={loading}
         />
       )}

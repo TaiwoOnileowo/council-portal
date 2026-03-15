@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "motion/react";
 import {
   Pencil,
@@ -14,7 +16,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { updateProfile } from "@/lib/actions/user.action";
-import { updateProfileSchema, LEVELS } from "@/lib/validations/auth";
+import { updateProfileSchema, LEVELS, UpdateProfileInput, LevelValue } from "@/lib/validations/auth";
 
 type ProfileFields = {
   firstName: string;
@@ -22,14 +24,12 @@ type ProfileFields = {
   email: string;
   phone: string;
   matricNumber: string;
-  level: string;
+  level: LevelValue;
   department: string;
 };
 
-type FieldErrors = Partial<Record<keyof ProfileFields, string>>;
-
 type Props = {
-  user: ProfileFields & { id: string };
+  user: Omit<ProfileFields, "level"> & { id: string; level: string };
 };
 
 const inputCls = (err?: string) =>
@@ -47,47 +47,39 @@ export default function ProfileDetails({ user }: Props) {
     email: user.email,
     phone: user.phone,
     matricNumber: user.matricNumber,
-    level: user.level,
+    level: user.level as LevelValue,
     department: user.department,
   });
-  const [draft, setDraft] = useState<ProfileFields>({ ...profile });
-  const [errors, setErrors] = useState<FieldErrors>({});
-  const [loading, setLoading] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    control,
+    formState: { errors, isDirty, isSubmitting },
+  } = useForm<UpdateProfileInput>({
+    resolver: zodResolver(updateProfileSchema),
+  });
 
   function startEdit() {
-    setDraft({ ...profile });
-    setErrors({});
+    reset({ ...profile });
     setEditing(true);
   }
 
   function cancelEdit() {
-    setDraft({ ...profile });
-    setErrors({});
+    reset();
     setEditing(false);
   }
 
-  async function saveEdit() {
-    const parsed = updateProfileSchema.safeParse(draft);
-    if (!parsed.success) {
-      const errs: FieldErrors = {};
-      for (const issue of parsed.error.issues) {
-        const key = issue.path[0] as keyof ProfileFields;
-        if (!errs[key]) errs[key] = issue.message;
-      }
-      setErrors(errs);
-      return;
-    }
-
-    setLoading(true);
-    const result = await updateProfile({ userId: user.id, ...draft });
-    setLoading(false);
+  async function onSubmit(data: UpdateProfileInput) {
+    const result = await updateProfile({ userId: user.id, ...data });
 
     if (result?.error) {
       toast.error(result.error);
       return;
     }
 
-    setProfile({ ...draft });
+    setProfile(data);
     setEditing(false);
     toast.success("Profile updated successfully");
   }
@@ -121,12 +113,12 @@ export default function ProfileDetails({ user }: Props) {
               Cancel
             </button>
             <button
-              onClick={saveEdit}
-              disabled={loading}
+              onClick={handleSubmit(onSubmit)}
+              disabled={!isDirty || isSubmitting}
               className="inline-flex items-center gap-1 text-[12px] font-semibold text-white bg-portal-accent hover:bg-portal-accent2 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-60"
             >
               <Check className="w-3.5 h-3.5" />
-              {loading ? "Saving..." : "Save"}
+              {isSubmitting ? "Saving..." : "Save"}
             </button>
           </div>
         )}
@@ -142,12 +134,11 @@ export default function ProfileDetails({ user }: Props) {
             <>
               <input
                 type="text"
-                value={draft.firstName}
-                onChange={(e) => setDraft({ ...draft, firstName: e.target.value })}
-                className={inputCls(errors.firstName)}
+                {...register("firstName")}
+                className={inputCls(errors.firstName?.message)}
               />
               {errors.firstName && (
-                <p className="mt-1 text-xs text-red-500">{errors.firstName}</p>
+                <p className="mt-1 text-xs text-red-500">{errors.firstName.message}</p>
               )}
             </>
           ) : (
@@ -164,12 +155,11 @@ export default function ProfileDetails({ user }: Props) {
             <>
               <input
                 type="text"
-                value={draft.lastName}
-                onChange={(e) => setDraft({ ...draft, lastName: e.target.value })}
-                className={inputCls(errors.lastName)}
+                {...register("lastName")}
+                className={inputCls(errors.lastName?.message)}
               />
               {errors.lastName && (
-                <p className="mt-1 text-xs text-red-500">{errors.lastName}</p>
+                <p className="mt-1 text-xs text-red-500">{errors.lastName.message}</p>
               )}
             </>
           ) : (
@@ -192,14 +182,13 @@ export default function ProfileDetails({ user }: Props) {
                 <Mail className="w-4 h-4 text-portal-muted flex-shrink-0" />
                 <input
                   type="email"
-                  value={draft.email}
-                  onChange={(e) => setDraft({ ...draft, email: e.target.value })}
+                  {...register("email")}
                   placeholder="you@stu.cu.edu.ng"
-                  className={inputCls(errors.email)}
+                  className={inputCls(errors.email?.message)}
                 />
               </div>
               {errors.email && (
-                <p className="mt-1 text-xs text-red-500 pl-6">{errors.email}</p>
+                <p className="mt-1 text-xs text-red-500 pl-6">{errors.email.message}</p>
               )}
             </>
           ) : (
@@ -219,21 +208,26 @@ export default function ProfileDetails({ user }: Props) {
             <>
               <div className="flex items-center gap-2.5">
                 <Phone className="w-4 h-4 text-portal-muted flex-shrink-0" />
-                <input
-                  type="tel"
-                  value={draft.phone}
-                  onChange={(e) => {
-                    const digits = e.target.value.replace(/\D/g, "").slice(0, 11);
-                    setDraft({ ...draft, phone: digits });
-                  }}
-                  placeholder="08012345678"
-                  inputMode="numeric"
-                  maxLength={11}
-                  className={inputCls(errors.phone)}
+                <Controller
+                  name="phone"
+                  control={control}
+                  render={({ field }) => (
+                    <input
+                      {...field}
+                      type="tel"
+                      onChange={(e) =>
+                        field.onChange(e.target.value.replace(/\D/g, "").slice(0, 11))
+                      }
+                      placeholder="08012345678"
+                      inputMode="numeric"
+                      maxLength={11}
+                      className={inputCls(errors.phone?.message)}
+                    />
+                  )}
                 />
               </div>
               {errors.phone && (
-                <p className="mt-1 text-xs text-red-500 pl-6">{errors.phone}</p>
+                <p className="mt-1 text-xs text-red-500 pl-6">{errors.phone.message}</p>
               )}
             </>
           ) : (
@@ -255,14 +249,13 @@ export default function ProfileDetails({ user }: Props) {
                 <GraduationCap className="w-4 h-4 text-portal-muted flex-shrink-0" />
                 <input
                   type="text"
-                  value={draft.matricNumber}
-                  onChange={(e) => setDraft({ ...draft, matricNumber: e.target.value })}
+                  {...register("matricNumber")}
                   placeholder="23CG03000"
-                  className={inputCls(errors.matricNumber)}
+                  className={inputCls(errors.matricNumber?.message)}
                 />
               </div>
               {errors.matricNumber && (
-                <p className="mt-1 text-xs text-red-500 pl-6">{errors.matricNumber}</p>
+                <p className="mt-1 text-xs text-red-500 pl-6">{errors.matricNumber.message}</p>
               )}
             </>
           ) : (
@@ -283,9 +276,8 @@ export default function ProfileDetails({ user }: Props) {
               <div className="flex items-center gap-2.5">
                 <BookOpen className="w-4 h-4 text-portal-muted flex-shrink-0" />
                 <select
-                  value={draft.level}
-                  onChange={(e) => setDraft({ ...draft, level: e.target.value })}
-                  className={inputCls(errors.level)}
+                  {...register("level")}
+                  className={inputCls(errors.level?.message)}
                 >
                   <option value="" disabled>Select level</option>
                   {LEVELS.map((l) => (
@@ -294,7 +286,7 @@ export default function ProfileDetails({ user }: Props) {
                 </select>
               </div>
               {errors.level && (
-                <p className="mt-1 text-xs text-red-500 pl-6">{errors.level}</p>
+                <p className="mt-1 text-xs text-red-500 pl-6">{errors.level.message}</p>
               )}
             </>
           ) : (
@@ -316,14 +308,13 @@ export default function ProfileDetails({ user }: Props) {
                 <Building2 className="w-4 h-4 text-portal-muted flex-shrink-0" />
                 <input
                   type="text"
-                  value={draft.department}
-                  onChange={(e) => setDraft({ ...draft, department: e.target.value })}
+                  {...register("department")}
                   placeholder="Computer Engineering"
-                  className={inputCls(errors.department)}
+                  className={inputCls(errors.department?.message)}
                 />
               </div>
               {errors.department && (
-                <p className="mt-1 text-xs text-red-500 pl-6">{errors.department}</p>
+                <p className="mt-1 text-xs text-red-500 pl-6">{errors.department.message}</p>
               )}
             </>
           ) : (

@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { motion } from "motion/react";
 import { Pencil, Check, X, Mail } from "lucide-react";
 import { toast } from "sonner";
@@ -13,7 +16,7 @@ type ProfileFields = {
   email: string;
 };
 
-type FieldErrors = Partial<Record<keyof ProfileFields, string>>;
+type UpdateVendorPersonalInfoInput = z.infer<typeof updateVendorPersonalInfoSchema>;
 
 type Props = {
   vendor: ProfileFields & { id: string };
@@ -33,49 +36,40 @@ export default function VendorProfileDetails({ vendor }: Props) {
     lastName: vendor.lastName,
     email: vendor.email,
   });
-  const [draft, setDraft] = useState<ProfileFields>({ ...profile });
-  const [errors, setErrors] = useState<FieldErrors>({});
-  const [loading, setLoading] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isDirty, isSubmitting },
+  } = useForm<UpdateVendorPersonalInfoInput>({
+    resolver: zodResolver(updateVendorPersonalInfoSchema),
+  });
 
   function startEdit() {
-    setDraft({ ...profile });
-    setErrors({});
+    reset({ ...profile });
     setEditing(true);
   }
 
   function cancelEdit() {
-    setDraft({ ...profile });
-    setErrors({});
+    reset();
     setEditing(false);
   }
 
-  async function saveEdit() {
-    const parsed = updateVendorPersonalInfoSchema.safeParse(draft);
-    if (!parsed.success) {
-      const errs: FieldErrors = {};
-      for (const issue of parsed.error.issues) {
-        const key = issue.path[0] as keyof ProfileFields;
-        if (!errs[key]) errs[key] = issue.message;
-      }
-      setErrors(errs);
-      return;
-    }
-
-    setLoading(true);
+  async function onSubmit(data: UpdateVendorPersonalInfoInput) {
     const result = await updateVendorPersonalInfo({
       vendorId: vendor.id,
-      firstName: draft.firstName,
-      lastName: draft.lastName,
-      email: draft.email,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      email: data.email,
     });
-    setLoading(false);
 
     if (result?.error) {
       toast.error(result.error);
       return;
     }
 
-    setProfile({ ...draft });
+    setProfile(data);
     setEditing(false);
     toast.success("Profile updated successfully");
   }
@@ -109,12 +103,12 @@ export default function VendorProfileDetails({ vendor }: Props) {
               Cancel
             </button>
             <button
-              onClick={saveEdit}
-              disabled={loading}
+              onClick={handleSubmit(onSubmit)}
+              disabled={!isDirty || isSubmitting}
               className="inline-flex items-center gap-1 text-[12px] font-semibold text-white bg-portal-accent hover:bg-portal-accent2 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-60"
             >
               <Check className="w-3.5 h-3.5" />
-              {loading ? "Saving..." : "Save"}
+              {isSubmitting ? "Saving..." : "Save"}
             </button>
           </div>
         )}
@@ -123,70 +117,51 @@ export default function VendorProfileDetails({ vendor }: Props) {
       {/* Name row */}
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div>
-          <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">
-            First Name
-          </label>
+          <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">First Name</label>
           {editing ? (
             <>
               <input
                 type="text"
-                value={draft.firstName}
-                onChange={(e) => setDraft({ ...draft, firstName: e.target.value })}
-                className={inputCls(errors.firstName)}
+                {...register("firstName")}
+                className={inputCls(errors.firstName?.message)}
               />
-              {errors.firstName && (
-                <p className="mt-1 text-xs text-red-500">{errors.firstName}</p>
-              )}
+              {errors.firstName && <p className="mt-1 text-xs text-red-500">{errors.firstName.message}</p>}
             </>
           ) : (
-            <p className="text-[13.5px] font-medium text-portal-text py-2">
-              {profile.firstName}
-            </p>
+            <p className="text-[13.5px] font-medium text-portal-text py-2">{profile.firstName}</p>
           )}
         </div>
         <div>
-          <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">
-            Last Name
-          </label>
+          <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">Last Name</label>
           {editing ? (
             <>
               <input
                 type="text"
-                value={draft.lastName}
-                onChange={(e) => setDraft({ ...draft, lastName: e.target.value })}
-                className={inputCls(errors.lastName)}
+                {...register("lastName")}
+                className={inputCls(errors.lastName?.message)}
               />
-              {errors.lastName && (
-                <p className="mt-1 text-xs text-red-500">{errors.lastName}</p>
-              )}
+              {errors.lastName && <p className="mt-1 text-xs text-red-500">{errors.lastName.message}</p>}
             </>
           ) : (
-            <p className="text-[13.5px] font-medium text-portal-text py-2">
-              {profile.lastName}
-            </p>
+            <p className="text-[13.5px] font-medium text-portal-text py-2">{profile.lastName}</p>
           )}
         </div>
       </div>
 
       {/* Email */}
       <div>
-        <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">
-          Email Address
-        </label>
+        <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">Email Address</label>
         {editing ? (
           <>
             <div className="flex items-center gap-2.5">
               <Mail className="w-4 h-4 text-portal-muted flex-shrink-0" />
               <input
                 type="email"
-                value={draft.email}
-                onChange={(e) => setDraft({ ...draft, email: e.target.value })}
-                className={inputCls(errors.email)}
+                {...register("email")}
+                className={inputCls(errors.email?.message)}
               />
             </div>
-            {errors.email && (
-              <p className="mt-1 text-xs text-red-500 pl-6">{errors.email}</p>
-            )}
+            {errors.email && <p className="mt-1 text-xs text-red-500 pl-6">{errors.email.message}</p>}
           </>
         ) : (
           <div className="flex items-center gap-2.5 py-2">

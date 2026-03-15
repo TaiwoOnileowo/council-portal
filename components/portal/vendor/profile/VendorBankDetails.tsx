@@ -12,9 +12,12 @@ import {
   Landmark,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { getBanks, verifyBankAccount } from "@/lib/actions/bank.action";
 import type { Bank } from "@/lib/actions/bank.action";
 import { updateVendorBankDetails } from "@/lib/actions/vendor.action";
+import { vendorBankSchema } from "@/lib/validations/vendor";
 
 type BankFields = {
   bankCode: string;
@@ -22,8 +25,6 @@ type BankFields = {
   accountNumber: string;
   accountName: string;
 };
-
-type FieldErrors = Partial<Record<keyof BankFields, string>>;
 
 type Props = {
   vendor: { id: string } & Partial<BankFields>;
@@ -138,19 +139,42 @@ export default function VendorBankDetails({ vendor }: Props) {
 
   const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState<BankFields>(initialFields);
-  const [draft, setDraft] = useState<BankFields>(initialFields);
 
   const [banks, setBanks] = useState<Bank[]>([]);
   const [banksLoading, setBanksLoading] = useState(false);
   const [banksError, setBanksError] = useState<string | null>(null);
 
   const [verifying, setVerifying] = useState(false);
-  const [errors, setErrors] = useState<FieldErrors>({});
-  const [saving, setSaving] = useState(false);
+
+  const {
+    control,
+    handleSubmit,
+    setValue,
+    watch,
+    reset,
+    formState: { errors, isDirty, isSubmitting },
+  } = useForm<BankFields>({
+    resolver: zodResolver(vendorBankSchema),
+    defaultValues: {
+      bankCode: "",
+      bankName: "",
+      accountNumber: "",
+      accountName: "",
+    },
+  });
+
+  const watchedBankCode = watch("bankCode");
+  const watchedBankName = watch("bankName");
+  const watchedAccountNumber = watch("accountNumber");
+  const watchedAccountName = watch("accountName");
 
   async function startEdit() {
-    setDraft({ ...saved });
-    setErrors({});
+    reset({
+      bankCode: saved.bankCode,
+      bankName: saved.bankName,
+      accountNumber: saved.accountNumber,
+      accountName: saved.accountName,
+    });
     setEditing(true);
 
     if (banks.length === 0) {
@@ -166,69 +190,46 @@ export default function VendorBankDetails({ vendor }: Props) {
   }
 
   function cancelEdit() {
-    setDraft({ ...saved });
-    setErrors({});
+    reset();
     setEditing(false);
   }
 
   function handleBankChange(bank: { code: string; name: string }) {
-    setDraft((d) => ({ ...d, bankCode: bank.code, bankName: bank.name, accountName: "" }));
-    setErrors({});
-  }
-
-  function handleAccountNumberChange(raw: string) {
-    const digits = raw.replace(/\D/g, "").slice(0, 10);
-    setDraft((d) => ({ ...d, accountNumber: digits, accountName: "" }));
-    setErrors({});
+    setValue("bankCode", bank.code, { shouldDirty: true });
+    setValue("bankName", bank.name, { shouldDirty: true });
+    setValue("accountName", "");
   }
 
   async function handleVerify() {
-    const errs: FieldErrors = {};
-    if (!draft.bankCode) errs.bankCode = "Please select a bank";
-    if (!/^\d{10}$/.test(draft.accountNumber))
-      errs.accountNumber = "Account number must be exactly 10 digits";
-    if (Object.keys(errs).length) {
-      setErrors(errs);
+    if (!watchedBankCode) {
+      return;
+    }
+    if (!/^\d{10}$/.test(watchedAccountNumber)) {
       return;
     }
 
     setVerifying(true);
-    const result = await verifyBankAccount(draft.accountNumber, draft.bankCode);
+    const result = await verifyBankAccount(watchedAccountNumber, watchedBankCode);
     setVerifying(false);
 
     if (result.error || !result.account) {
-      setErrors({ accountNumber: result.error ?? "Verification failed." });
+      toast.error(result.error ?? "Verification failed.");
       return;
     }
 
-    setDraft((d) => ({ ...d, accountName: result.account!.accountName }));
+    setValue("accountName", result.account.accountName, { shouldDirty: true });
     toast.success("Account verified!");
   }
 
-  async function handleSave() {
-    if (!draft.accountName) {
-      setErrors({ accountName: "Please verify your account first" });
-      return;
-    }
-    if (!draft.bankCode) {
-      setErrors({ bankCode: "Please select a bank" });
-      return;
-    }
-    if (!/^\d{10}$/.test(draft.accountNumber)) {
-      setErrors({ accountNumber: "Account number must be exactly 10 digits" });
-      return;
-    }
-
-    setSaving(true);
-    const result = await updateVendorBankDetails({ vendorId: vendor.id, ...draft });
-    setSaving(false);
+  async function onSubmit(data: BankFields) {
+    const result = await updateVendorBankDetails({ vendorId: vendor.id, ...data });
 
     if (result?.error) {
       toast.error(result.error);
       return;
     }
 
-    setSaved({ ...draft });
+    setSaved(data);
     setEditing(false);
     toast.success("Bank details updated");
   }
@@ -267,12 +268,12 @@ export default function VendorBankDetails({ vendor }: Props) {
               Cancel
             </button>
             <button
-              onClick={handleSave}
-              disabled={saving || !draft.accountName}
+              onClick={handleSubmit(onSubmit)}
+              disabled={!isDirty || !watchedAccountName || isSubmitting}
               className="inline-flex items-center gap-1 text-[12px] font-semibold text-white bg-portal-accent hover:bg-portal-accent2 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-60"
             >
               <Check className="w-3.5 h-3.5" />
-              {saving ? "Saving..." : "Save"}
+              {isSubmitting ? "Saving..." : "Save"}
             </button>
           </div>
         )}
@@ -329,13 +330,13 @@ export default function VendorBankDetails({ vendor }: Props) {
             ) : (
               <BankSelector
                 banks={banks}
-                value={draft.bankCode ? { code: draft.bankCode, name: draft.bankName } : null}
+                value={watchedBankCode ? { code: watchedBankCode, name: watchedBankName } : null}
                 onChange={handleBankChange}
-                error={errors.bankCode}
+                error={errors.bankCode?.message}
               />
             )}
             {errors.bankCode && (
-              <p className="mt-1 text-xs text-red-500">{errors.bankCode}</p>
+              <p className="mt-1 text-xs text-red-500">{errors.bankCode.message}</p>
             )}
           </div>
 
@@ -345,19 +346,29 @@ export default function VendorBankDetails({ vendor }: Props) {
               Account Number
             </label>
             <div className="flex gap-2">
-              <input
-                type="text"
-                inputMode="numeric"
-                value={draft.accountNumber}
-                onChange={(e) => handleAccountNumberChange(e.target.value)}
-                placeholder="0123456789"
-                maxLength={10}
-                className={`${inputCls(errors.accountNumber)} flex-1`}
+              <Controller
+                name="accountNumber"
+                control={control}
+                render={({ field }) => (
+                  <input
+                    {...field}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={10}
+                    placeholder="0123456789"
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+                      field.onChange(digits);
+                      setValue("accountName", "");
+                    }}
+                    className={`${inputCls(errors.accountNumber?.message)} flex-1`}
+                  />
+                )}
               />
               <button
                 type="button"
                 onClick={handleVerify}
-                disabled={verifying || !draft.bankCode || draft.accountNumber.length !== 10}
+                disabled={verifying || !watchedBankCode || watchedAccountNumber.length !== 10}
                 className="px-3 rounded-lg bg-portal-accent hover:bg-portal-accent2 text-white text-[12px] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 whitespace-nowrap"
               >
                 {verifying ? (
@@ -369,12 +380,12 @@ export default function VendorBankDetails({ vendor }: Props) {
               </button>
             </div>
             {errors.accountNumber && (
-              <p className="mt-1 text-xs text-red-500">{errors.accountNumber}</p>
+              <p className="mt-1 text-xs text-red-500">{errors.accountNumber.message}</p>
             )}
           </div>
 
           {/* Verified account name */}
-          {draft.accountName ? (
+          {watchedAccountName ? (
             <div className="flex items-center gap-3 rounded-xl bg-green-50 border border-green-200 px-4 py-3">
               <div className="w-7 h-7 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
                 <Check className="w-3.5 h-3.5 text-green-600" />
@@ -383,7 +394,7 @@ export default function VendorBankDetails({ vendor }: Props) {
                 <p className="text-[11px] text-green-700 font-medium uppercase tracking-wide">
                   Account Verified
                 </p>
-                <p className="text-[14px] font-semibold text-portal-text">{draft.accountName}</p>
+                <p className="text-[14px] font-semibold text-portal-text">{watchedAccountName}</p>
               </div>
             </div>
           ) : (
@@ -395,7 +406,7 @@ export default function VendorBankDetails({ vendor }: Props) {
           )}
 
           {errors.accountName && (
-            <p className="text-xs text-red-500">{errors.accountName}</p>
+            <p className="text-xs text-red-500">{errors.accountName.message}</p>
           )}
         </div>
       )}

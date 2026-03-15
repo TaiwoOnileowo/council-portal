@@ -1,7 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { requestPasswordReset } from "@/lib/actions/password.action";
+
+const forgotSchema = z.object({
+  email: z.string().regex(/@stu\.cu\.edu\.ng$/, "Only @stu.cu.edu.ng email addresses are allowed"),
+});
+type ForgotInput = z.infer<typeof forgotSchema>;
 
 type Step = "email" | "sent";
 
@@ -9,26 +17,21 @@ interface ForgotPasswordFormProps {
   onBack: () => void;
 }
 
-export default function ForgotPasswordForm({
-  onBack,
-}: ForgotPasswordFormProps) {
+export default function ForgotPasswordForm({ onBack }: ForgotPasswordFormProps) {
   const [step, setStep] = useState<Step>("email");
-  const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [emailError, setEmailError] = useState<string | null>(null);
+  const [sentEmail, setSentEmail] = useState("");
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setEmailError(null);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<ForgotInput>({
+    resolver: zodResolver(forgotSchema),
+  });
 
-    if (!email.endsWith("@stu.cu.edu.ng")) {
-      setEmailError("Only @stu.cu.edu.ng email addresses are allowed");
-      return;
-    }
-
-    setLoading(true);
-    await requestPasswordReset(email);
-    setLoading(false);
+  async function onSubmit(data: ForgotInput) {
+    setSentEmail(data.email);
+    await requestPasswordReset(data.email);
     setStep("sent");
   }
 
@@ -40,7 +43,7 @@ export default function ForgotPasswordForm({
             Check your inbox
           </p>
           <p className="text-sm text-green-700">
-            If <span className="font-medium">{email}</span> is registered,
+            If <span className="font-medium">{sentEmail}</span> is registered,
             we&apos;ve sent a link to change your keys. It expires in 1 hour.
           </p>
         </div>
@@ -56,7 +59,7 @@ export default function ForgotPasswordForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
       <p className="text-sm text-portal-text2">
         Enter the email address linked to your account and we&apos;ll send you a
         link to change your keys.
@@ -68,30 +71,25 @@ export default function ForgotPasswordForm({
         </label>
         <input
           type="email"
-          value={email}
-          onChange={(e) => {
-            setEmail(e.target.value);
-            setEmailError(null);
-          }}
+          {...register("email")}
           placeholder="you@stu.cu.edu.ng"
-          required
           className={`w-full rounded-lg border bg-white px-4 py-3 text-[15px] text-portal-text placeholder:text-portal-muted outline-none focus:ring-1 transition ${
-            emailError
+            errors.email
               ? "border-red-300 focus:border-red-400 focus:ring-red-200"
               : "border-portal-border focus:border-portal-accent focus:ring-portal-accent"
           }`}
         />
-        {emailError && (
-          <p className="text-xs text-red-500 mt-1">{emailError}</p>
+        {errors.email && (
+          <p className="text-xs text-red-500 mt-1">{errors.email.message}</p>
         )}
       </div>
 
       <button
         type="submit"
-        disabled={loading}
+        disabled={isSubmitting}
         className="w-full rounded-lg bg-portal-accent hover:bg-portal-accent2 text-white font-medium py-3 text-[15px] transition-colors mt-2 disabled:opacity-60 flex items-center justify-center gap-2"
       >
-        {loading ? (
+        {isSubmitting ? (
           <>
             <span className="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
             Sending...

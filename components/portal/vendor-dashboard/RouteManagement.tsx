@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { motion } from "motion/react";
 import { CalendarIcon, House, Loader2, Plus, RefreshCw, Rocket, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
+import { useForm, useFieldArray, useWatch, Controller } from "react-hook-form";
 import {
   Drawer,
   DrawerContent,
@@ -23,7 +24,6 @@ import {
   type PriceList,
   type PriceListAvailability,
   type PriceListRoute,
-  type DepartureTime,
 } from "./vendorDashboardData";
 import {
   useVendorPriceLists,
@@ -54,48 +54,47 @@ function parseAmount(value: string) {
   return parseInt(value.replace(/,/g, ""), 10) || 0;
 }
 
-// --- Draft types for the drawer form ---
+// --- RHF form type ---
 
-type DraftRoute = {
-  id: string;
-  name: string;
-  price: string; // formatted with commas
-  capacityType: "number" | "unlimited";
-  capacityValue: string;
-  active: boolean;
-};
-
-type DrawerForm = {
+type DrawerFormValues = {
   name: string;
   direction: "leaving" | "returning";
-  routes: DraftRoute[];
-  departureTimes: DepartureTime[];
+  routes: Array<{
+    name: string;
+    price: string; // formatted with commas
+    capacityType: "number" | "unlimited";
+    capacityValue: string;
+    active: boolean;
+  }>;
+  departureTimes: Array<{
+    day: string;
+    time: string;
+  }>;
   luggagePolicy: string;
   notes: string;
   availType: "active" | "inactive" | "scheduled";
-  schedStart: string; // "YYYY-MM-DD"
-  schedEnd: string;   // "YYYY-MM-DD"
+  schedStart: string;
+  schedEnd: string;
 };
 
 // --- Conversion helpers ---
 
-function draftFromRoute(r: PriceListRoute): DraftRoute {
+function draftFromRoute(r: PriceListRoute) {
   return {
-    id: r.id,
     name: r.name,
     price: r.price > 0 ? r.price.toLocaleString("en-NG") : "",
-    capacityType: r.capacity === "unlimited" ? "unlimited" : "number",
+    capacityType: (r.capacity === "unlimited" ? "unlimited" : "number") as "number" | "unlimited",
     capacityValue: r.capacity === "unlimited" ? "" : String(r.capacity),
     active: r.active,
   };
 }
 
-function formFromPriceList(pl: PriceList): DrawerForm {
+function formValuesFromPriceList(pl: PriceList): DrawerFormValues {
   return {
     name: pl.name,
     direction: pl.direction,
     routes: pl.routes.map(draftFromRoute),
-    departureTimes: pl.departureTimes,
+    departureTimes: pl.departureTimes.map((dt) => ({ day: dt.day, time: dt.time })),
     luggagePolicy: pl.luggagePolicy,
     notes: pl.notes,
     availType: pl.availability.type,
@@ -106,7 +105,7 @@ function formFromPriceList(pl: PriceList): DrawerForm {
   };
 }
 
-function buildBody(form: DrawerForm): PriceListBody {
+function buildBody(form: DrawerFormValues): PriceListBody {
   const routes = form.routes.map((r) => ({
     name: r.name.trim(),
     price: parseAmount(r.price),
@@ -140,7 +139,7 @@ function buildBody(form: DrawerForm): PriceListBody {
   };
 }
 
-function emptyForm(direction: "leaving" | "returning"): DrawerForm {
+function emptyFormValues(direction: "leaving" | "returning"): DrawerFormValues {
   return {
     name: "",
     direction,
@@ -151,17 +150,6 @@ function emptyForm(direction: "leaving" | "returning"): DrawerForm {
     availType: "active",
     schedStart: "",
     schedEnd: "",
-  };
-}
-
-function newDraftRoute(): DraftRoute {
-  return {
-    id: `DR-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-    name: "",
-    price: "",
-    capacityType: "number",
-    capacityValue: "",
-    active: true,
   };
 }
 
@@ -390,33 +378,56 @@ export default function RouteManagement() {
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<DrawerForm>(emptyForm("leaving"));
-  const [savedForm, setSavedForm] = useState<DrawerForm>(emptyForm("leaving"));
   const [discardOpen, setDiscardOpen] = useState(false);
 
-  const isDirty = JSON.stringify(form) !== JSON.stringify(savedForm);
+  const {
+    register,
+    control,
+    reset,
+    setValue,
+    getValues,
+    formState: { isDirty: formIsDirty },
+  } = useForm<DrawerFormValues>({
+    defaultValues: emptyFormValues("leaving"),
+  });
+
+  const {
+    fields: routeFields,
+    append: appendRoute,
+    remove: removeRoute,
+  } = useFieldArray({ control, name: "routes" });
+
+  const {
+    fields: departureFields,
+    append: appendDeparture,
+    remove: removeDeparture,
+  } = useFieldArray({ control, name: "departureTimes" });
+
+  const watchedName = useWatch({ control, name: "name" });
+  const watchedDirection = useWatch({ control, name: "direction" });
+  const watchedRoutes = useWatch({ control, name: "routes" });
+  const watchedDepartureTimes = useWatch({ control, name: "departureTimes" });
+  const watchedAvailType = useWatch({ control, name: "availType" });
+  const watchedSchedStart = useWatch({ control, name: "schedStart" });
+  const watchedSchedEnd = useWatch({ control, name: "schedEnd" });
 
   const leaving = (priceLists ?? []).find((p) => p.direction === "leaving") ?? null;
   const returning = (priceLists ?? []).find((p) => p.direction === "returning") ?? null;
 
   function openNew(direction: "leaving" | "returning") {
-    const f = emptyForm(direction);
+    reset(emptyFormValues(direction));
     setEditingId(null);
-    setForm(f);
-    setSavedForm(f);
     setDrawerOpen(true);
   }
 
   function openEdit(pl: PriceList) {
-    const f = formFromPriceList(pl);
+    reset(formValuesFromPriceList(pl));
     setEditingId(pl.id);
-    setForm(f);
-    setSavedForm(f);
     setDrawerOpen(true);
   }
 
   function handleDrawerOpenChange(open: boolean) {
-    if (!open && isDirty) {
+    if (!open && formIsDirty) {
       setDiscardOpen(true);
       return;
     }
@@ -428,62 +439,27 @@ export default function RouteManagement() {
     setDrawerOpen(false);
   }
 
-  function setF<K extends keyof DrawerForm>(key: K, value: DrawerForm[K]) {
-    setForm((p) => ({ ...p, [key]: value }));
-  }
-
-  function setRoute(id: string, patch: Partial<DraftRoute>) {
-    setForm((p) => ({
-      ...p,
-      routes: p.routes.map((r) => (r.id === id ? { ...r, ...patch } : r)),
-    }));
-  }
-
   function addRoute() {
-    setForm((p) => ({ ...p, routes: [...p.routes, newDraftRoute()] }));
-  }
-
-  function removeRoute(id: string) {
-    setForm((p) => ({ ...p, routes: p.routes.filter((r) => r.id !== id) }));
+    appendRoute({ name: "", price: "", capacityType: "number", capacityValue: "", active: true });
   }
 
   function addDeparture() {
-    const entry: DepartureTime = {
-      id: `DT-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      day: "Monday",
-      time: "08:00",
-    };
-    setForm((p) => ({ ...p, departureTimes: [...p.departureTimes, entry] }));
-  }
-
-  function setDeparture(id: string, patch: Partial<DepartureTime>) {
-    setForm((p) => ({
-      ...p,
-      departureTimes: p.departureTimes.map((d) =>
-        d.id === id ? { ...d, ...patch } : d,
-      ),
-    }));
-  }
-
-  function removeDeparture(id: string) {
-    setForm((p) => ({
-      ...p,
-      departureTimes: p.departureTimes.filter((d) => d.id !== id),
-    }));
+    appendDeparture({ day: "Monday", time: "08:00" });
   }
 
   const canSave =
-    form.name.trim().length > 0 &&
-    form.routes.length >= 1 &&
-    form.departureTimes.length >= 1 &&
-    (form.availType !== "scheduled" || (!!form.schedStart && !!form.schedEnd));
+    watchedName.trim().length > 0 &&
+    watchedRoutes.length >= 1 &&
+    watchedDepartureTimes.length >= 1 &&
+    (watchedAvailType !== "scheduled" ||
+      (!!watchedSchedStart && !!watchedSchedEnd));
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
   async function save() {
     if (!canSave || isSaving) return;
-
-    const body = buildBody(form);
+    const values = getValues();
+    const body = buildBody(values);
 
     try {
       if (editingId) {
@@ -493,7 +469,6 @@ export default function RouteManagement() {
         await createMutation.mutateAsync(body);
         toast.success("Price list created");
       }
-      setSavedForm(form);
       setDrawerOpen(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong");
@@ -601,11 +576,10 @@ export default function RouteManagement() {
                 Price List Name <span className="text-red-500">*</span>
               </label>
               <input
+                {...register("name")}
                 type="text"
-                value={form.name}
-                onChange={(e) => setF("name", e.target.value)}
                 placeholder={
-                  form.direction === "leaving"
+                  watchedDirection === "leaving"
                     ? "e.g. Mar 2026 Resumption"
                     : "e.g. Weekend Express"
                 }
@@ -634,60 +608,51 @@ export default function RouteManagement() {
                 ))}
               </div>
 
-              {form.routes.length === 0 && (
+              {routeFields.length === 0 && (
                 <p className="px-5 py-4 text-[13px] text-portal-muted/60 italic">
                   No routes added yet. Add at least one.
                 </p>
               )}
 
-              {form.routes.map((route) => (
+              {routeFields.map((field, index) => (
                 <div
-                  key={route.id}
+                  key={field.id}
                   className="grid grid-cols-[1fr_90px_160px_36px_32px] gap-2 px-5 py-2.5 items-center border-b border-portal-border last:border-b-0"
                 >
                   <input
+                    {...register(`routes.${index}.name`)}
                     type="text"
-                    value={route.name}
-                    onChange={(e) =>
-                      setRoute(route.id, { name: e.target.value })
-                    }
                     placeholder="Route name"
                     className="w-full px-2 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
                   />
 
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={route.price}
-                    onChange={(e) =>
-                      setRoute(route.id, {
-                        price: formatWithCommas(e.target.value),
-                      })
-                    }
-                    placeholder="0"
-                    className="w-full px-2 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
+                  <Controller
+                    name={`routes.${index}.price`}
+                    control={control}
+                    render={({ field: priceField }) => (
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={priceField.value}
+                        onChange={(e) => priceField.onChange(formatWithCommas(e.target.value))}
+                        placeholder="0"
+                        className="w-full px-2 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
+                      />
+                    )}
                   />
 
                   <div className="flex items-center gap-1.5">
                     <select
-                      value={route.capacityType}
-                      onChange={(e) =>
-                        setRoute(route.id, {
-                          capacityType: e.target.value as "unlimited" | "number",
-                        })
-                      }
+                      {...register(`routes.${index}.capacityType`)}
                       className="flex-1 min-w-0 px-2 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
                     >
                       <option value="unlimited">Unlimited</option>
                       <option value="number">Limited</option>
                     </select>
-                    {route.capacityType === "number" && (
+                    {watchedRoutes[index]?.capacityType === "number" && (
                       <input
+                        {...register(`routes.${index}.capacityValue`)}
                         type="number"
-                        value={route.capacityValue}
-                        onChange={(e) =>
-                          setRoute(route.id, { capacityValue: e.target.value })
-                        }
                         placeholder="Max"
                         min="1"
                         className="w-14 px-1.5 py-1.5 text-[12px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
@@ -695,14 +660,17 @@ export default function RouteManagement() {
                     )}
                   </div>
 
-                  <Toggle
-                    on={route.active}
-                    onChange={(v) => setRoute(route.id, { active: v })}
+                  <Controller
+                    name={`routes.${index}.active`}
+                    control={control}
+                    render={({ field: activeField }) => (
+                      <Toggle on={activeField.value} onChange={activeField.onChange} />
+                    )}
                   />
 
                   <button
                     type="button"
-                    onClick={() => removeRoute(route.id)}
+                    onClick={() => removeRoute(index)}
                     className="w-7 h-7 flex items-center justify-center text-portal-muted hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -726,19 +694,16 @@ export default function RouteManagement() {
                 <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-portal-muted mb-3">
                   Departure Times
                 </p>
-                {form.departureTimes.length === 0 && (
+                {departureFields.length === 0 && (
                   <p className="text-[13px] text-portal-muted/60 italic mb-2">
                     No departure times yet. Add at least one.
                   </p>
                 )}
                 <div className="space-y-2">
-                  {form.departureTimes.map((dt) => (
-                    <div key={dt.id} className="flex items-center gap-2">
+                  {departureFields.map((field, index) => (
+                    <div key={field.id} className="flex items-center gap-2">
                       <select
-                        value={dt.day}
-                        onChange={(e) =>
-                          setDeparture(dt.id, { day: e.target.value })
-                        }
+                        {...register(`departureTimes.${index}.day`)}
                         className="flex-1 min-w-0 px-2 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
                       >
                         {DAYS.map((d) => (
@@ -747,13 +712,16 @@ export default function RouteManagement() {
                           </option>
                         ))}
                       </select>
-                      <TimeInput
-                        value={dt.time}
-                        onChange={(v) => setDeparture(dt.id, { time: v })}
+                      <Controller
+                        name={`departureTimes.${index}.time`}
+                        control={control}
+                        render={({ field: timeField }) => (
+                          <TimeInput value={timeField.value} onChange={timeField.onChange} />
+                        )}
                       />
                       <button
                         type="button"
-                        onClick={() => removeDeparture(dt.id)}
+                        onClick={() => removeDeparture(index)}
                         className="w-7 h-7 flex items-center justify-center text-portal-muted hover:text-red-500 hover:bg-red-50 rounded-md transition-colors flex-shrink-0"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -782,8 +750,7 @@ export default function RouteManagement() {
                   </span>
                 </label>
                 <textarea
-                  value={form.luggagePolicy}
-                  onChange={(e) => setF("luggagePolicy", e.target.value)}
+                  {...register("luggagePolicy")}
                   placeholder="e.g. 1 big bag + 1 hand luggage."
                   rows={2}
                   className="w-full px-3 py-2 text-[13px] border border-portal-border rounded-lg bg-portal-bg focus:outline-none focus:border-portal-accent resize-none"
@@ -797,8 +764,7 @@ export default function RouteManagement() {
                   </span>
                 </label>
                 <textarea
-                  value={form.notes}
-                  onChange={(e) => setF("notes", e.target.value)}
+                  {...register("notes")}
                   placeholder="e.g. Come early to the stand at the front of CAF."
                   rows={2}
                   className="w-full px-3 py-2 text-[13px] border border-portal-border rounded-lg bg-portal-bg focus:outline-none focus:border-portal-accent resize-none"
@@ -823,9 +789,9 @@ export default function RouteManagement() {
                   <button
                     key={value}
                     type="button"
-                    onClick={() => setF("availType", value)}
+                    onClick={() => setValue("availType", value, { shouldDirty: true })}
                     className={`px-3 py-1.5 text-[12px] font-medium rounded-lg border transition-colors ${
-                      form.availType === value
+                      watchedAvailType === value
                         ? "border-portal-accent text-portal-accent bg-portal-accent/5"
                         : "border-portal-border text-portal-muted hover:border-portal-text"
                     }`}
@@ -835,17 +801,29 @@ export default function RouteManagement() {
                 ))}
               </div>
 
-              {form.availType === "scheduled" && (
+              {watchedAvailType === "scheduled" && (
                 <div className="grid grid-cols-2 gap-3">
-                  <DatePickerField
-                    label="Start Date"
-                    value={form.schedStart}
-                    onChange={(v) => setF("schedStart", v)}
+                  <Controller
+                    name="schedStart"
+                    control={control}
+                    render={({ field }) => (
+                      <DatePickerField
+                        label="Start Date"
+                        value={field.value}
+                        onChange={field.onChange}
+                      />
+                    )}
                   />
-                  <DatePickerField
-                    label="End Date"
-                    value={form.schedEnd}
-                    onChange={(v) => setF("schedEnd", v)}
+                  <Controller
+                    name="schedEnd"
+                    control={control}
+                    render={({ field }) => (
+                      <DatePickerField
+                        label="End Date"
+                        value={field.value}
+                        onChange={field.onChange}
+                      />
+                    )}
                   />
                 </div>
               )}

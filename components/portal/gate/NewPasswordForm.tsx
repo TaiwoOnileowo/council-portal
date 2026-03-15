@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { resetPassword } from "@/lib/actions/password.action";
 import { signInUser } from "@/lib/actions/user.action";
-import { newPasswordSchema } from "@/lib/validations/auth";
+import { newPasswordSchema, NewPasswordInput } from "@/lib/validations/auth";
 
 interface NewPasswordFormProps {
   email: string;
@@ -14,36 +16,27 @@ interface NewPasswordFormProps {
 
 export default function NewPasswordForm({ email, token }: NewPasswordFormProps) {
   const router = useRouter();
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
 
-  const mismatch = confirm.length > 0 && password !== confirm;
-  const tooShort = password.length > 0 && password.length < 6;
+  const {
+    register,
+    handleSubmit,
+    setError,
+    formState: { errors, isSubmitting, isValid },
+  } = useForm<NewPasswordInput>({
+    resolver: zodResolver(newPasswordSchema),
+    mode: "onChange",
+  });
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setFormError(null);
-
-    const parsed = newPasswordSchema.safeParse({ password, confirmPassword: confirm });
-    if (!parsed.success) {
-      setFormError(parsed.error.issues[0].message);
-      return;
-    }
-
-    setLoading(true);
-
-    const resetResult = await resetPassword(token, password);
+  async function onSubmit(data: NewPasswordInput) {
+    const resetResult = await resetPassword(token, data.password);
     if (resetResult.error) {
       toast.error(resetResult.error);
-      setFormError(resetResult.error);
-      setLoading(false);
+      setError("root", { message: resetResult.error });
       return;
     }
 
-    const signInResult = await signInUser({ email, password });
+    const signInResult = await signInUser({ email, password: data.password });
     if (signInResult?.error) {
       toast.error("Password changed but sign-in failed. Please log in manually.");
       router.push("/gate");
@@ -56,12 +49,10 @@ export default function NewPasswordForm({ email, token }: NewPasswordFormProps) 
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      {/* Email — readonly, autofilled */}
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+      {/* Email — readonly */}
       <div>
-        <label className="block text-sm font-medium text-portal-text mb-1.5">
-          Email
-        </label>
+        <label className="block text-sm font-medium text-portal-text mb-1.5">Email</label>
         <input
           type="email"
           value={email}
@@ -78,12 +69,10 @@ export default function NewPasswordForm({ email, token }: NewPasswordFormProps) 
         <div className="relative">
           <input
             type={showPassword ? "text" : "password"}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            {...register("password")}
             placeholder="Min 6 characters"
-            required
             className={`w-full rounded-lg border bg-white px-4 py-3 pr-11 text-[15px] text-portal-text placeholder:text-portal-muted outline-none focus:ring-1 transition ${
-              tooShort
+              errors.password
                 ? "border-red-300 focus:border-red-400 focus:ring-red-200"
                 : "border-portal-border focus:border-portal-accent focus:ring-portal-accent"
             }`}
@@ -106,8 +95,8 @@ export default function NewPasswordForm({ email, token }: NewPasswordFormProps) 
             )}
           </button>
         </div>
-        {tooShort && (
-          <p className="text-xs text-red-500 mt-1">Password must be at least 6 characters</p>
+        {errors.password && (
+          <p className="mt-1 text-xs text-red-500">{errors.password.message}</p>
         )}
       </div>
 
@@ -118,33 +107,31 @@ export default function NewPasswordForm({ email, token }: NewPasswordFormProps) 
         </label>
         <input
           type="password"
-          value={confirm}
-          onChange={(e) => setConfirm(e.target.value)}
+          {...register("confirmPassword")}
           placeholder="Re-enter new password"
-          required
           className={`w-full rounded-lg border bg-white px-4 py-3 text-[15px] text-portal-text placeholder:text-portal-muted outline-none focus:ring-1 transition ${
-            mismatch
+            errors.confirmPassword
               ? "border-red-300 focus:border-red-400 focus:ring-red-200"
               : "border-portal-border focus:border-portal-accent focus:ring-portal-accent"
           }`}
         />
-        {mismatch && (
-          <p className="text-xs text-red-500 mt-1">Passwords don&apos;t match</p>
+        {errors.confirmPassword && (
+          <p className="mt-1 text-xs text-red-500">{errors.confirmPassword.message}</p>
         )}
       </div>
 
-      {formError && (
+      {errors.root?.message && (
         <p className="rounded-lg bg-red-50 border border-red-200 px-4 py-2.5 text-sm text-red-600">
-          {formError}
+          {errors.root.message}
         </p>
       )}
 
       <button
         type="submit"
-        disabled={loading || tooShort || mismatch || !password || !confirm}
+        disabled={!isValid || isSubmitting}
         className="w-full rounded-lg bg-portal-accent hover:bg-portal-accent2 text-white font-medium py-3 text-[15px] transition-colors mt-2 disabled:opacity-60 flex items-center justify-center gap-2"
       >
-        {loading ? (
+        {isSubmitting ? (
           <>
             <span className="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
             Changing keys...

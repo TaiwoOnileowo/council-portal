@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "motion/react";
 import { Pencil, Check, X, Upload, Instagram, Link } from "lucide-react";
 import { toast } from "sonner";
 import { updateVendorProfile } from "@/lib/actions/vendor.action";
-import { vendorStep2Schema } from "@/lib/validations/vendor";
+import { vendorStep2Schema, VendorStep2Fields } from "@/lib/validations/vendor";
 import { uploadFiles } from "@/lib/uploadthing";
 
 type TransportFields = {
@@ -16,8 +18,6 @@ type TransportFields = {
   tiktok: string;
   image: string;
 };
-
-type FieldErrors = Partial<Record<keyof TransportFields, string>>;
 
 type Props = {
   vendor: TransportFields & {
@@ -94,11 +94,7 @@ function ImageUpload({
         </button>
         {value && (
           <div>
-            <button
-              type="button"
-              onClick={() => onChange("")}
-              className="text-[12px] text-red-500 hover:underline block"
-            >
+            <button type="button" onClick={() => onChange("")} className="text-[12px] text-red-500 hover:underline block">
               Remove
             </button>
           </div>
@@ -127,61 +123,62 @@ export default function VendorTransportProfile({ vendor }: Props) {
     tiktok: vendor.tiktok,
     image: vendor.image,
   });
-  const [draft, setDraft] = useState<TransportFields>({ ...profile });
-  const [errors, setErrors] = useState<FieldErrors>({});
-  const [loading, setLoading] = useState(false);
+  const [draftImage, setDraftImage] = useState<string>(vendor.image);
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    watch,
+    formState: { errors, isDirty, isSubmitting },
+  } = useForm<VendorStep2Fields>({
+    resolver: zodResolver(vendorStep2Schema),
+  });
 
   function startEdit() {
-    setDraft({ ...profile });
-    setErrors({});
+    reset({
+      transportName: profile.transportName,
+      tagline: profile.tagline,
+      description: profile.description,
+      instagram: profile.instagram,
+      tiktok: profile.tiktok,
+    });
+    setDraftImage(profile.image);
     setEditing(true);
   }
 
   function cancelEdit() {
-    setDraft({ ...profile });
-    setErrors({});
+    reset();
     setEditing(false);
   }
 
-  async function saveEdit() {
-    const parsed = vendorStep2Schema.safeParse({
-      transportName: draft.transportName,
-      tagline: draft.tagline || undefined,
-      description: draft.description || undefined,
-      instagram: draft.instagram || undefined,
-      tiktok: draft.tiktok || undefined,
-    });
-    if (!parsed.success) {
-      const errs: FieldErrors = {};
-      for (const issue of parsed.error.issues) {
-        const key = issue.path[0] as keyof TransportFields;
-        if (!errs[key]) errs[key] = issue.message;
-      }
-      setErrors(errs);
-      return;
-    }
-
-    setLoading(true);
+  async function onSubmit(data: VendorStep2Fields) {
     const result = await updateVendorProfile({
       vendorId: vendor.id,
       firstName: vendor.firstName,
       lastName: vendor.lastName,
       email: vendor.email,
-      transportName: draft.transportName,
-      tagline: draft.tagline || undefined,
-      description: draft.description || undefined,
-      instagram: draft.instagram || undefined,
-      tiktok: draft.tiktok || undefined,
-      image: draft.image || undefined,
+      transportName: data.transportName,
+      tagline: data.tagline || undefined,
+      description: data.description || undefined,
+      instagram: data.instagram || undefined,
+      tiktok: data.tiktok || undefined,
+      image: draftImage || undefined,
     });
-    setLoading(false);
 
     if (result?.error) {
       toast.error(result.error);
       return;
     }
 
-    setProfile({ ...draft });
+    setProfile({
+      transportName: data.transportName,
+      tagline: data.tagline ?? "",
+      description: data.description ?? "",
+      instagram: data.instagram ?? "",
+      tiktok: data.tiktok ?? "",
+      image: draftImage,
+    });
     setEditing(false);
     toast.success("Transport profile updated successfully");
   }
@@ -215,12 +212,12 @@ export default function VendorTransportProfile({ vendor }: Props) {
               Cancel
             </button>
             <button
-              onClick={saveEdit}
-              disabled={loading}
+              onClick={handleSubmit(onSubmit)}
+              disabled={!isDirty || isSubmitting}
               className="inline-flex items-center gap-1 text-[12px] font-semibold text-white bg-portal-accent hover:bg-portal-accent2 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-60"
             >
               <Check className="w-3.5 h-3.5" />
-              {loading ? "Saving..." : "Save"}
+              {isSubmitting ? "Saving..." : "Save"}
             </button>
           </div>
         )}
@@ -234,8 +231,8 @@ export default function VendorTransportProfile({ vendor }: Props) {
           </label>
           {editing ? (
             <ImageUpload
-              value={draft.image}
-              onChange={(url) => setDraft({ ...draft, image: url })}
+              value={draftImage}
+              onChange={(url) => setDraftImage(url)}
             />
           ) : (
             <div className="flex items-center gap-3 py-1">
@@ -265,21 +262,18 @@ export default function VendorTransportProfile({ vendor }: Props) {
             <>
               <input
                 type="text"
-                value={draft.transportName}
-                onChange={(e) =>
-                  setDraft({ ...draft, transportName: e.target.value })
-                }
+                {...register("transportName")}
                 maxLength={60}
-                className={inputCls(errors.transportName)}
+                className={inputCls(errors.transportName?.message)}
               />
               <div className="flex justify-between mt-1">
                 {errors.transportName ? (
-                  <p className="text-xs text-red-500">{errors.transportName}</p>
+                  <p className="text-xs text-red-500">{errors.transportName.message}</p>
                 ) : (
                   <span />
                 )}
                 <span className="text-[11px] text-portal-muted">
-                  {draft.transportName.length}/60
+                  {watch("transportName")?.length ?? 0}/60
                 </span>
               </div>
             </>
@@ -302,22 +296,19 @@ export default function VendorTransportProfile({ vendor }: Props) {
             <>
               <input
                 type="text"
-                value={draft.tagline}
-                onChange={(e) =>
-                  setDraft({ ...draft, tagline: e.target.value })
-                }
+                {...register("tagline")}
                 placeholder="Your campus ride, always on time"
                 maxLength={80}
-                className={inputCls(errors.tagline)}
+                className={inputCls(errors.tagline?.message)}
               />
               <div className="flex justify-between mt-1">
                 {errors.tagline ? (
-                  <p className="text-xs text-red-500">{errors.tagline}</p>
+                  <p className="text-xs text-red-500">{errors.tagline.message}</p>
                 ) : (
                   <span />
                 )}
                 <span className="text-[11px] text-portal-muted">
-                  {draft.tagline.length}/80
+                  {watch("tagline")?.length ?? 0}/80
                 </span>
               </div>
             </>
@@ -341,23 +332,20 @@ export default function VendorTransportProfile({ vendor }: Props) {
           {editing ? (
             <>
               <textarea
-                value={draft.description}
-                onChange={(e) =>
-                  setDraft({ ...draft, description: e.target.value })
-                }
+                {...register("description")}
                 placeholder="Tell students about your transport service..."
                 rows={3}
                 maxLength={500}
-                className={`${inputCls(errors.description)} resize-none`}
+                className={`${inputCls(errors.description?.message)} resize-none`}
               />
               <div className="flex justify-between mt-1">
                 {errors.description ? (
-                  <p className="text-xs text-red-500">{errors.description}</p>
+                  <p className="text-xs text-red-500">{errors.description.message}</p>
                 ) : (
                   <span />
                 )}
                 <span className="text-[11px] text-portal-muted">
-                  {draft.description.length}/500
+                  {watch("description")?.length ?? 0}/500
                 </span>
               </div>
             </>
@@ -385,17 +373,14 @@ export default function VendorTransportProfile({ vendor }: Props) {
                   <Instagram className="w-4 h-4 text-portal-muted flex-shrink-0" />
                   <input
                     type="url"
-                    value={draft.instagram}
-                    onChange={(e) =>
-                      setDraft({ ...draft, instagram: e.target.value })
-                    }
+                    {...register("instagram")}
                     placeholder="https://instagram.com/youraccount"
-                    className={inputCls(errors.instagram)}
+                    className={inputCls(errors.instagram?.message)}
                   />
                 </div>
                 {errors.instagram && (
                   <p className="mt-1 text-xs text-red-500 pl-6">
-                    {errors.instagram}
+                    {errors.instagram.message}
                   </p>
                 )}
               </div>
@@ -404,17 +389,14 @@ export default function VendorTransportProfile({ vendor }: Props) {
                   <Link className="w-4 h-4 text-portal-muted flex-shrink-0" />
                   <input
                     type="url"
-                    value={draft.tiktok}
-                    onChange={(e) =>
-                      setDraft({ ...draft, tiktok: e.target.value })
-                    }
+                    {...register("tiktok")}
                     placeholder="https://tiktok.com/@youraccount"
-                    className={inputCls(errors.tiktok)}
+                    className={inputCls(errors.tiktok?.message)}
                   />
                 </div>
                 {errors.tiktok && (
                   <p className="mt-1 text-xs text-red-500 pl-6">
-                    {errors.tiktok}
+                    {errors.tiktok.message}
                   </p>
                 )}
               </div>
