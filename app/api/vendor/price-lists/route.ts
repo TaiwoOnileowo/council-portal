@@ -95,6 +95,22 @@ export async function POST(req: NextRequest) {
       ? new Date(data.availability.endDate)
       : null;
 
+  // Enforce one price list per direction per vendor
+  const existing = await db.priceList.findUnique({
+    where: {
+      vendorId_direction: {
+        vendorId: session.user.id,
+        direction: data.direction === "leaving" ? "LEAVING" : "RETURNING",
+      },
+    },
+  });
+  if (existing) {
+    return NextResponse.json(
+      { error: "A price list for this direction already exists" },
+      { status: 409 },
+    );
+  }
+
   const created = await db.priceList.create({
     data: {
       vendorId: session.user.id,

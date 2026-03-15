@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { format } from "date-fns";
 import { motion } from "motion/react";
-import { House, Loader2, Plus, Rocket, Trash2, X } from "lucide-react";
+import { CalendarIcon, House, Loader2, Plus, RefreshCw, Rocket, Trash2, X } from "lucide-react";
+import { toast } from "sonner";
 import {
   Drawer,
   DrawerContent,
@@ -15,6 +17,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   type PriceList,
   type PriceListAvailability,
@@ -69,8 +73,8 @@ type DrawerForm = {
   luggagePolicy: string;
   notes: string;
   availType: "active" | "inactive" | "scheduled";
-  schedStart: string;
-  schedEnd: string;
+  schedStart: string; // "YYYY-MM-DD"
+  schedEnd: string;   // "YYYY-MM-DD"
 };
 
 // --- Conversion helpers ---
@@ -260,6 +264,55 @@ function Toggle({
   );
 }
 
+function DatePickerField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const selected = value ? new Date(value + "T00:00:00") : undefined;
+
+  return (
+    <div>
+      <label className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-portal-muted mb-1.5">
+        {label}
+      </label>
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="w-full flex items-center gap-2 px-3 py-2 text-[13px] border border-portal-border rounded-lg bg-portal-bg text-left focus:outline-none hover:border-portal-accent transition-colors"
+          >
+            <CalendarIcon className="w-3.5 h-3.5 text-portal-muted flex-shrink-0" />
+            <span className={selected ? "text-portal-text" : "text-portal-muted/50"}>
+              {selected ? format(selected, "dd MMM yyyy") : "Pick a date"}
+            </span>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0 rounded-xl border-portal-border" align="start">
+          <Calendar
+            mode="single"
+            selected={selected}
+            onSelect={(date) => {
+              if (date) {
+                const y = date.getFullYear();
+                const m = String(date.getMonth() + 1).padStart(2, "0");
+                const d = String(date.getDate()).padStart(2, "0");
+                onChange(`${y}-${m}-${d}`);
+              } else {
+                onChange("");
+              }
+            }}
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
 function StatusPill({ availability }: { availability: PriceListAvailability }) {
   if (availability.type === "active") {
     return (
@@ -278,7 +331,10 @@ function StatusPill({ availability }: { availability: PriceListAvailability }) {
     );
   }
   const fmt = (d: string) =>
-    new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+    new Date(d + "T00:00:00").toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+    });
   return (
     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 whitespace-nowrap flex-shrink-0">
       <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
@@ -306,14 +362,21 @@ function PriceListCard({ pl, onEdit }: { pl: PriceList; onEdit: () => void }) {
   );
 }
 
-function EmptyCard({ onNew }: { onNew: () => void }) {
+function AddCard({ onAdd }: { onAdd: () => void }) {
   return (
     <button
-      onClick={onNew}
-      className="text-left w-full border border-dashed border-portal-border rounded-xl p-4 hover:border-portal-accent/50 transition-colors"
+      onClick={onAdd}
+      className="text-left w-full border border-dashed border-portal-border rounded-xl p-4 hover:border-portal-accent/50 hover:bg-portal-accent/[0.02] transition-colors"
     >
-      <p className="text-[13px] text-portal-muted">No price lists yet.</p>
-      <p className="text-[12px] text-portal-accent mt-0.5">+ Create one</p>
+      <div className="flex items-center gap-2">
+        <div className="w-7 h-7 rounded-full bg-portal-accent/10 flex items-center justify-center flex-shrink-0">
+          <Plus className="w-3.5 h-3.5 text-portal-accent" />
+        </div>
+        <div>
+          <p className="text-[13px] font-medium text-portal-text">Add price list</p>
+          <p className="text-[11px] text-portal-muted mt-0.5">Set routes, prices & departure times</p>
+        </div>
+      </div>
     </button>
   );
 }
@@ -321,7 +384,7 @@ function EmptyCard({ onNew }: { onNew: () => void }) {
 // --- Main component ---
 
 export default function RouteManagement() {
-  const { data: priceLists, isLoading } = useVendorPriceLists();
+  const { data: priceLists, isLoading, isError, refetch } = useVendorPriceLists();
   const createMutation = useCreatePriceList();
   const updateMutation = useUpdatePriceList();
 
@@ -330,20 +393,17 @@ export default function RouteManagement() {
   const [form, setForm] = useState<DrawerForm>(emptyForm("leaving"));
   const [savedForm, setSavedForm] = useState<DrawerForm>(emptyForm("leaving"));
   const [discardOpen, setDiscardOpen] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
 
-  const isDirty =
-    JSON.stringify(form) !== JSON.stringify(savedForm);
+  const isDirty = JSON.stringify(form) !== JSON.stringify(savedForm);
 
-  const leaving = (priceLists ?? []).filter((p) => p.direction === "leaving");
-  const returning = (priceLists ?? []).filter((p) => p.direction === "returning");
+  const leaving = (priceLists ?? []).find((p) => p.direction === "leaving") ?? null;
+  const returning = (priceLists ?? []).find((p) => p.direction === "returning") ?? null;
 
   function openNew(direction: "leaving" | "returning") {
     const f = emptyForm(direction);
     setEditingId(null);
     setForm(f);
     setSavedForm(f);
-    setSaveError(null);
     setDrawerOpen(true);
   }
 
@@ -352,7 +412,6 @@ export default function RouteManagement() {
     setEditingId(pl.id);
     setForm(f);
     setSavedForm(f);
-    setSaveError(null);
     setDrawerOpen(true);
   }
 
@@ -423,20 +482,21 @@ export default function RouteManagement() {
 
   async function save() {
     if (!canSave || isSaving) return;
-    setSaveError(null);
 
     const body = buildBody(form);
 
     try {
       if (editingId) {
         await updateMutation.mutateAsync({ id: editingId, ...body });
+        toast.success("Price list updated");
       } else {
         await createMutation.mutateAsync(body);
+        toast.success("Price list created");
       }
       setSavedForm(form);
       setDrawerOpen(false);
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Something went wrong");
+      toast.error(err instanceof Error ? err.message : "Something went wrong");
     }
   }
 
@@ -456,56 +516,45 @@ export default function RouteManagement() {
             <Loader2 className="w-5 h-5 animate-spin mr-2" />
             <span className="text-[13px]">Loading price lists…</span>
           </div>
+        ) : isError ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
+            <p className="text-[13px] text-portal-muted">
+              Failed to load price lists. Please try again.
+            </p>
+            <button
+              onClick={() => refetch()}
+              className="inline-flex items-center gap-1.5 text-[13px] font-medium text-portal-accent hover:text-portal-accent2 transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Retry
+            </button>
+          </div>
         ) : (
           <>
             {/* Leaving School */}
             <div className="mb-7">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-[14px] font-semibold text-portal-text flex items-center gap-1.5">
-                  <Rocket className="text-primary" size={18} />
-                  Leaving School
-                </h3>
-                <button
-                  onClick={() => openNew("leaving")}
-                  className="inline-flex items-center gap-1.5 text-[13px] font-medium text-portal-accent hover:text-portal-accent2 transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  New Price List
-                </button>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {leaving.map((pl) => (
-                  <PriceListCard key={pl.id} pl={pl} onEdit={() => openEdit(pl)} />
-                ))}
-                {leaving.length === 0 && (
-                  <EmptyCard onNew={() => openNew("leaving")} />
-                )}
-              </div>
+              <h3 className="text-[14px] font-semibold text-portal-text flex items-center gap-1.5 mb-3">
+                <Rocket className="text-primary" size={18} />
+                Leaving School
+              </h3>
+              {leaving ? (
+                <PriceListCard pl={leaving} onEdit={() => openEdit(leaving)} />
+              ) : (
+                <AddCard onAdd={() => openNew("leaving")} />
+              )}
             </div>
 
             {/* Returning to School */}
             <div>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-[14px] font-semibold text-portal-text flex items-center gap-1.5">
-                  <House className="text-primary" size={18} />
-                  Returning to School
-                </h3>
-                <button
-                  onClick={() => openNew("returning")}
-                  className="inline-flex items-center gap-1.5 text-[13px] font-medium text-portal-accent hover:text-portal-accent2 transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  New Price List
-                </button>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {returning.map((pl) => (
-                  <PriceListCard key={pl.id} pl={pl} onEdit={() => openEdit(pl)} />
-                ))}
-                {returning.length === 0 && (
-                  <EmptyCard onNew={() => openNew("returning")} />
-                )}
-              </div>
+              <h3 className="text-[14px] font-semibold text-portal-text flex items-center gap-1.5 mb-3">
+                <House className="text-primary" size={18} />
+                Returning to School
+              </h3>
+              {returning ? (
+                <PriceListCard pl={returning} onEdit={() => openEdit(returning)} />
+              ) : (
+                <AddCard onAdd={() => openNew("returning")} />
+              )}
             </div>
           </>
         )}
@@ -596,7 +645,6 @@ export default function RouteManagement() {
                   key={route.id}
                   className="grid grid-cols-[1fr_90px_160px_36px_32px] gap-2 px-5 py-2.5 items-center border-b border-portal-border last:border-b-0"
                 >
-                  {/* Name */}
                   <input
                     type="text"
                     value={route.name}
@@ -607,7 +655,6 @@ export default function RouteManagement() {
                     className="w-full px-2 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
                   />
 
-                  {/* Price — comma formatted */}
                   <input
                     type="text"
                     inputMode="numeric"
@@ -621,7 +668,6 @@ export default function RouteManagement() {
                     className="w-full px-2 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
                   />
 
-                  {/* Capacity */}
                   <div className="flex items-center gap-1.5">
                     <select
                       value={route.capacityType}
@@ -649,13 +695,11 @@ export default function RouteManagement() {
                     )}
                   </div>
 
-                  {/* Active toggle */}
                   <Toggle
                     on={route.active}
                     onChange={(v) => setRoute(route.id, { active: v })}
                   />
 
-                  {/* Delete */}
                   <button
                     type="button"
                     onClick={() => removeRoute(route.id)}
@@ -666,7 +710,6 @@ export default function RouteManagement() {
                 </div>
               ))}
 
-              {/* Add route */}
               <button
                 type="button"
                 onClick={addRoute}
@@ -741,7 +784,7 @@ export default function RouteManagement() {
                 <textarea
                   value={form.luggagePolicy}
                   onChange={(e) => setF("luggagePolicy", e.target.value)}
-                  placeholder="e.g. 1 big bag + 1 hand luggage. Extra bags attract additional charge."
+                  placeholder="e.g. 1 big bag + 1 hand luggage."
                   rows={2}
                   className="w-full px-3 py-2 text-[13px] border border-portal-border rounded-lg bg-portal-bg focus:outline-none focus:border-portal-accent resize-none"
                 />
@@ -756,7 +799,7 @@ export default function RouteManagement() {
                 <textarea
                   value={form.notes}
                   onChange={(e) => setF("notes", e.target.value)}
-                  placeholder="e.g. No food items. Contact driver 30 mins before departure."
+                  placeholder="e.g. Come early to the stand at the front of CAF."
                   rows={2}
                   className="w-full px-3 py-2 text-[13px] border border-portal-border rounded-lg bg-portal-bg focus:outline-none focus:border-portal-accent resize-none"
                 />
@@ -794,28 +837,16 @@ export default function RouteManagement() {
 
               {form.availType === "scheduled" && (
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-portal-muted mb-1.5">
-                      Start Date
-                    </label>
-                    <input
-                      type="date"
-                      value={form.schedStart}
-                      onChange={(e) => setF("schedStart", e.target.value)}
-                      className="w-full px-3 py-2 text-[13px] border border-portal-border rounded-lg bg-portal-bg focus:outline-none focus:border-portal-accent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-portal-muted mb-1.5">
-                      End Date
-                    </label>
-                    <input
-                      type="date"
-                      value={form.schedEnd}
-                      onChange={(e) => setF("schedEnd", e.target.value)}
-                      className="w-full px-3 py-2 text-[13px] border border-portal-border rounded-lg bg-portal-bg focus:outline-none focus:border-portal-accent"
-                    />
-                  </div>
+                  <DatePickerField
+                    label="Start Date"
+                    value={form.schedStart}
+                    onChange={(v) => setF("schedStart", v)}
+                  />
+                  <DatePickerField
+                    label="End Date"
+                    value={form.schedEnd}
+                    onChange={(v) => setF("schedEnd", v)}
+                  />
                 </div>
               )}
             </div>
@@ -823,9 +854,6 @@ export default function RouteManagement() {
 
           {/* Footer */}
           <div className="px-5 py-4 border-t border-portal-border flex-shrink-0">
-            {saveError && (
-              <p className="text-[12px] text-red-500 mb-2">{saveError}</p>
-            )}
             <button
               onClick={save}
               disabled={!canSave || isSaving}
