@@ -20,6 +20,7 @@ const step1Fields = [
   "confirmPassword",
 ] as const;
 const RESEND_COOLDOWN = 60; // seconds
+const EMAIL_VERIFICATION_DEFAULT = false; // set to true to enable by default
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -32,28 +33,32 @@ const inputClass = (err?: string) =>
 
 // ─── Step indicator ────────────────────────────────────────────────────────────
 
-function StepIndicator({ step }: { step: 1 | 2 | 3 }) {
+function StepIndicator({ step, emailVerification }: { step: 1 | 2 | 3; emailVerification: boolean }) {
+  const totalSteps = emailVerification ? 3 : 2;
+  // When verification is off, step 3 displays as step 2
+  const displayStep = emailVerification ? step : step === 3 ? 2 : step;
+
   return (
     <div className="flex items-center gap-2">
       <div className="flex items-center gap-1.5">
-        {[1, 2, 3].map((s, i) => (
+        {Array.from({ length: totalSteps }, (_, i) => i + 1).map((s, i) => (
           <div key={s} className="flex items-center gap-1.5">
             <div
               className={`h-2 w-2 rounded-full transition-colors ${
-                step >= s ? "bg-portal-accent" : "bg-portal-border"
+                displayStep >= s ? "bg-portal-accent" : "bg-portal-border"
               }`}
             />
-            {i < 2 && (
+            {i < totalSteps - 1 && (
               <div
                 className={`h-0.5 w-8 transition-colors ${
-                  step > s ? "bg-portal-accent" : "bg-portal-border"
+                  displayStep > s ? "bg-portal-accent" : "bg-portal-border"
                 }`}
               />
             )}
           </div>
         ))}
       </div>
-      <span className="text-xs text-portal-muted ml-1">Step {step} of 3</span>
+      <span className="text-xs text-portal-muted ml-1">Step {displayStep} of {totalSteps}</span>
     </div>
   );
 }
@@ -147,6 +152,7 @@ export default function SignUpForm() {
   const router = useRouter();
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [emailVerification, setEmailVerification] = useState(EMAIL_VERIFICATION_DEFAULT);
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -217,6 +223,11 @@ export default function SignUpForm() {
     const valid = await trigger(step1Fields);
     if (!valid) return;
 
+    if (!emailVerification) {
+      setStep(3);
+      return;
+    }
+
     const ok = await sendOtp(getValues("email"), getValues("firstName"));
     if (ok) {
       setOtp("");
@@ -286,7 +297,7 @@ export default function SignUpForm() {
 
   return (
     <div className="space-y-5">
-      <StepIndicator step={step} />
+      <StepIndicator step={step} emailVerification={emailVerification} />
 
       {/* ── Step 1: Account info ─────────────────────────────────────────── */}
       {step === 1 && (
@@ -385,6 +396,25 @@ export default function SignUpForm() {
             {errors.confirmPassword && (
               <p className="mt-1 text-xs text-red-500">{errors.confirmPassword.message}</p>
             )}
+          </div>
+
+          <div className="flex items-center justify-between rounded-lg border border-portal-border px-4 py-3">
+            <span className="text-sm text-portal-text">Email verification</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={emailVerification}
+              onClick={() => setEmailVerification((v) => !v)}
+              className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${
+                emailVerification ? "bg-portal-accent" : "bg-portal-border"
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                  emailVerification ? "translate-x-4" : "translate-x-0"
+                }`}
+              />
+            </button>
           </div>
 
           <button
@@ -532,7 +562,7 @@ export default function SignUpForm() {
           <div className="flex gap-3 mt-2">
             <button
               type="button"
-              onClick={() => setStep(2)}
+              onClick={() => setStep(emailVerification ? 2 : 1)}
               className="flex items-center gap-1 rounded-lg border border-portal-border text-portal-text font-medium py-3 px-4 text-[15px] transition-colors hover:bg-portal-border/30"
             >
               <ChevronLeft size={16} />

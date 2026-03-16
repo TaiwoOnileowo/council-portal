@@ -88,11 +88,23 @@ export async function sendPasswordResetEmail(
   let token = await getAccessToken();
 
   try {
-    await sendEmail(token, { name: firstName, email }, "Change your Council Portal password", html, text);
+    await sendEmail(
+      token,
+      { name: firstName, email },
+      "Change your Council Portal password",
+      html,
+      text,
+    );
   } catch (err) {
     if (err instanceof Error && err.message === "SENDPULSE_TOKEN_EXPIRED") {
       token = await getAccessToken();
-      await sendEmail(token, { name: firstName, email }, "Change your Council Portal password", html, text);
+      await sendEmail(
+        token,
+        { name: firstName, email },
+        "Change your Council Portal password",
+        html,
+        text,
+      );
     } else {
       throw err;
     }
@@ -237,12 +249,24 @@ export async function sendVerificationEmail(
   let token = await getAccessToken();
 
   try {
-    await sendEmail(token, { name: firstName, email }, "Your verification code", html, text);
+    await sendEmail(
+      token,
+      { name: firstName, email },
+      "Your verification code",
+      html,
+      text,
+    );
   } catch (err) {
     if (err instanceof Error && err.message === "SENDPULSE_TOKEN_EXPIRED") {
       // Retry once with a fresh token
       token = await getAccessToken();
-      await sendEmail(token, { name: firstName, email }, "Your verification code", html, text);
+      await sendEmail(
+        token,
+        { name: firstName, email },
+        "Your verification code",
+        html,
+        text,
+      );
     } else {
       throw err;
     }
