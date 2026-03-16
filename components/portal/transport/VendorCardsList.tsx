@@ -25,8 +25,10 @@ export function isVendorAvailable(vendor: PublicVendor): boolean {
 
 export default function VendorCardsList({
   vendors,
+  user,
 }: {
   vendors: PublicVendor[];
+  user: { name: string; phone: string };
 }) {
   const [detailVendor, setDetailVendor] = useState<PublicVendor | null>(null);
   const [bookingVendor, setBookingVendor] = useState<PublicVendor | null>(null);
@@ -127,6 +129,7 @@ export default function VendorCardsList({
             setBookingRoute(null);
           }}
           initialRoute={bookingRoute}
+          user={user}
         />
       )}
     </>

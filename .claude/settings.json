@@ -5,7 +5,9 @@
       "Bash(npx shadcn@latest add calendar popover --yes)",
       "Bash(npx shadcn@latest add calendar popover)",
       "Bash(npx shadcn@latest add calendar --yes)",
-      "Bash(npx shadcn@latest add popover --yes)"
+      "Bash(npx shadcn@latest add popover --yes)",
+      "Bash(grep -r \"useSession\\\\|getSession\\\\|auth\\(\\)\" /Users/tdax/CODE/council-portal1/components /Users/tdax/CODE/council-portal1/app --include=*.tsx --include=*.ts)",
+      "Bash(find /Users/tdax/CODE/council-portal1/app/api -type f -name *.ts -o -name *.tsx)"
     ]
   }
 }

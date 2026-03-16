@@ -1,28 +1,79 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import {
-  X,
-  Search,
-  MapPin,
-  ArrowRight,
-  Bus,
-  ChevronLeft,
-  StickyNote,
-  CheckCircle2,
-  Copy,
-  MessageCircle,
-  Info,
-} from "lucide-react";
 import type {
-  PublicVendor,
   PublicPriceList,
   PublicRoute,
+  PublicVendor,
 } from "@/lib/actions/vendor.action";
+import {
+  ArrowRight,
+  Bus,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronDown,
+  Copy,
+  Info,
+  MapPin,
+  MessageCircle,
+  Search,
+  User,
+  X,
+} from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useMemo, useState } from "react";
 
-type Step = "pick-destination" | "ride-summary" | "payment" | "success";
-type RideType = "Private Ride" | "Shared Ride";
+type Step =
+  | "pick-destination"
+  | "ride-summary"
+  | "passenger-details"
+  | "payment"
+  | "success";
+
+const HALLS = [
+  "Charles Hall",
+  "Daniel Hall",
+  "Ester Hall",
+  "Faith Hall",
+  "Grace Hall",
+  "Hephzibah Hall",
+  "Joseph Hall",
+  "Peter Hall",
+  "Samuel Hall",
+  "Deborah Hall",
+] as const;
+
+type Hall = (typeof HALLS)[number];
+
+type PassengerForm = {
+  name: string;
+  hall: Hall | "";
+  roomNumber: string;
+  phone: string;
+  parentsPhone: string;
+};
+
+type PassengerErrors = Partial<Record<keyof PassengerForm, string>>;
+
+function validatePassenger(f: PassengerForm): PassengerErrors {
+  const e: PassengerErrors = {};
+  if (f.name.trim().length < 2) e.name = "Name must be at least 2 characters";
+  if (!f.hall) e.hall = "Please select your hall";
+  const room = f.roomNumber.trim().toUpperCase();
+  if (!room) {
+    e.roomNumber = "Room number is required";
+  } else if (!/^[A-H][1-4](0[1-9]|1[0-3])$/.test(room)) {
+    e.roomNumber = "Invalid format — e.g. E401, A113 (rooms 01–13 per floor)";
+  }
+  if (!/^\d{11}$/.test(f.phone)) e.phone = "Must be exactly 11 digits";
+  if (!/^\d{11}$/.test(f.parentsPhone))
+    e.parentsPhone = "Must be exactly 11 digits";
+  return e;
+}
+
+const STEP_BACK: Partial<Record<Step, Step>> = {
+  "ride-summary": "pick-destination",
+  "passenger-details": "ride-summary",
+};
 
 export default function BookingFlow({
   vendor,
@@ -30,13 +81,17 @@ export default function BookingFlow({
   open,
   onClose,
   initialRoute,
+  user,
 }: {
   vendor: PublicVendor;
   priceList: PublicPriceList;
   open: boolean;
   onClose: () => void;
   initialRoute?: PublicRoute | null;
+  user: { name: string; phone: string };
 }) {
+  const isLeaving = priceList.direction === "LEAVING";
+
   const [step, setStep] = useState<Step>(
     initialRoute ? "ride-summary" : "pick-destination",
   );
@@ -44,8 +99,14 @@ export default function BookingFlow({
   const [selectedRoute, setSelectedRoute] = useState<PublicRoute | null>(
     initialRoute ?? null,
   );
-  const [rideType, setRideType] = useState<RideType>("Private Ride");
-  const [notes, setNotes] = useState("");
+  const [passenger, setPassenger] = useState<PassengerForm>({
+    name: user.name,
+    hall: "",
+    roomNumber: "",
+    phone: user.phone,
+    parentsPhone: "",
+  });
+  const [passengerErrors, setPassengerErrors] = useState<PassengerErrors>({});
   const [bookingRef] = useState(
     () =>
       `TRX-${Date.now().toString(36).toUpperCase().slice(-6)}-${Math.random().toString(36).slice(2, 5).toUpperCase()}`,
@@ -62,8 +123,14 @@ export default function BookingFlow({
     setStep("pick-destination");
     setSearch("");
     setSelectedRoute(null);
-    setRideType("Private Ride");
-    setNotes("");
+    setPassenger({
+      name: user.name,
+      hall: "",
+      roomNumber: "",
+      phone: user.phone,
+      parentsPhone: "",
+    });
+    setPassengerErrors({});
     setCopied(false);
   }
 
@@ -77,11 +144,21 @@ export default function BookingFlow({
     setStep("ride-summary");
   }
 
-  function handlePay() {
+  function handlePassengerChange(field: keyof PassengerForm, value: string) {
+    setPassenger((prev) => ({ ...prev, [field]: value }));
+    if (passengerErrors[field]) {
+      setPassengerErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+  }
+
+  function handleProceedToPayment() {
+    const errors = validatePassenger(passenger);
+    if (Object.keys(errors).length > 0) {
+      setPassengerErrors(errors);
+      return;
+    }
     setStep("payment");
-    setTimeout(() => {
-      setStep("success");
-    }, 2000);
+    setTimeout(() => setStep("success"), 2000);
   }
 
   function handleCopyRef() {
@@ -91,10 +168,23 @@ export default function BookingFlow({
   }
 
   const basePrice = selectedRoute?.price ?? 0;
-  const finalPrice =
-    rideType === "Shared Ride"
-      ? `₦${Math.round(basePrice * 0.6).toLocaleString()}`
-      : `₦${basePrice.toLocaleString()}`;
+  const finalPrice = `₦${basePrice.toLocaleString()}`;
+
+  const pickup = isLeaving
+    ? "Covenant University"
+    : (selectedRoute?.name ?? "");
+  const destination = isLeaving
+    ? (selectedRoute?.name ?? "")
+    : "Covenant University";
+  const directionLabel = isLeaving ? "Leaving School" : "Returning to School";
+
+  const stepTitle: Record<Step, string> = {
+    "pick-destination": "Pick Destination",
+    "ride-summary": "Ride Summary",
+    "passenger-details": "Your Details",
+    payment: "Processing Payment",
+    success: "Booking Confirmed!",
+  };
 
   if (!open) return null;
 
@@ -121,15 +211,9 @@ export default function BookingFlow({
           >
             {/* Header */}
             <div className="flex items-center gap-3 px-5 py-4 border-b border-portal-border flex-shrink-0">
-              {step !== "pick-destination" && step !== "success" && (
+              {STEP_BACK[step] && (
                 <button
-                  onClick={() =>
-                    setStep(
-                      step === "ride-summary"
-                        ? "pick-destination"
-                        : "ride-summary",
-                    )
-                  }
+                  onClick={() => setStep(STEP_BACK[step]!)}
                   className="w-8 h-8 rounded-lg bg-portal-bg border border-portal-border flex items-center justify-center hover:bg-portal-bg2 transition-colors"
                 >
                   <ChevronLeft className="w-4 h-4" />
@@ -137,13 +221,10 @@ export default function BookingFlow({
               )}
               <div className="flex-1 min-w-0">
                 <h3 className="font-heading text-[15px] font-bold truncate">
-                  {step === "pick-destination" && "Pick your destination"}
-                  {step === "ride-summary" && "Ride Summary"}
-                  {step === "payment" && "Processing Payment"}
-                  {step === "success" && "Booking Confirmed!"}
+                  {stepTitle[step]}
                 </h3>
                 <p className="text-[11px] text-portal-muted truncate">
-                  {vendor.transportName}
+                  {vendor.transportName} · {directionLabel}
                 </p>
               </div>
               <button
@@ -157,7 +238,7 @@ export default function BookingFlow({
             {/* Step content */}
             <div className="flex-1 overflow-y-auto">
               <AnimatePresence mode="wait">
-                {/* Step 1: Pick Destination */}
+                {/* ── Step 1: Pick Destination ── */}
                 {step === "pick-destination" && (
                   <motion.div
                     key="step-destination"
@@ -177,7 +258,6 @@ export default function BookingFlow({
                         className="w-full pl-9 pr-3.5 py-2.5 bg-portal-bg border border-portal-border rounded-xl text-sm text-portal-text placeholder:text-portal-muted outline-none focus:border-portal-accent transition-colors"
                       />
                     </div>
-
                     <div className="space-y-1.5">
                       {filteredRoutes.length === 0 && (
                         <p className="text-center text-[13px] text-portal-muted py-8">
@@ -203,11 +283,9 @@ export default function BookingFlow({
                               </p>
                             )}
                           </div>
-                          <div className="text-right flex-shrink-0">
-                            <p className="font-heading text-sm font-extrabold">
-                              ₦{route.price.toLocaleString()}
-                            </p>
-                          </div>
+                          <p className="font-heading text-sm font-extrabold flex-shrink-0">
+                            ₦{route.price.toLocaleString()}
+                          </p>
                           <ArrowRight className="w-4 h-4 text-portal-muted flex-shrink-0" />
                         </button>
                       ))}
@@ -215,7 +293,7 @@ export default function BookingFlow({
                   </motion.div>
                 )}
 
-                {/* Step 2: Ride Summary */}
+                {/* ── Step 2: Ride Summary ── */}
                 {step === "ride-summary" && selectedRoute && (
                   <motion.div
                     key="step-summary"
@@ -227,8 +305,11 @@ export default function BookingFlow({
                   >
                     {/* Route card */}
                     <div className="bg-portal-bg rounded-xl p-4 mb-4">
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="flex flex-col items-center gap-1">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-portal-muted mb-3">
+                        {directionLabel}
+                      </p>
+                      <div className="flex items-start gap-3 mb-3">
+                        <div className="flex flex-col items-center gap-1 mt-1">
                           <div className="w-2.5 h-2.5 rounded-full bg-portal-accent" />
                           <div className="w-px h-6 bg-portal-border2" />
                           <div className="w-2.5 h-2.5 rounded-full bg-portal-green" />
@@ -239,7 +320,7 @@ export default function BookingFlow({
                               Pickup
                             </p>
                             <p className="text-[13px] font-semibold">
-                              Main Gate
+                              {pickup}
                             </p>
                           </div>
                           <div>
@@ -247,12 +328,11 @@ export default function BookingFlow({
                               Destination
                             </p>
                             <p className="text-[13px] font-semibold">
-                              {selectedRoute.name}
+                              {destination}
                             </p>
                           </div>
                         </div>
                       </div>
-
                       <div className="flex gap-3 pt-3 border-t border-portal-border">
                         <div className="flex items-center gap-1.5 text-[12px] text-portal-text2">
                           <Bus className="w-3.5 h-3.5 text-portal-muted" />
@@ -267,14 +347,29 @@ export default function BookingFlow({
                       </div>
                     </div>
 
-                    {/* Notes from vendor */}
+                    {/* Luggage policy */}
+                    {priceList.luggagePolicy && (
+                      <div className="mb-4 flex gap-2.5 bg-portal-bg border border-portal-border rounded-xl px-3.5 py-3">
+                        <Info className="w-3.5 h-3.5 text-portal-muted flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-[11px] font-semibold text-portal-text2 mb-0.5">
+                            Luggage Policy
+                          </p>
+                          <p className="text-[12px] text-portal-muted">
+                            {priceList.luggagePolicy}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Vendor notes */}
                     {priceList.notes && (
-                      <div className="mb-4">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-portal-muted mb-2 flex items-center gap-1">
-                          <Info className="w-3 h-3" />
-                          Note from {vendor.transportName}
-                        </p>
-                        <div className="bg-portal-blue-bg border border-blue-200 rounded-xl p-3.5">
+                      <div className="mb-4 flex gap-2.5 bg-portal-blue-bg border border-blue-200 rounded-xl px-3.5 py-3">
+                        <Info className="w-3.5 h-3.5 text-blue-400 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-[11px] font-semibold text-portal-text2 mb-0.5">
+                            Note from {vendor.transportName}
+                          </p>
                           <p className="text-[12px] text-portal-text2 leading-relaxed">
                             {priceList.notes}
                           </p>
@@ -282,78 +377,135 @@ export default function BookingFlow({
                       </div>
                     )}
 
-                    {/* Ride type toggle */}
-                    <div className="mb-4">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-portal-muted mb-2">
-                        Ride Type
-                      </p>
-                      <div className="flex gap-2">
-                        {(["Private Ride", "Shared Ride"] as RideType[]).map(
-                          (type) => (
-                            <button
-                              key={type}
-                              onClick={() => setRideType(type)}
-                              className={`flex-1 py-2.5 rounded-xl text-[13px] font-semibold border transition-all ${
-                                rideType === type
-                                  ? "bg-portal-accent text-white border-portal-accent"
-                                  : "bg-portal-bg text-portal-text2 border-portal-border hover:border-portal-accent-border"
-                              }`}
-                            >
-                              {type}
-                            </button>
-                          ),
-                        )}
-                      </div>
-                      {rideType === "Shared Ride" && (
-                        <p className="text-[11px] text-portal-green mt-1.5">
-                          40% discount applied for shared ride
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Special instructions */}
-                    <div className="mb-4">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-portal-muted mb-2 flex items-center gap-1">
-                        <StickyNote className="w-3 h-3" />
-                        Special Instructions (optional)
-                      </p>
-                      <textarea
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        placeholder="e.g. I have extra luggage, pick up at back gate..."
-                        rows={2}
-                        className="w-full px-3.5 py-2.5 bg-portal-bg border border-portal-border rounded-xl text-sm text-portal-text placeholder:text-portal-muted outline-none focus:border-portal-accent transition-colors resize-none"
-                      />
-                    </div>
-
-                    {/* Price breakdown */}
-                    <div className="bg-portal-bg rounded-xl p-4 mb-4 space-y-2">
-                      <div className="flex justify-between text-[13px]">
-                        <span className="text-portal-text2">Base fare</span>
-                        <span className="font-semibold">
-                          ₦{basePrice.toLocaleString()}
-                        </span>
-                      </div>
-                      {rideType === "Shared Ride" && (
-                        <div className="flex justify-between text-[13px]">
-                          <span className="text-portal-green">
-                            Shared ride discount
-                          </span>
-                          <span className="font-semibold text-portal-green">
-                            -₦{Math.round(basePrice * 0.4).toLocaleString()}
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex justify-between text-[14px] pt-2 border-t border-portal-border">
-                        <span className="font-bold">Total</span>
-                        <span className="font-heading font-extrabold text-base">
-                          {finalPrice}
-                        </span>
-                      </div>
+                    {/* Price */}
+                    <div className="bg-portal-bg rounded-xl p-4 mb-4 flex justify-between items-center">
+                      <span className="text-[13px] text-portal-text2 font-medium">
+                        Fare
+                      </span>
+                      <span className="font-heading font-extrabold text-base">
+                        {finalPrice}
+                      </span>
                     </div>
 
                     <button
-                      onClick={handlePay}
+                      onClick={() => setStep("passenger-details")}
+                      className="w-full py-3 bg-portal-accent hover:bg-portal-accent2 text-white rounded-xl text-[14px] font-semibold transition-all hover:-translate-y-0.5"
+                    >
+                      Continue
+                    </button>
+                  </motion.div>
+                )}
+
+                {/* ── Step 3: Passenger Details ── */}
+                {step === "passenger-details" && (
+                  <motion.div
+                    key="step-passenger"
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 10 }}
+                    transition={{ duration: 0.2 }}
+                    className="p-5 space-y-4"
+                  >
+                    {/* Name */}
+                    <Field label="Full Name" error={passengerErrors.name}>
+                      <input
+                        type="text"
+                        value={passenger.name}
+                        onChange={(e) =>
+                          handlePassengerChange("name", e.target.value)
+                        }
+                        placeholder="Your full name"
+                        className={inputCls(!!passengerErrors.name)}
+                      />
+                    </Field>
+
+                    {/* Hall */}
+                    <Field
+                      label="Hall of Residence"
+                      error={passengerErrors.hall}
+                    >
+                      <div className="relative">
+                        <select
+                          value={passenger.hall}
+                          onChange={(e) =>
+                            handlePassengerChange("hall", e.target.value)
+                          }
+                          className={`${inputCls(!!passengerErrors.hall)} appearance-none pr-8`}
+                        >
+                          <option value="">Select your hall</option>
+                          {HALLS.map((h) => (
+                            <option key={h} value={h}>
+                              {h}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-portal-muted pointer-events-none" />
+                      </div>
+                    </Field>
+
+                    {/* Room Number */}
+                    <Field
+                      label="Room Number"
+                      hint="Format: letter (A–H) + floor (1–4) + room (01–13) — e.g. E401, A113"
+                      error={passengerErrors.roomNumber}
+                    >
+                      <input
+                        type="text"
+                        value={passenger.roomNumber}
+                        onChange={(e) =>
+                          handlePassengerChange(
+                            "roomNumber",
+                            e.target.value.toUpperCase(),
+                          )
+                        }
+                        placeholder="e.g. E401"
+                        maxLength={4}
+                        className={inputCls(!!passengerErrors.roomNumber)}
+                      />
+                    </Field>
+
+                    {/* Phone */}
+                    <Field
+                      label="Your Phone Number"
+                      error={passengerErrors.phone}
+                    >
+                      <input
+                        type="tel"
+                        inputMode="numeric"
+                        value={passenger.phone}
+                        onChange={(e) =>
+                          handlePassengerChange(
+                            "phone",
+                            e.target.value.replace(/\D/g, "").slice(0, 11),
+                          )
+                        }
+                        placeholder="08012345678"
+                        className={inputCls(!!passengerErrors.phone)}
+                      />
+                    </Field>
+
+                    {/* Parents Phone */}
+                    <Field
+                      label="Parent / Guardian Phone"
+                      error={passengerErrors.parentsPhone}
+                    >
+                      <input
+                        type="tel"
+                        inputMode="numeric"
+                        value={passenger.parentsPhone}
+                        onChange={(e) =>
+                          handlePassengerChange(
+                            "parentsPhone",
+                            e.target.value.replace(/\D/g, "").slice(0, 11),
+                          )
+                        }
+                        placeholder="08012345678"
+                        className={inputCls(!!passengerErrors.parentsPhone)}
+                      />
+                    </Field>
+
+                    <button
+                      onClick={handleProceedToPayment}
                       className="w-full py-3 bg-portal-accent hover:bg-portal-accent2 text-white rounded-xl text-[14px] font-semibold transition-all hover:-translate-y-0.5"
                     >
                       Confirm & Pay {finalPrice}
@@ -361,7 +513,7 @@ export default function BookingFlow({
                   </motion.div>
                 )}
 
-                {/* Step 3: Payment processing */}
+                {/* ── Step 4: Payment Processing ── */}
                 {step === "payment" && (
                   <motion.div
                     key="step-payment"
@@ -381,7 +533,7 @@ export default function BookingFlow({
                   </motion.div>
                 )}
 
-                {/* Step 4: Success */}
+                {/* ── Step 5: Success ── */}
                 {step === "success" && selectedRoute && (
                   <motion.div
                     key="step-success"
@@ -428,12 +580,18 @@ export default function BookingFlow({
                       <div className="flex justify-between text-[13px]">
                         <span className="text-portal-muted">Route</span>
                         <span className="font-semibold">
-                          Main Gate → {selectedRoute.name}
+                          {pickup} → {destination}
                         </span>
                       </div>
                       <div className="flex justify-between text-[13px]">
-                        <span className="text-portal-muted">Ride Type</span>
-                        <span className="font-semibold">{rideType}</span>
+                        <span className="text-portal-muted">Passenger</span>
+                        <span className="font-semibold">{passenger.name}</span>
+                      </div>
+                      <div className="flex justify-between text-[13px]">
+                        <span className="text-portal-muted">Room</span>
+                        <span className="font-semibold">
+                          {passenger.hall}, {passenger.roomNumber}
+                        </span>
                       </div>
                       <div className="flex justify-between text-[13px] pt-2 border-t border-portal-border">
                         <span className="font-bold">Total Paid</span>
@@ -477,5 +635,40 @@ export default function BookingFlow({
         </motion.div>
       )}
     </AnimatePresence>
+  );
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function inputCls(hasError: boolean) {
+  return `w-full px-3.5 py-2.5 bg-portal-bg border rounded-xl text-sm text-portal-text placeholder:text-portal-muted outline-none transition-colors ${
+    hasError
+      ? "border-red-400 focus:border-red-500"
+      : "border-portal-border focus:border-portal-accent"
+  }`;
+}
+
+function Field({
+  label,
+  hint,
+  error,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  error?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <label className="block text-[12px] font-semibold text-portal-text2 mb-1.5">
+        {label}
+      </label>
+      {children}
+      {hint && !error && (
+        <p className="text-[11px] text-portal-muted mt-1">{hint}</p>
+      )}
+      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
+    </div>
   );
 }
