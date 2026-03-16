@@ -74,9 +74,19 @@ export async function signUpUser({
     return { error: parsed.error.issues[0].message };
   }
 
-  const existing = await db.user.findUnique({ where: { email } });
-  if (existing) {
-    return { error: "An account with this email already exists" };
+  const existingEmail = await db.user.findUnique({ where: { email } });
+  if (existingEmail) {
+    return { error: "An account with this email already exists", field: "email" as const };
+  }
+
+  const existingPhone = await db.user.findUnique({ where: { phone } });
+  if (existingPhone) {
+    return { error: "This phone number is already registered", field: "phone" as const };
+  }
+
+  const existingMatric = await db.user.findUnique({ where: { matricNumber } });
+  if (existingMatric) {
+    return { error: "This matric number is already registered", field: "matricNumber" as const };
   }
 
   const passwordHash = await hashPassword(password);

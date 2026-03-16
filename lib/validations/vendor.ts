@@ -9,6 +9,9 @@ export const vendorStep1Schema = z
     firstName: z.string().min(3, "First name must be at least 2 characters"),
     lastName: z.string().min(2, "Last name must be at least 2 characters"),
     email: vendorEmailField,
+    phone: z
+      .string()
+      .regex(/^\d{11}$/, "Phone number must be exactly 11 digits"),
     password: z.string().min(8, "Password must be at least 8 characters"),
     confirmPassword: z.string(),
   })
@@ -49,6 +52,9 @@ export const vendorSignUpSchema = z
     firstName: z.string().min(2, "First name must be at least 2 characters"),
     lastName: z.string().min(2, "Last name must be at least 2 characters"),
     email: vendorEmailField,
+    phone: z
+      .string()
+      .regex(/^\d{11}$/, "Phone number must be exactly 11 digits"),
     password: z.string().min(8, "Password must be at least 8 characters"),
     confirmPassword: z.string(),
     image: z.string().optional(),
@@ -83,6 +89,9 @@ export const updateVendorPersonalInfoSchema = z.object({
   firstName: z.string().min(2, "First name must be at least 2 characters"),
   lastName: z.string().min(2, "Last name must be at least 2 characters"),
   email: vendorEmailField,
+  phone: z
+    .string()
+    .regex(/^\d{11}$/, "Phone number must be exactly 11 digits"),
 });
 
 export const updateVendorProfileSchema = z.object({

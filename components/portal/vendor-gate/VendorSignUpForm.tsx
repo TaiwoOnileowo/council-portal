@@ -524,6 +524,7 @@ const step1Fields = [
   "firstName",
   "lastName",
   "email",
+  "phone",
   "password",
   "confirmPassword",
 ] as const;
@@ -609,6 +610,7 @@ export default function VendorSignUpForm() {
       const formData = getValues();
       const result = await signUpVendor({
         ...formData,
+        phone: formData.phone,
         image: image || undefined,
         bankCode: step3.bankCode,
         bankName: step3.bankName,
@@ -694,6 +696,30 @@ export default function VendorSignUpForm() {
             />
             {errors.email && (
               <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-portal-text mb-1.5">
+              Phone number<span className="text-portal-accent">*</span>
+            </label>
+            <Controller
+              name="phone"
+              control={control}
+              render={({ field }) => (
+                <input
+                  {...field}
+                  type="tel"
+                  onChange={(e) => field.onChange(e.target.value.replace(/\D/g, "").slice(0, 11))}
+                  inputMode="numeric"
+                  maxLength={11}
+                  placeholder="08012345678"
+                  className={inputClass(errors.phone?.message)}
+                />
+              )}
+            />
+            {errors.phone && (
+              <p className="mt-1 text-xs text-red-500">{errors.phone.message}</p>
             )}
           </div>
 

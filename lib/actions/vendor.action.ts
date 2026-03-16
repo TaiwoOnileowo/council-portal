@@ -21,6 +21,7 @@ export async function signUpVendor(input: {
   firstName: string;
   lastName: string;
   email: string;
+  phone: string;
   password: string;
   confirmPassword: string;
   image?: string;
@@ -48,6 +49,11 @@ export async function signUpVendor(input: {
     return { error: "A vendor account with this email already exists." };
   }
 
+  const existingPhone = await db.vendor.findUnique({ where: { phone: input.phone } });
+  if (existingPhone) {
+    return { error: "A vendor account with this phone number already exists." };
+  }
+
   const passwordHash = await hashPassword(input.password);
 
   try {
@@ -56,6 +62,7 @@ export async function signUpVendor(input: {
         firstName: input.firstName,
         lastName: input.lastName,
         email: input.email,
+        phone: input.phone,
         passwordHash,
         transportName: input.transportName,
         image: input.image || null,
@@ -118,25 +125,31 @@ export async function updateVendorPersonalInfo({
   firstName,
   lastName,
   email,
+  phone,
 }: {
   vendorId: string;
   firstName: string;
   lastName: string;
   email: string;
+  phone: string;
 }) {
   if (firstName.trim().length < 2) return { error: "First name must be at least 2 characters" };
   if (lastName.trim().length < 2) return { error: "Last name must be at least 2 characters" };
   if (!email.includes("@")) return { error: "Please enter a valid email address" };
+  if (!/^\d{11}$/.test(phone)) return { error: "Phone number must be exactly 11 digits" };
 
   try {
     await db.vendor.update({
       where: { id: vendorId },
-      data: { firstName, lastName, email },
+      data: { firstName, lastName, email, phone },
     });
     return { success: true };
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "";
     if (msg.includes("Unique constraint")) {
+      if (msg.toLowerCase().includes("phone")) {
+        return { error: "This phone number is already in use by another vendor." };
+      }
       return { error: "This email is already in use by another vendor." };
     }
     return { error: "Failed to update profile. Please try again." };

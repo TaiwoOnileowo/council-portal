@@ -57,9 +57,9 @@ export default function VendorCards() {
       >
         <div className="flex items-center justify-between mb-3.5">
           <h2 className="font-heading text-[17px] font-bold">All Vendors</h2>
-          <button className="text-[13px] font-medium text-portal-accent hover:underline">
+          {/* <button className="text-[13px] font-medium text-portal-accent hover:underline">
             Sort by rating ↓
-          </button>
+          </button> */}
         </div>
 
         <div className="grid grid-cols-3 gap-3.5">
@@ -72,12 +72,12 @@ export default function VendorCards() {
               className="group bg-portal-surface border border-portal-border rounded-2xl p-5 cursor-pointer relative overflow-hidden hover:border-portal-accent-border hover:shadow-[0_8px_28px_rgba(0,0,0,0.07)] transition-all duration-220"
             >
               {/* Top rated badge */}
-              {vendor.topRated && (
+              {/* {vendor.topRated && (
                 <div className="absolute top-3.5 right-3.5 flex items-center gap-1 text-[10px] font-bold bg-portal-gold-bg text-portal-gold border border-[#e8d5a0] px-2 py-1 rounded-md">
                   <Award className="w-3 h-3" />
                   Top Rated
                 </div>
-              )}
+              )} */}
 
               {/* Availability dot */}
               {!vendor.available && (
@@ -108,16 +108,16 @@ export default function VendorCards() {
               </div>
 
               {/* Rating */}
-              <div className="flex items-center gap-2 mb-2.5">
+              {/* <div className="flex items-center gap-2 mb-2.5">
                 <StarRating full={vendor.fullStars} />
                 <span className="text-[13px] font-bold">{vendor.rating}</span>
                 <span className="text-xs text-portal-muted">
                   ({vendor.reviews} reviews)
                 </span>
-              </div>
+              </div> */}
 
               {/* Footer */}
-              <div className="flex items-center justify-between pt-3.5 border-t border-portal-border">
+              {/* <div className="flex items-center justify-between pt-3.5 border-t border-portal-border">
                 <div>
                   <p className="text-xs text-portal-muted">From</p>
                   <p className="font-heading text-base font-extrabold">
@@ -130,7 +130,7 @@ export default function VendorCards() {
                 >
                   Book Now
                 </button>
-              </div>
+              </div> */}
             </motion.div>
           ))}
         </div>

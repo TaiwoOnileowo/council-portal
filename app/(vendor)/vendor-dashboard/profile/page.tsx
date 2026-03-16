@@ -31,6 +31,7 @@ export default async function VendorProfilePage() {
               firstName: vendor.firstName,
               lastName: vendor.lastName,
               email: vendor.email,
+              phone: vendor.phone ?? "",
             }}
           />
           <ChangePassword email={vendor.email} />

@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { motion } from "motion/react";
-import { Pencil, Check, X, Mail } from "lucide-react";
+import { Pencil, Check, X, Mail, Phone } from "lucide-react";
 import { toast } from "sonner";
 import { updateVendorPersonalInfo } from "@/lib/actions/vendor.action";
 import { updateVendorPersonalInfoSchema } from "@/lib/validations/vendor";
@@ -14,6 +14,7 @@ type ProfileFields = {
   firstName: string;
   lastName: string;
   email: string;
+  phone: string;
 };
 
 type UpdateVendorPersonalInfoInput = z.infer<typeof updateVendorPersonalInfoSchema>;
@@ -35,12 +36,14 @@ export default function VendorProfileDetails({ vendor }: Props) {
     firstName: vendor.firstName,
     lastName: vendor.lastName,
     email: vendor.email,
+    phone: vendor.phone,
   });
 
   const {
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors, isDirty, isSubmitting },
   } = useForm<UpdateVendorPersonalInfoInput>({
     resolver: zodResolver(updateVendorPersonalInfoSchema),
@@ -62,6 +65,7 @@ export default function VendorProfileDetails({ vendor }: Props) {
       firstName: data.firstName,
       lastName: data.lastName,
       email: data.email,
+      phone: data.phone,
     });
 
     if (result?.error) {
@@ -149,7 +153,7 @@ export default function VendorProfileDetails({ vendor }: Props) {
       </div>
 
       {/* Email */}
-      <div>
+      <div className="mb-4">
         <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">Email Address</label>
         {editing ? (
           <>
@@ -167,6 +171,39 @@ export default function VendorProfileDetails({ vendor }: Props) {
           <div className="flex items-center gap-2.5 py-2">
             <Mail className="w-4 h-4 text-portal-muted flex-shrink-0" />
             <p className="text-[13.5px] font-medium text-portal-text">{profile.email}</p>
+          </div>
+        )}
+      </div>
+
+      {/* Phone */}
+      <div>
+        <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">Phone Number</label>
+        {editing ? (
+          <>
+            <div className="flex items-center gap-2.5">
+              <Phone className="w-4 h-4 text-portal-muted flex-shrink-0" />
+              <Controller
+                name="phone"
+                control={control}
+                render={({ field }) => (
+                  <input
+                    {...field}
+                    type="tel"
+                    onChange={(e) => field.onChange(e.target.value.replace(/\D/g, "").slice(0, 11))}
+                    inputMode="numeric"
+                    maxLength={11}
+                    placeholder="08012345678"
+                    className={inputCls(errors.phone?.message)}
+                  />
+                )}
+              />
+            </div>
+            {errors.phone && <p className="mt-1 text-xs text-red-500 pl-6">{errors.phone.message}</p>}
+          </>
+        ) : (
+          <div className="flex items-center gap-2.5 py-2">
+            <Phone className="w-4 h-4 text-portal-muted flex-shrink-0" />
+            <p className="text-[13.5px] font-medium text-portal-text">{profile.phone || "—"}</p>
           </div>
         )}
       </div>

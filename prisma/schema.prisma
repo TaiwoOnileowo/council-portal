@@ -87,6 +87,7 @@ model Vendor {
   firstName     String
   lastName      String
   email         String      @unique
+  phone         String      @unique
   passwordHash  String
   transportName String
   image         String?

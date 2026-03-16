@@ -1,44 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
 import {
-  X,
-  Star,
-  Award,
-  MapPin,
-  Clock,
+  ExternalLink,
   Instagram,
+  MapPin,
   MessageCircle,
   Twitter,
-  ExternalLink,
+  X,
 } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
+import { useState } from "react";
 import type { Vendor } from "./vendorData";
-
-function StarRating({
-  full,
-  size = "sm",
-}: {
-  full: number;
-  size?: "sm" | "md";
-}) {
-  const s = size === "md" ? "w-4 h-4" : "w-3.5 h-3.5";
-  return (
-    <div className="flex gap-0.5">
-      {[1, 2, 3, 4, 5].map((i) => (
-        <Star
-          key={i}
-          className={`${s} ${
-            i <= full
-              ? "fill-amber-400 text-amber-400"
-              : "fill-portal-border text-portal-border"
-          }`}
-        />
-      ))}
-    </div>
-  );
-}
 
 function getSocialIcon(platform: string) {
   switch (platform) {
@@ -146,12 +119,12 @@ export default function VendorDetailPopup({
                 <div>
                   <h2 className="font-heading text-[19px] font-extrabold flex items-center gap-2">
                     {vendor.name}
-                    {vendor.topRated && (
+                    {/* {vendor.topRated && (
                       <span className="flex items-center gap-1 text-[10px] font-bold bg-portal-gold-bg text-portal-gold border border-[#e8d5a0] px-2 py-0.5 rounded-md">
                         <Award className="w-3 h-3" />
                         Top Rated
                       </span>
-                    )}
+                    )} */}
                   </h2>
                   <p className="text-[13px] text-portal-muted mt-0.5">
                     {vendor.tagline}
@@ -160,13 +133,13 @@ export default function VendorDetailPopup({
               </div>
 
               {/* Rating */}
-              <div className="flex items-center gap-2 mt-2 mb-4">
+              {/* <div className="flex items-center gap-2 mt-2 mb-4">
                 <StarRating full={vendor.fullStars} size="md" />
                 <span className="text-sm font-bold">{vendor.rating}</span>
                 <span className="text-xs text-portal-muted">
                   ({vendor.reviews} reviews)
                 </span>
-              </div>
+              </div> */}
 
               {/* About */}
               <p className="text-[13px] text-portal-text2 leading-relaxed mb-4">
@@ -199,17 +172,17 @@ export default function VendorDetailPopup({
                       : "text-portal-muted hover:text-portal-text2"
                   }`}
                 >
-                  Destinations & Prices
+                  Leaving School
                 </button>
                 <button
-                  onClick={() => setTab("reviews")}
+                  onClick={() => setTab("prices")}
                   className={`flex-1 text-[13px] font-semibold py-2 rounded-md transition-all ${
-                    tab === "reviews"
+                    tab === "prices"
                       ? "bg-portal-surface text-portal-text shadow-sm"
                       : "text-portal-muted hover:text-portal-text2"
                   }`}
                 >
-                  Reviews ({vendor.reviews})
+                  Returning to School
                 </button>
               </div>
 
@@ -226,12 +199,6 @@ export default function VendorDetailPopup({
                         <p className="text-[13px] font-semibold text-portal-text">
                           {loc.name}
                         </p>
-                        <div className="flex items-center gap-1 mt-0.5">
-                          <Clock className="w-3 h-3 text-portal-muted" />
-                          <span className="text-[11px] text-portal-muted">
-                            ~{loc.estimatedTime}
-                          </span>
-                        </div>
                       </div>
                       <p className="font-heading text-sm font-extrabold flex-shrink-0">
                         {loc.price}
@@ -243,35 +210,6 @@ export default function VendorDetailPopup({
                       >
                         Book
                       </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {tab === "reviews" && (
-                <div className="space-y-3">
-                  {vendor.reviewsList.map((rev, i) => (
-                    <div
-                      key={i}
-                      className="bg-portal-bg rounded-xl px-4 py-3.5"
-                    >
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <div className="w-7 h-7 rounded-full bg-portal-border2 flex items-center justify-center text-[11px] font-bold text-portal-text2">
-                          {rev.name.charAt(0)}
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-[12px] font-semibold">
-                            {rev.name}
-                          </p>
-                          <p className="text-[10px] text-portal-muted">
-                            {rev.date}
-                          </p>
-                        </div>
-                        <StarRating full={rev.rating} />
-                      </div>
-                      <p className="text-[12px] text-portal-text2 leading-relaxed ml-9">
-                        {rev.comment}
-                      </p>
                     </div>
                   ))}
                 </div>
