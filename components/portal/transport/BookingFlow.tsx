@@ -1,16 +1,18 @@
 "use client";
 
+import { initializeBooking } from "@/lib/actions/booking.action";
 import type {
   PublicPriceList,
   PublicRoute,
   PublicVendor,
 } from "@/lib/actions/vendor.action";
+import { zodResolver } from "@hookform/resolvers/zod";
 import {
   ArrowRight,
   Bus,
   CheckCircle2,
-  ChevronLeft,
   ChevronDown,
+  ChevronLeft,
   Copy,
   Info,
   MapPin,
@@ -20,59 +22,62 @@ import {
   X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { z } from "zod";
+
+const SERVICE_FEE = 200;
+
+const HALLS = [
+  "Joseph Hall",
+  "Paul Hall",
+  "Peter Hall",
+  "Daniel Hall",
+  "John Hall",
+  "Joshua Hall",
+  "Lydia Hall",
+  "Mary Hall",
+  "Deborah Hall",
+  "Dorcas Hall",
+] as const;
+
+const passengerSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters").trim(),
+  hall: z.enum(HALLS, { error: "Please select your hall" }),
+  roomNumber: z
+    .string()
+    .min(1, "Room number is required")
+    .refine((v) => /^[A-H][1-4](0[1-9]|1[0-3])$/i.test(v.trim()), {
+      message: "Invalid format — e.g. E401, A113 (rooms 01\u201313 per floor)",
+    }),
+  phone: z.string().regex(/^\d{11}$/, "Must be exactly 11 digits"),
+  parentsPhone: z.string().regex(/^\d{11}$/, "Must be exactly 11 digits"),
+});
+
+type PassengerValues = z.infer<typeof passengerSchema>;
+
+declare global {
+  interface Window {
+    FlutterwaveCheckout?: (config: Record<string, unknown>) => void;
+  }
+}
 
 type Step =
   | "pick-destination"
   | "ride-summary"
   | "passenger-details"
-  | "payment"
   | "success";
-
-const HALLS = [
-  "Charles Hall",
-  "Daniel Hall",
-  "Ester Hall",
-  "Faith Hall",
-  "Grace Hall",
-  "Hephzibah Hall",
-  "Joseph Hall",
-  "Peter Hall",
-  "Samuel Hall",
-  "Deborah Hall",
-] as const;
-
-type Hall = (typeof HALLS)[number];
-
-type PassengerForm = {
-  name: string;
-  hall: Hall | "";
-  roomNumber: string;
-  phone: string;
-  parentsPhone: string;
-};
-
-type PassengerErrors = Partial<Record<keyof PassengerForm, string>>;
-
-function validatePassenger(f: PassengerForm): PassengerErrors {
-  const e: PassengerErrors = {};
-  if (f.name.trim().length < 2) e.name = "Name must be at least 2 characters";
-  if (!f.hall) e.hall = "Please select your hall";
-  const room = f.roomNumber.trim().toUpperCase();
-  if (!room) {
-    e.roomNumber = "Room number is required";
-  } else if (!/^[A-H][1-4](0[1-9]|1[0-3])$/.test(room)) {
-    e.roomNumber = "Invalid format — e.g. E401, A113 (rooms 01–13 per floor)";
-  }
-  if (!/^\d{11}$/.test(f.phone)) e.phone = "Must be exactly 11 digits";
-  if (!/^\d{11}$/.test(f.parentsPhone))
-    e.parentsPhone = "Must be exactly 11 digits";
-  return e;
-}
 
 const STEP_BACK: Partial<Record<Step, Step>> = {
   "ride-summary": "pick-destination",
   "passenger-details": "ride-summary",
+};
+
+const STEP_TITLE: Record<Step, string> = {
+  "pick-destination": "Pick Destination",
+  "ride-summary": "Ride Summary",
+  "passenger-details": "Your Details",
+  success: "Booking Confirmed!",
 };
 
 export default function BookingFlow({
@@ -88,9 +93,10 @@ export default function BookingFlow({
   open: boolean;
   onClose: () => void;
   initialRoute?: PublicRoute | null;
-  user: { name: string; phone: string };
+  user: { id: string; name: string; phone: string; email: string };
 }) {
   const isLeaving = priceList.direction === "LEAVING";
+  const directionLabel = isLeaving ? "Leaving School" : "Returning to School";
 
   const [step, setStep] = useState<Step>(
     initialRoute ? "ride-summary" : "pick-destination",
@@ -99,19 +105,42 @@ export default function BookingFlow({
   const [selectedRoute, setSelectedRoute] = useState<PublicRoute | null>(
     initialRoute ?? null,
   );
-  const [passenger, setPassenger] = useState<PassengerForm>({
-    name: user.name,
-    hall: "",
-    roomNumber: "",
-    phone: user.phone,
-    parentsPhone: "",
-  });
-  const [passengerErrors, setPassengerErrors] = useState<PassengerErrors>({});
-  const [bookingRef] = useState(
-    () =>
-      `TRX-${Date.now().toString(36).toUpperCase().slice(-6)}-${Math.random().toString(36).slice(2, 5).toUpperCase()}`,
-  );
+  const [bookingRef, setBookingRef] = useState("");
   const [copied, setCopied] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+
+  useEffect(() => {
+    if (typeof window === "undefined" || window.FlutterwaveCheckout) return;
+    if (
+      document.querySelector(
+        'script[src="https://checkout.flutterwave.com/v3.js"]',
+      )
+    )
+      return;
+    const script = document.createElement("script");
+    script.src = "https://checkout.flutterwave.com/v3.js";
+    script.async = true;
+    document.head.appendChild(script);
+  }, []);
+
+  const {
+    register,
+    control,
+    handleSubmit,
+    reset: resetForm,
+    formState: { errors },
+  } = useForm<PassengerValues>({
+    resolver: zodResolver(passengerSchema),
+    mode: "onChange",
+    defaultValues: {
+      name: user.name,
+      hall: undefined,
+      roomNumber: "",
+      phone: user.phone,
+      parentsPhone: "",
+    },
+  });
 
   const filteredRoutes = useMemo(() => {
     if (!search.trim()) return priceList.routes;
@@ -119,46 +148,27 @@ export default function BookingFlow({
     return priceList.routes.filter((r) => r.name.toLowerCase().includes(q));
   }, [search, priceList.routes]);
 
-  function reset() {
+  function handleClose() {
     setStep("pick-destination");
     setSearch("");
     setSelectedRoute(null);
-    setPassenger({
+    setBookingRef("");
+    setCopied(false);
+    setIsSubmitting(false);
+    setSubmitError("");
+    resetForm({
       name: user.name,
-      hall: "",
+      hall: undefined,
       roomNumber: "",
       phone: user.phone,
       parentsPhone: "",
     });
-    setPassengerErrors({});
-    setCopied(false);
-  }
-
-  function handleClose() {
-    reset();
     onClose();
   }
 
   function handleSelectRoute(route: PublicRoute) {
     setSelectedRoute(route);
     setStep("ride-summary");
-  }
-
-  function handlePassengerChange(field: keyof PassengerForm, value: string) {
-    setPassenger((prev) => ({ ...prev, [field]: value }));
-    if (passengerErrors[field]) {
-      setPassengerErrors((prev) => ({ ...prev, [field]: undefined }));
-    }
-  }
-
-  function handleProceedToPayment() {
-    const errors = validatePassenger(passenger);
-    if (Object.keys(errors).length > 0) {
-      setPassengerErrors(errors);
-      return;
-    }
-    setStep("payment");
-    setTimeout(() => setStep("success"), 2000);
   }
 
   function handleCopyRef() {
@@ -168,23 +178,78 @@ export default function BookingFlow({
   }
 
   const basePrice = selectedRoute?.price ?? 0;
-  const finalPrice = `₦${basePrice.toLocaleString()}`;
-
+  const totalAmount = basePrice + SERVICE_FEE;
   const pickup = isLeaving
     ? "Covenant University"
     : (selectedRoute?.name ?? "");
   const destination = isLeaving
     ? (selectedRoute?.name ?? "")
     : "Covenant University";
-  const directionLabel = isLeaving ? "Leaving School" : "Returning to School";
 
-  const stepTitle: Record<Step, string> = {
-    "pick-destination": "Pick Destination",
-    "ride-summary": "Ride Summary",
-    "passenger-details": "Your Details",
-    payment: "Processing Payment",
-    success: "Booking Confirmed!",
-  };
+  const onPassengerSubmit = handleSubmit(async (values) => {
+    if (!selectedRoute) return;
+    setSubmitError("");
+    setIsSubmitting(true);
+
+    try {
+      const result = await initializeBooking({
+        userId: user.id || null,
+        vendorId: vendor.id,
+        routeId: selectedRoute.id,
+        direction: priceList.direction,
+        passengerName: values.name,
+        passengerPhone: values.phone,
+        parentsPhone: values.parentsPhone,
+        hall: values.hall,
+        roomNumber: values.roomNumber.trim().toUpperCase(),
+        routeName: selectedRoute.name,
+        fare: basePrice,
+        serviceFee: SERVICE_FEE,
+      });
+
+      if ("error" in result) {
+        setSubmitError(result.error);
+        setIsSubmitting(false);
+        return;
+      }
+
+      setBookingRef(result.reference);
+
+      window.FlutterwaveCheckout?.({
+        public_key: process.env.NEXT_PUBLIC_FLUTTERWAVE_PUBLIC_KEY,
+        tx_ref: result.reference,
+        amount: totalAmount,
+        currency: "NGN",
+        payment_options: "card,ussd,banktransfer",
+        customer: {
+          email: user.email,
+          name: values.name,
+          phone_number: values.phone,
+        },
+        customizations: {
+          title: "Council Portal Transport",
+          description: `${directionLabel} — ${selectedRoute.name}`,
+        },
+        callback: (response: { status: string }) => {
+          if (
+            response.status === "successful" ||
+            response.status === "completed"
+          ) {
+            setStep("success");
+          } else {
+            setSubmitError("Payment was not completed. Please try again.");
+          }
+          setIsSubmitting(false);
+        },
+        onclose: () => {
+          setIsSubmitting(false);
+        },
+      });
+    } catch {
+      setSubmitError("Something went wrong. Please try again.");
+      setIsSubmitting(false);
+    }
+  });
 
   if (!open) return null;
 
@@ -221,7 +286,7 @@ export default function BookingFlow({
               )}
               <div className="flex-1 min-w-0">
                 <h3 className="font-heading text-[15px] font-bold truncate">
-                  {stepTitle[step]}
+                  {STEP_TITLE[step]}
                 </h3>
                 <p className="text-[11px] text-portal-muted truncate">
                   {vendor.transportName} · {directionLabel}
@@ -235,7 +300,6 @@ export default function BookingFlow({
               </button>
             </div>
 
-            {/* Step content */}
             <div className="flex-1 overflow-y-auto">
               <AnimatePresence mode="wait">
                 {/* ── Step 1: Pick Destination ── */}
@@ -284,7 +348,7 @@ export default function BookingFlow({
                             )}
                           </div>
                           <p className="font-heading text-sm font-extrabold flex-shrink-0">
-                            ₦{route.price.toLocaleString()}
+                            &#x20A6;{route.price.toLocaleString()}
                           </p>
                           <ArrowRight className="w-4 h-4 text-portal-muted flex-shrink-0" />
                         </button>
@@ -303,7 +367,6 @@ export default function BookingFlow({
                     transition={{ duration: 0.2 }}
                     className="p-5"
                   >
-                    {/* Route card */}
                     <div className="bg-portal-bg rounded-xl p-4 mb-4">
                       <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-portal-muted mb-3">
                         {directionLabel}
@@ -319,9 +382,7 @@ export default function BookingFlow({
                             <p className="text-[11px] text-portal-muted">
                               Pickup
                             </p>
-                            <p className="text-[13px] font-semibold">
-                              {pickup}
-                            </p>
+                            <p className="text-[13px] font-semibold">{pickup}</p>
                           </div>
                           <div>
                             <p className="text-[11px] text-portal-muted">
@@ -347,7 +408,6 @@ export default function BookingFlow({
                       </div>
                     </div>
 
-                    {/* Luggage policy */}
                     {priceList.luggagePolicy && (
                       <div className="mb-4 flex gap-2.5 bg-portal-bg border border-portal-border rounded-xl px-3.5 py-3">
                         <Info className="w-3.5 h-3.5 text-portal-muted flex-shrink-0 mt-0.5" />
@@ -362,7 +422,6 @@ export default function BookingFlow({
                       </div>
                     )}
 
-                    {/* Vendor notes */}
                     {priceList.notes && (
                       <div className="mb-4 flex gap-2.5 bg-portal-blue-bg border border-blue-200 rounded-xl px-3.5 py-3">
                         <Info className="w-3.5 h-3.5 text-blue-400 flex-shrink-0 mt-0.5" />
@@ -377,14 +436,25 @@ export default function BookingFlow({
                       </div>
                     )}
 
-                    {/* Price */}
-                    <div className="bg-portal-bg rounded-xl p-4 mb-4 flex justify-between items-center">
-                      <span className="text-[13px] text-portal-text2 font-medium">
-                        Fare
-                      </span>
-                      <span className="font-heading font-extrabold text-base">
-                        {finalPrice}
-                      </span>
+                    <div className="bg-portal-bg rounded-xl p-4 mb-4 space-y-2">
+                      <div className="flex justify-between text-[13px]">
+                        <span className="text-portal-text2">Fare</span>
+                        <span className="font-semibold">
+                          &#x20A6;{basePrice.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-[13px]">
+                        <span className="text-portal-text2">Service fee</span>
+                        <span className="font-semibold">
+                          &#x20A6;{SERVICE_FEE.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-[14px] pt-2 border-t border-portal-border">
+                        <span className="font-bold">Total</span>
+                        <span className="font-heading font-extrabold text-base">
+                          &#x20A6;{totalAmount.toLocaleString()}
+                        </span>
+                      </div>
                     </div>
 
                     <button
@@ -404,136 +474,151 @@ export default function BookingFlow({
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 10 }}
                     transition={{ duration: 0.2 }}
-                    className="p-5 space-y-4"
+                    className="p-5"
                   >
-                    {/* Name */}
-                    <Field label="Full Name" error={passengerErrors.name}>
-                      <input
-                        type="text"
-                        value={passenger.name}
-                        onChange={(e) =>
-                          handlePassengerChange("name", e.target.value)
-                        }
-                        placeholder="Your full name"
-                        className={inputCls(!!passengerErrors.name)}
-                      />
-                    </Field>
-
-                    {/* Hall */}
-                    <Field
-                      label="Hall of Residence"
-                      error={passengerErrors.hall}
+                    <form
+                      onSubmit={onPassengerSubmit}
+                      noValidate
+                      className="space-y-4"
                     >
-                      <div className="relative">
-                        <select
-                          value={passenger.hall}
-                          onChange={(e) =>
-                            handlePassengerChange("hall", e.target.value)
-                          }
-                          className={`${inputCls(!!passengerErrors.hall)} appearance-none pr-8`}
-                        >
-                          <option value="">Select your hall</option>
-                          {HALLS.map((h) => (
-                            <option key={h} value={h}>
-                              {h}
-                            </option>
-                          ))}
-                        </select>
-                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-portal-muted pointer-events-none" />
+                      <div className="flex items-center gap-2 text-[12px] text-portal-muted bg-portal-bg border border-portal-border rounded-xl px-3.5 py-2.5">
+                        <User className="w-3.5 h-3.5 flex-shrink-0" />
+                        Name and phone are pre-filled from your profile.
                       </div>
-                    </Field>
 
-                    {/* Room Number */}
-                    <Field
-                      label="Room Number"
-                      hint="Format: letter (A–H) + floor (1–4) + room (01–13) — e.g. E401, A113"
-                      error={passengerErrors.roomNumber}
-                    >
-                      <input
-                        type="text"
-                        value={passenger.roomNumber}
-                        onChange={(e) =>
-                          handlePassengerChange(
-                            "roomNumber",
-                            e.target.value.toUpperCase(),
-                          )
-                        }
-                        placeholder="e.g. E401"
-                        maxLength={4}
-                        className={inputCls(!!passengerErrors.roomNumber)}
-                      />
-                    </Field>
+                      <Field label="Full Name" error={errors.name?.message}>
+                        <input
+                          {...register("name")}
+                          type="text"
+                          placeholder="Your full name"
+                          className={inputCls(!!errors.name)}
+                        />
+                      </Field>
 
-                    {/* Phone */}
-                    <Field
-                      label="Your Phone Number"
-                      error={passengerErrors.phone}
-                    >
-                      <input
-                        type="tel"
-                        inputMode="numeric"
-                        value={passenger.phone}
-                        onChange={(e) =>
-                          handlePassengerChange(
-                            "phone",
-                            e.target.value.replace(/\D/g, "").slice(0, 11),
-                          )
-                        }
-                        placeholder="08012345678"
-                        className={inputCls(!!passengerErrors.phone)}
-                      />
-                    </Field>
+                      <Field
+                        label="Hall of Residence"
+                        error={errors.hall?.message}
+                      >
+                        <div className="relative">
+                          <select
+                            {...register("hall")}
+                            className={`${inputCls(!!errors.hall)} appearance-none pr-8`}
+                          >
+                            <option value="">Select your hall</option>
+                            {HALLS.map((h) => (
+                              <option key={h} value={h}>
+                                {h}
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-portal-muted pointer-events-none" />
+                        </div>
+                      </Field>
 
-                    {/* Parents Phone */}
-                    <Field
-                      label="Parent / Guardian Phone"
-                      error={passengerErrors.parentsPhone}
-                    >
-                      <input
-                        type="tel"
-                        inputMode="numeric"
-                        value={passenger.parentsPhone}
-                        onChange={(e) =>
-                          handlePassengerChange(
-                            "parentsPhone",
-                            e.target.value.replace(/\D/g, "").slice(0, 11),
-                          )
-                        }
-                        placeholder="08012345678"
-                        className={inputCls(!!passengerErrors.parentsPhone)}
-                      />
-                    </Field>
+                      <Field
+                        label="Room Number"
+                        hint="Letter (A-H) + floor (1-4) + room (01-13) e.g. E401, A113"
+                        error={errors.roomNumber?.message}
+                      >
+                        <Controller
+                          name="roomNumber"
+                          control={control}
+                          render={({ field }) => (
+                            <input
+                              {...field}
+                              type="text"
+                              placeholder="e.g. E401"
+                              maxLength={4}
+                              onChange={(e) =>
+                                field.onChange(e.target.value.toUpperCase())
+                              }
+                              className={inputCls(!!errors.roomNumber)}
+                            />
+                          )}
+                        />
+                      </Field>
 
-                    <button
-                      onClick={handleProceedToPayment}
-                      className="w-full py-3 bg-portal-accent hover:bg-portal-accent2 text-white rounded-xl text-[14px] font-semibold transition-all hover:-translate-y-0.5"
-                    >
-                      Confirm & Pay {finalPrice}
-                    </button>
+                      <Field
+                        label="Your Phone Number"
+                        error={errors.phone?.message}
+                      >
+                        <Controller
+                          name="phone"
+                          control={control}
+                          render={({ field }) => (
+                            <input
+                              {...field}
+                              type="tel"
+                              inputMode="numeric"
+                              placeholder="08012345678"
+                              onChange={(e) =>
+                                field.onChange(
+                                  e.target.value
+                                    .replace(/\D/g, "")
+                                    .slice(0, 11),
+                                )
+                              }
+                              className={inputCls(!!errors.phone)}
+                            />
+                          )}
+                        />
+                      </Field>
+
+                      <Field
+                        label="Parent / Guardian Phone"
+                        error={errors.parentsPhone?.message}
+                      >
+                        <Controller
+                          name="parentsPhone"
+                          control={control}
+                          render={({ field }) => (
+                            <input
+                              {...field}
+                              type="tel"
+                              inputMode="numeric"
+                              placeholder="08012345678"
+                              onChange={(e) =>
+                                field.onChange(
+                                  e.target.value
+                                    .replace(/\D/g, "")
+                                    .slice(0, 11),
+                                )
+                              }
+                              className={inputCls(!!errors.parentsPhone)}
+                            />
+                          )}
+                        />
+                      </Field>
+
+                      <div className="flex justify-between items-center bg-portal-bg rounded-xl px-4 py-3 text-[13px]">
+                        <span className="text-portal-text2">
+                          Total (fare + &#x20A6;200 fee)
+                        </span>
+                        <span className="font-heading font-extrabold text-base">
+                          &#x20A6;{totalAmount.toLocaleString()}
+                        </span>
+                      </div>
+
+                      {submitError && (
+                        <p className="text-[12px] text-red-500 text-center">
+                          {submitError}
+                        </p>
+                      )}
+
+                      <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="w-full py-3 bg-portal-accent hover:bg-portal-accent2 text-white rounded-xl text-[14px] font-semibold transition-all hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+                      >
+                        {isSubmitting
+                          ? "Opening payment..."
+                          : `Pay \u20A6${totalAmount.toLocaleString()}`}
+                      </button>
+                    </form>
                   </motion.div>
                 )}
 
-                {/* ── Step 4: Payment Processing ── */}
-                {step === "payment" && (
-                  <motion.div
-                    key="step-payment"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="p-5 flex flex-col items-center justify-center py-16"
-                  >
-                    <div className="w-12 h-12 border-[3px] border-portal-border border-t-portal-accent rounded-full animate-spin mb-5" />
-                    <p className="font-heading text-[15px] font-bold mb-1">
-                      Processing payment...
-                    </p>
-                    <p className="text-[12px] text-portal-muted">
-                      Please wait while we confirm your transaction
-                    </p>
-                  </motion.div>
-                )}
-
-                {/* ── Step 5: Success ── */}
+                {/* ── Step 4: Success ── */}
                 {step === "success" && selectedRoute && (
                   <motion.div
                     key="step-success"
@@ -551,7 +636,7 @@ export default function BookingFlow({
                         Booking Confirmed!
                       </h3>
                       <p className="text-[12px] text-portal-muted text-center">
-                        Your ride has been booked successfully
+                        A confirmation email has been sent to you
                       </p>
                     </div>
 
@@ -565,7 +650,7 @@ export default function BookingFlow({
                           {bookingRef}
                           <Copy className="w-3 h-3" />
                           {copied && (
-                            <span className="text-[10px] text-portal-green">
+                            <span className="text-[10px] text-portal-green font-sans">
                               Copied!
                             </span>
                           )}
@@ -579,39 +664,31 @@ export default function BookingFlow({
                       </div>
                       <div className="flex justify-between text-[13px]">
                         <span className="text-portal-muted">Route</span>
-                        <span className="font-semibold">
-                          {pickup} → {destination}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-[13px]">
-                        <span className="text-portal-muted">Passenger</span>
-                        <span className="font-semibold">{passenger.name}</span>
-                      </div>
-                      <div className="flex justify-between text-[13px]">
-                        <span className="text-portal-muted">Room</span>
-                        <span className="font-semibold">
-                          {passenger.hall}, {passenger.roomNumber}
+                        <span className="font-semibold text-right max-w-[60%]">
+                          {pickup} &#x2192; {destination}
                         </span>
                       </div>
                       <div className="flex justify-between text-[13px] pt-2 border-t border-portal-border">
                         <span className="font-bold">Total Paid</span>
                         <span className="font-heading font-extrabold text-base">
-                          {finalPrice}
+                          &#x20A6;{totalAmount.toLocaleString()}
                         </span>
                       </div>
                     </div>
 
-                    <div className="bg-portal-green-bg border border-green-200 rounded-xl p-3.5 flex items-center gap-3 mb-4">
-                      <MessageCircle className="w-5 h-5 text-portal-green flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[12px] font-semibold text-portal-green">
-                          Contact vendor on WhatsApp
-                        </p>
-                        <p className="text-[11px] text-portal-green/70">
-                          {vendor.phone}
-                        </p>
+                    {vendor.phone && (
+                      <div className="bg-portal-green-bg border border-green-200 rounded-xl p-3.5 flex items-center gap-3 mb-4">
+                        <MessageCircle className="w-5 h-5 text-portal-green flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[12px] font-semibold text-portal-green">
+                            Contact vendor on WhatsApp
+                          </p>
+                          <p className="text-[11px] text-portal-green/70">
+                            {vendor.phone}
+                          </p>
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     <div className="flex gap-3">
                       <button
@@ -637,8 +714,6 @@ export default function BookingFlow({
     </AnimatePresence>
   );
 }
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function inputCls(hasError: boolean) {
   return `w-full px-3.5 py-2.5 bg-portal-bg border rounded-xl text-sm text-portal-text placeholder:text-portal-muted outline-none transition-colors ${

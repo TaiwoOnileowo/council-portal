@@ -99,6 +99,119 @@ export async function sendPasswordResetEmail(
   }
 }
 
+export async function sendBookingConfirmationEmail(
+  email: string,
+  firstName: string,
+  booking: {
+    reference: string;
+    vendorName: string;
+    routeName: string;
+    direction: "LEAVING" | "RETURNING";
+    hall: string;
+    roomNumber: string;
+    totalAmount: number;
+  },
+) {
+  const directionLabel =
+    booking.direction === "LEAVING" ? "Leaving School" : "Returning to School";
+  const pickup =
+    booking.direction === "LEAVING" ? "Covenant University" : booking.routeName;
+  const destination =
+    booking.direction === "LEAVING" ? booking.routeName : "Covenant University";
+
+  const html = `
+    <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;background:#fff">
+      <div style="background:#2563eb;border-radius:12px;padding:24px;text-align:center;margin-bottom:24px">
+        <h1 style="color:#fff;margin:0;font-size:22px;font-weight:700">Booking Confirmed!</h1>
+        <p style="color:#bfdbfe;margin:8px 0 0;font-size:14px">Council Portal Transport</p>
+      </div>
+
+      <p style="color:#374151;font-size:15px;margin-bottom:24px">
+        Hi ${firstName}, your transport booking has been confirmed. Here are the details:
+      </p>
+
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:20px;margin-bottom:24px">
+        <table style="width:100%;border-collapse:collapse">
+          <tr>
+            <td style="padding:8px 0;color:#6b7280;font-size:13px;width:140px">Booking Reference</td>
+            <td style="padding:8px 0;color:#111827;font-size:13px;font-weight:700;font-family:monospace">${booking.reference}</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 0;color:#6b7280;font-size:13px">Vendor</td>
+            <td style="padding:8px 0;color:#111827;font-size:13px;font-weight:600">${booking.vendorName}</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 0;color:#6b7280;font-size:13px">Direction</td>
+            <td style="padding:8px 0;color:#111827;font-size:13px;font-weight:600">${directionLabel}</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 0;color:#6b7280;font-size:13px">Pickup</td>
+            <td style="padding:8px 0;color:#111827;font-size:13px">${pickup}</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 0;color:#6b7280;font-size:13px">Destination</td>
+            <td style="padding:8px 0;color:#111827;font-size:13px">${destination}</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 0;color:#6b7280;font-size:13px">Hall / Room</td>
+            <td style="padding:8px 0;color:#111827;font-size:13px">${booking.hall}, Room ${booking.roomNumber}</td>
+          </tr>
+          <tr style="border-top:1px solid #e5e7eb">
+            <td style="padding:12px 0 4px;color:#111827;font-size:14px;font-weight:700">Total Paid</td>
+            <td style="padding:12px 0 4px;color:#2563eb;font-size:16px;font-weight:700">₦${booking.totalAmount.toLocaleString()}</td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:16px;margin-bottom:24px">
+        <p style="margin:0;color:#065f46;font-size:13px;font-weight:600">What's next?</p>
+        <p style="margin:6px 0 0;color:#047857;font-size:13px">
+          Show your booking reference to the vendor when boarding. Keep this email as your receipt.
+        </p>
+      </div>
+
+      <p style="color:#9ca3af;font-size:12px;text-align:center;margin:0">
+        Council Portal · Covenant University
+      </p>
+    </div>
+  `;
+
+  const text =
+    `Hi ${firstName},\n\nYour booking is confirmed!\n\n` +
+    `Reference: ${booking.reference}\n` +
+    `Vendor: ${booking.vendorName}\n` +
+    `Direction: ${directionLabel}\n` +
+    `Route: ${pickup} → ${destination}\n` +
+    `Hall/Room: ${booking.hall}, Room ${booking.roomNumber}\n` +
+    `Total Paid: ₦${booking.totalAmount.toLocaleString()}\n\n` +
+    `Show your booking reference to the vendor when boarding.`;
+
+  let token = await getAccessToken();
+
+  try {
+    await sendEmail(
+      token,
+      { name: firstName, email },
+      `Booking Confirmed — ${booking.reference}`,
+      html,
+      text,
+    );
+  } catch (err) {
+    if (err instanceof Error && err.message === "SENDPULSE_TOKEN_EXPIRED") {
+      token = await getAccessToken();
+      await sendEmail(
+        token,
+        { name: firstName, email },
+        `Booking Confirmed — ${booking.reference}`,
+        html,
+        text,
+      );
+    } else {
+      throw err;
+    }
+  }
+}
+
 export async function sendVerificationEmail(
   email: string,
   firstName: string,

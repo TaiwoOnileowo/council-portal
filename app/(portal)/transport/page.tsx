@@ -7,7 +7,7 @@ export default function TransportPage() {
   return (
     <>
       <TransportHeader />
-      <QuickBookBar />
+      {/* <QuickBookBar /> */}
       <VendorCards />
       {/* <SharedRides /> */}
       <RecentTrips />

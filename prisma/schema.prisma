@@ -47,6 +47,7 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   wallet       Wallet?
+  bookings     Booking[]
 }
 
 model Wallet {
@@ -87,7 +88,7 @@ model Vendor {
   firstName     String
   lastName      String
   email         String      @unique
-  phone         String      @unique
+  phone         String?      @unique
   passwordHash  String
   transportName String
   image         String?
@@ -103,6 +104,7 @@ model Vendor {
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
   priceLists    PriceList[]
+  bookings      Booking[]
 }
 
 model PriceList {
@@ -132,6 +134,7 @@ model PriceListRoute {
   price       Int       // in naira
   capacity    Int?      // null = unlimited
   active      Boolean   @default(true)
+  bookings    Booking[]
 }
 
 model DepartureTime {
@@ -140,4 +143,42 @@ model DepartureTime {
   priceList   PriceList @relation(fields: [priceListId], references: [id], onDelete: Cascade)
   day         String
   time        String    // "HH:MM" 24hr format
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  FAILED
+}
+
+model Booking {
+  id             String             @id @default(uuid())
+  reference      String             @unique // our tx_ref passed to Flutterwave
+  flwRef         String?            // Flutterwave's internal flw_ref
+  status         BookingStatus      @default(PENDING)
+
+  // Passenger snapshot
+  passengerName  String
+  passengerPhone String
+  parentsPhone   String
+  hall           String
+  roomNumber     String
+
+  // Route snapshot (preserved even if route is edited/deleted)
+  direction      PriceListDirection
+  routeName      String
+  fare           Int                // naira
+  serviceFee     Int                // naira
+
+  // Relations
+  userId         String?
+  user           User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  vendorId       String
+  vendor         Vendor             @relation(fields: [vendorId], references: [id])
+  routeId        String
+  route          PriceListRoute     @relation(fields: [routeId], references: [id])
+
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
 }

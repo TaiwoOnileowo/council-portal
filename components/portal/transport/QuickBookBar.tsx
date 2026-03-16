@@ -41,16 +41,7 @@ export default function QuickBookBar() {
             className="w-full px-3.5 py-2.5 bg-portal-bg border border-portal-border rounded-lg text-portal-text text-sm placeholder:text-portal-muted outline-none focus:border-portal-accent transition-colors"
           />
         </div>
-        <div>
-          <label className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-portal-muted mb-1.5">
-            Ride Type
-          </label>
-          <select className="w-full px-3.5 py-2.5 bg-portal-bg border border-portal-border rounded-lg text-portal-text text-sm outline-none focus:border-portal-accent transition-colors appearance-none cursor-pointer">
-            <option>Private Ride</option>
-            <option>Shared Ride</option>
-            <option>Shuttle</option>
-          </select>
-        </div>
+
         <button className="px-6 py-2.5 bg-portal-accent hover:bg-portal-accent2 text-white rounded-lg text-[13px] font-semibold transition-all hover:-translate-y-0.5 flex items-center gap-2 whitespace-nowrap">
           <Search className="w-3.5 h-3.5" />
           Find Rides

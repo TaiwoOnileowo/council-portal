@@ -28,7 +28,7 @@ export default function VendorCardsList({
   user,
 }: {
   vendors: PublicVendor[];
-  user: { name: string; phone: string };
+  user: { id: string; name: string; phone: string; email: string };
 }) {
   const [detailVendor, setDetailVendor] = useState<PublicVendor | null>(null);
   const [bookingVendor, setBookingVendor] = useState<PublicVendor | null>(null);
