@@ -48,13 +48,13 @@ export function StatsRow() {
   return (
     <div className="grid grid-cols-4 gap-3.5 mb-7">
       <WalletCard />
-      <StatCard
+      {/* <StatCard
         icon={<Bus className="w-[18px] h-[18px] text-portal-accent" />}
         iconBg="#faf0f4"
         value="12"
         label="Rides taken"
         delay={0.18}
-      />
+      /> */}
     </div>
   );
 }
