@@ -1,5 +1,4 @@
 import { db } from "@/lib/db";
-import { sendBookingConfirmationEmail } from "@/lib/sendpulse";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
@@ -19,8 +18,6 @@ export async function POST(req: NextRequest) {
   }
 
   const event = body.event as string | undefined;
-
-  // Only handle charge.completed
   if (event !== "charge.completed") {
     return NextResponse.json({ received: true });
   }
@@ -29,71 +26,52 @@ export async function POST(req: NextRequest) {
   if (!data) return NextResponse.json({ received: true });
 
   const txRef = data.tx_ref as string | undefined;
-  const flwRef = data.flw_ref as string | undefined;
   const status = data.status as string | undefined;
   const amount = data.amount as number | undefined;
   const currency = data.currency as string | undefined;
+  const meta = data.meta as Record<string, unknown> | undefined;
+  const userId = meta?.userId as string | undefined;
 
-  if (!txRef) return NextResponse.json({ received: true });
+  if (!txRef || !userId || status !== "successful" || currency !== "NGN" || !amount) {
+    return NextResponse.json({ received: true });
+  }
 
-  const booking = await db.booking.findUnique({
-    where: { reference: txRef },
-    include: {
-      vendor: { select: { transportName: true } },
-      user: { select: { email: true, name: true } },
-    },
+  // Only handle top-up refs (booking payment goes through wallet action inline)
+  if (!txRef.startsWith("TOPUP-")) {
+    return NextResponse.json({ received: true });
+  }
+
+  // Idempotency — already processed
+  const existing = await db.transaction.findUnique({ where: { ref: txRef } });
+  if (existing) return NextResponse.json({ received: true });
+
+  const amountKobo = Math.round(amount * 100);
+
+  const wallet = await db.wallet.upsert({
+    where: { userId },
+    create: { userId },
+    update: {},
   });
 
-  if (!booking) {
-    return NextResponse.json({ received: true });
-  }
-
-  // Idempotency — already handled
-  if (booking.status === "CONFIRMED") {
-    return NextResponse.json({ received: true });
-  }
-
-  // Verify currency
-  if (currency !== "NGN") {
-    await db.booking.update({
-      where: { id: booking.id },
-      data: { status: "FAILED", flwRef: flwRef ?? null },
-    });
-    return NextResponse.json({ received: true });
-  }
-
-  // Verify amount matches (allow small tolerance for rounding)
-  const expectedAmount = booking.fare + booking.serviceFee;
-  if (
-    status !== "successful" ||
-    amount === undefined ||
-    amount < expectedAmount - 1
-  ) {
-    await db.booking.update({
-      where: { id: booking.id },
-      data: { status: "FAILED", flwRef: flwRef ?? null },
-    });
-    return NextResponse.json({ received: true });
-  }
-
-  // Confirm the booking
-  await db.booking.update({
-    where: { id: booking.id },
-    data: { status: "CONFIRMED", flwRef: flwRef ?? null },
-  });
-
-  // Send confirmation email (fire and forget — don't fail webhook)
-  if (booking.user?.email) {
-    const firstName = booking.user.name.split(" ")[0];
-    sendBookingConfirmationEmail(booking.user.email, firstName, {
-      reference: booking.reference,
-      vendorName: booking.vendor.transportName,
-      routeName: booking.routeName,
-      direction: booking.direction as "LEAVING" | "RETURNING",
-      hall: booking.hall,
-      roomNumber: booking.roomNumber,
-      totalAmount: booking.fare + booking.serviceFee,
-    }).catch((err) => console.error("[booking-email]", err));
+  try {
+    await db.$transaction([
+      db.transaction.create({
+        data: {
+          walletId: wallet.id,
+          type: "TOP_UP",
+          status: "COMPLETED",
+          amount: amountKobo,
+          description: "Wallet top-up",
+          ref: txRef,
+        },
+      }),
+      db.wallet.update({
+        where: { id: wallet.id },
+        data: { balance: { increment: amountKobo } },
+      }),
+    ]);
+  } catch {
+    // Unique constraint — already handled via inline callback
   }
 
   return NextResponse.json({ received: true });

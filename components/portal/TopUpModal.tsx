@@ -2,12 +2,19 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { CheckCircle2, Copy, Wallet } from "lucide-react";
+import { CheckCircle2, Copy, Loader2, Wallet } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { topUpWallet } from "@/lib/actions/wallet.action";
+import { verifyAndTopUpWallet } from "@/lib/actions/wallet.action";
 import Modal from "@/components/ui/Modal";
+import { useSession } from "next-auth/react";
 
-type Step = "enter-amount" | "payment" | "success";
+type Step = "enter-amount" | "processing" | "success";
+
+declare global {
+  interface Window {
+    FlutterwaveCheckout?: (config: Record<string, unknown>) => void;
+  }
+}
 
 const TAGLINES = [
   "Broke at the gate is not a vibe",
@@ -15,7 +22,7 @@ const TAGLINES = [
   "Because last-minute scrambling is so last semester",
 ];
 
-const QUICK_AMOUNTS = [10000, 25000, 50000, 100000, 200000, 500000];
+const QUICK_AMOUNTS = [5000, 10000, 25000, 50000, 100000, 200000];
 
 function formatWithCommas(value: string) {
   const digits = value.replace(/\D/g, "");
@@ -30,45 +37,89 @@ function parseAmount(value: string) {
 export default function TopUpModal({
   open,
   onClose,
+  prefilledAmount,
+  onSuccess,
 }: {
   open: boolean;
   onClose: () => void;
+  prefilledAmount?: number;
+  onSuccess?: () => void;
 }) {
+  const { data: session } = useSession();
   const [step, setStep] = useState<Step>("enter-amount");
   const [amountInput, setAmountInput] = useState("");
-  const [tagline, setTagline] = useState(
+  const [tagline] = useState(
     () => TAGLINES[Math.floor(Math.random() * TAGLINES.length)],
   );
-  const [ref, setRef] = useState("");
+  const [txRef, setTxRef] = useState("");
   const [copied, setCopied] = useState(false);
+  const [verifyError, setVerifyError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const paymentStatusRef = useRef<"idle" | "processing">("idle");
 
   const queryClient = useQueryClient();
 
-  const { mutate: doTopUp } = useMutation({
-    mutationFn: (amountKobo: number) => topUpWallet(amountKobo),
+  const { mutate: doVerify } = useMutation({
+    mutationFn: ({
+      transactionId,
+      ref,
+      amountKobo,
+    }: {
+      transactionId: number;
+      ref: string;
+      amountKobo: number;
+    }) => verifyAndTopUpWallet({ transactionId, txRef: ref, amountKobo }),
     onSuccess: (data) => {
-      if ("ref" in data && data.ref) {
-        setRef(data.ref);
-        queryClient.invalidateQueries({ queryKey: ["wallet-balance"] });
-        setStep("success");
+      if ("error" in data) {
+        setVerifyError(data.error);
+        setStep("enter-amount");
+        paymentStatusRef.current = "idle";
+        return;
+      }
+      queryClient.invalidateQueries({ queryKey: ["wallet-balance"] });
+      setStep("success");
+      paymentStatusRef.current = "idle";
+
+      if (onSuccess) {
+        setTimeout(() => {
+          onClose();
+          onSuccess();
+        }, 1500);
       }
     },
   });
 
-  // Reset on open
+  // Load Flutterwave script
+  useEffect(() => {
+    if (typeof window === "undefined" || window.FlutterwaveCheckout) return;
+    if (
+      document.querySelector(
+        'script[src="https://checkout.flutterwave.com/v3.js"]',
+      )
+    )
+      return;
+    const script = document.createElement("script");
+    script.src = "https://checkout.flutterwave.com/v3.js";
+    script.async = true;
+    document.head.appendChild(script);
+  }, []);
+
+  // Pre-fill and reset on open
   useEffect(() => {
     if (open) {
-      setTimeout(() => inputRef.current?.focus(), 300);
-    }
-    return () => {
-      setTagline(TAGLINES[Math.floor(Math.random() * TAGLINES.length)]);
       setStep("enter-amount");
-      setAmountInput("");
-      setRef("");
       setCopied(false);
-    };
-  }, [open]);
+      setVerifyError("");
+      paymentStatusRef.current = "idle";
+
+      if (prefilledAmount && prefilledAmount > 0) {
+        setAmountInput(prefilledAmount.toLocaleString("en-NG"));
+      } else {
+        setAmountInput("");
+        setTimeout(() => inputRef.current?.focus(), 300);
+      }
+    }
+  }, [open, prefilledAmount]);
 
   const amountNaira = parseAmount(amountInput);
   const amountKobo = amountNaira * 100;
@@ -80,37 +131,79 @@ export default function TopUpModal({
   function handleQuickSelect(naira: number) {
     setAmountInput(naira.toLocaleString("en-NG"));
   }
-
   function handlePay() {
-    if (amountKobo <= 0) return;
-    setStep("payment");
-    doTopUp(amountKobo);
+    if (amountKobo <= 0 || !session?.user) return;
+
+    // eslint-disable-next-line react-hooks/purity
+    const ref = `TOPUP-${Date.now().toString(36).toUpperCase()}-${Math.random()
+      .toString(36)
+      .slice(2, 5)
+      .toUpperCase()}`;
+    setTxRef(ref);
+    setVerifyError("");
+    paymentStatusRef.current = "idle";
+
+    window.FlutterwaveCheckout?.({
+      public_key: process.env.NEXT_PUBLIC_FLUTTERWAVE_PUBLIC_KEY,
+      tx_ref: ref,
+      amount: amountNaira,
+      currency: "NGN",
+      payment_options: "card,ussd,banktransfer",
+      customer: {
+        email: session.user.email ?? "",
+        name: session.user.name ?? "",
+      },
+      meta: { userId: session.user.id },
+      customizations: {
+        title: "Council Portal Wallet",
+        description: "Top up your wallet",
+      },
+      callback: (response: { status: string; transaction_id: number }) => {
+        if (
+          response.status === "successful" ||
+          response.status === "completed"
+        ) {
+          paymentStatusRef.current = "processing";
+          setStep("processing");
+          doVerify({
+            transactionId: response.transaction_id,
+            ref,
+            amountKobo,
+          });
+        } else {
+          setVerifyError("Payment was not completed. Please try again.");
+          paymentStatusRef.current = "idle";
+        }
+      },
+      onclose: () => {
+        // Only reset if payment wasn't initiated
+        if (paymentStatusRef.current === "idle") {
+          setVerifyError("");
+        }
+      },
+    });
   }
 
   function handleCopyRef() {
-    navigator.clipboard.writeText(ref);
+    navigator.clipboard.writeText(txRef);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
 
-  function handleClose() {
-    onClose();
-  }
-
-  const taglineForHeader = step === "enter-amount" ? tagline : undefined;
+  const isResuming = step === "success" && !!onSuccess;
 
   return (
     <Modal
       open={open}
-      onClose={handleClose}
+      onClose={step === "processing" ? () => {} : onClose}
       title={
         step === "enter-amount"
           ? "Top Up Wallet"
-          : step === "payment"
+          : step === "processing"
             ? "Processing Payment"
             : "Top-Up Successful!"
       }
-      description={taglineForHeader}
+      description={step === "enter-amount" ? tagline : undefined}
     >
       <AnimatePresence mode="wait">
         {/* Step 1: Enter Amount */}
@@ -123,7 +216,17 @@ export default function TopUpModal({
             transition={{ duration: 0.2 }}
             className="p-5"
           >
-            {/* Amount input */}
+            {prefilledAmount && prefilledAmount > 0 && (
+              <div className="mb-4 flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5 text-[12px] text-amber-700">
+                <span className="font-semibold">
+                  You&apos;re ₦{prefilledAmount.toLocaleString()} short.
+                </span>
+                <span className="text-amber-600">
+                  Top up at least this amount to continue.
+                </span>
+              </div>
+            )}
+
             <div className="mb-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-portal-muted mb-2">
                 Amount (₦)
@@ -144,7 +247,6 @@ export default function TopUpModal({
               </div>
             </div>
 
-            {/* Quick-select suggestions */}
             <div className="mb-5">
               <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-portal-muted mb-2">
                 Quick Select
@@ -166,6 +268,12 @@ export default function TopUpModal({
               </div>
             </div>
 
+            {verifyError && (
+              <p className="text-[12px] text-red-500 text-center mb-3">
+                {verifyError}
+              </p>
+            )}
+
             <button
               onClick={handlePay}
               disabled={amountKobo <= 0}
@@ -178,22 +286,22 @@ export default function TopUpModal({
           </motion.div>
         )}
 
-        {/* Step 2: Payment processing */}
-        {step === "payment" && (
+        {/* Step 2: Processing */}
+        {step === "processing" && (
           <motion.div
-            key="step-payment"
+            key="step-processing"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             className="p-5 flex flex-col items-center justify-center py-16"
           >
-            <div className="w-12 h-12 border-[3px] border-portal-border border-t-portal-accent rounded-full animate-spin mb-5" />
+            <Loader2 className="w-10 h-10 text-portal-accent animate-spin mb-5" />
             <p className="font-heading text-[15px] font-bold mb-1">
-              Processing payment...
+              Verifying payment...
             </p>
             <p className="text-[12px] text-portal-muted">
-              Please wait while we confirm your transaction
+              Please wait, this will only take a moment
             </p>
           </motion.div>
         )}
@@ -228,7 +336,7 @@ export default function TopUpModal({
                   onClick={handleCopyRef}
                   className="flex items-center gap-1.5 font-mono text-[12px] font-bold text-portal-accent hover:underline"
                 >
-                  {ref}
+                  {txRef}
                   <Copy className="w-3 h-3" />
                   {copied && (
                     <span className="text-[10px] text-portal-green">
@@ -245,24 +353,31 @@ export default function TopUpModal({
               </div>
             </div>
 
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setStep("enter-amount");
-                  setAmountInput("");
-                }}
-                className="flex-1 py-2.5 bg-portal-bg border border-portal-border text-portal-text2 rounded-xl text-[13px] font-semibold hover:bg-portal-bg2 transition-colors flex items-center justify-center gap-2"
-              >
-                <Wallet className="w-4 h-4" />
-                Top Up Again
-              </button>
-              <button
-                onClick={handleClose}
-                className="flex-1 py-2.5 bg-portal-accent hover:bg-portal-accent2 text-white rounded-xl text-[13px] font-semibold transition-all"
-              >
-                Done
-              </button>
-            </div>
+            {isResuming ? (
+              <div className="flex items-center justify-center gap-2 py-3 text-[13px] text-portal-muted">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Resuming your booking...
+              </div>
+            ) : (
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setStep("enter-amount");
+                    setAmountInput("");
+                  }}
+                  className="flex-1 py-2.5 bg-portal-bg border border-portal-border text-portal-text2 rounded-xl text-[13px] font-semibold hover:bg-portal-bg2 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Wallet className="w-4 h-4" />
+                  Top Up Again
+                </button>
+                <button
+                  onClick={onClose}
+                  className="flex-1 py-2.5 bg-portal-accent hover:bg-portal-accent2 text-white rounded-xl text-[13px] font-semibold transition-all"
+                >
+                  Done
+                </button>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

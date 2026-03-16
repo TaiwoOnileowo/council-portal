@@ -4,6 +4,7 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/sonner";
 import QueryProvider from "@/components/providers/QueryProvider";
+import { SessionProvider } from "next-auth/react";
 
 const bricolage = Bricolage_Grotesque({
   subsets: ["latin"],
@@ -37,7 +38,7 @@ export default function RootLayout({
         )}
       >
         <QueryProvider>
-          {children}
+          <SessionProvider>{children}</SessionProvider>
         </QueryProvider>
         <Toaster />
       </body>

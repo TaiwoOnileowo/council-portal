@@ -1,6 +1,6 @@
 "use client";
 
-import { initializeBooking } from "@/lib/actions/booking.action";
+import { payBookingFromWallet } from "@/lib/actions/booking.action";
 import type {
   PublicPriceList,
   PublicRoute,
@@ -8,6 +8,7 @@ import type {
 } from "@/lib/actions/vendor.action";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
+  AlertCircle,
   ArrowRight,
   Bus,
   CheckCircle2,
@@ -15,6 +16,7 @@ import {
   ChevronLeft,
   Copy,
   Info,
+  Loader2,
   MapPin,
   MessageCircle,
   Search,
@@ -22,8 +24,9 @@ import {
   X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
+import { useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 
 const SERVICE_FEE = 200;
@@ -56,12 +59,6 @@ const passengerSchema = z.object({
 
 type PassengerValues = z.infer<typeof passengerSchema>;
 
-declare global {
-  interface Window {
-    FlutterwaveCheckout?: (config: Record<string, unknown>) => void;
-  }
-}
-
 type Step =
   | "pick-destination"
   | "ride-summary"
@@ -87,6 +84,7 @@ export default function BookingFlow({
   onClose,
   initialRoute,
   user,
+  onOpenTopUp,
 }: {
   vendor: PublicVendor;
   priceList: PublicPriceList;
@@ -94,9 +92,12 @@ export default function BookingFlow({
   onClose: () => void;
   initialRoute?: PublicRoute | null;
   user: { id: string; name: string; phone: string; email: string };
+  onOpenTopUp: (prefill: number, onSuccess: () => void) => void;
 }) {
   const isLeaving = priceList.direction === "LEAVING";
   const directionLabel = isLeaving ? "Leaving School" : "Returning to School";
+
+  const queryClient = useQueryClient();
 
   const [step, setStep] = useState<Step>(
     initialRoute ? "ride-summary" : "pick-destination",
@@ -107,28 +108,16 @@ export default function BookingFlow({
   );
   const [bookingRef, setBookingRef] = useState("");
   const [copied, setCopied] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [submitError, setSubmitError] = useState("");
-
-  useEffect(() => {
-    if (typeof window === "undefined" || window.FlutterwaveCheckout) return;
-    if (
-      document.querySelector(
-        'script[src="https://checkout.flutterwave.com/v3.js"]',
-      )
-    )
-      return;
-    const script = document.createElement("script");
-    script.src = "https://checkout.flutterwave.com/v3.js";
-    script.async = true;
-    document.head.appendChild(script);
-  }, []);
-
+  const [shortfall, setShortfall] = useState<number | null>(null);
+  console.log(user, "USER INFO --- IGNORE ---");
   const {
     register,
     control,
     handleSubmit,
     reset: resetForm,
+    getValues,
     formState: { errors },
   } = useForm<PassengerValues>({
     resolver: zodResolver(passengerSchema),
@@ -149,13 +138,15 @@ export default function BookingFlow({
   }, [search, priceList.routes]);
 
   function handleClose() {
+    if (isProcessing) return;
     setStep("pick-destination");
     setSearch("");
     setSelectedRoute(null);
     setBookingRef("");
     setCopied(false);
-    setIsSubmitting(false);
+    setIsProcessing(false);
     setSubmitError("");
+    setShortfall(null);
     resetForm({
       name: user.name,
       hall: undefined,
@@ -186,14 +177,14 @@ export default function BookingFlow({
     ? (selectedRoute?.name ?? "")
     : "Covenant University";
 
-  const onPassengerSubmit = handleSubmit(async (values) => {
+  async function submitBooking(values: PassengerValues) {
     if (!selectedRoute) return;
     setSubmitError("");
-    setIsSubmitting(true);
+    setShortfall(null);
+    setIsProcessing(true);
 
     try {
-      const result = await initializeBooking({
-        userId: user.id || null,
+      const result = await payBookingFromWallet({
         vendorId: vendor.id,
         routeId: selectedRoute.id,
         direction: priceList.direction,
@@ -208,48 +199,26 @@ export default function BookingFlow({
       });
 
       if ("error" in result) {
-        setSubmitError(result.error);
-        setIsSubmitting(false);
+        if (result.error === "INSUFFICIENT_BALANCE" && "shortfall" in result) {
+          setShortfall(result.shortfall);
+        } else {
+          setSubmitError(result.error);
+        }
+        setIsProcessing(false);
         return;
       }
 
+      queryClient.invalidateQueries({ queryKey: ["wallet-balance"] });
       setBookingRef(result.reference);
-
-      window.FlutterwaveCheckout?.({
-        public_key: process.env.NEXT_PUBLIC_FLUTTERWAVE_PUBLIC_KEY,
-        tx_ref: result.reference,
-        amount: totalAmount,
-        currency: "NGN",
-        payment_options: "card,ussd,banktransfer",
-        customer: {
-          email: user.email,
-          name: values.name,
-          phone_number: values.phone,
-        },
-        customizations: {
-          title: "Council Portal Transport",
-          description: `${directionLabel} — ${selectedRoute.name}`,
-        },
-        callback: (response: { status: string }) => {
-          if (
-            response.status === "successful" ||
-            response.status === "completed"
-          ) {
-            setStep("success");
-          } else {
-            setSubmitError("Payment was not completed. Please try again.");
-          }
-          setIsSubmitting(false);
-        },
-        onclose: () => {
-          setIsSubmitting(false);
-        },
-      });
+      setStep("success");
     } catch {
       setSubmitError("Something went wrong. Please try again.");
-      setIsSubmitting(false);
+    } finally {
+      setIsProcessing(false);
     }
-  });
+  }
+
+  const onPassengerSubmit = handleSubmit(submitBooking);
 
   if (!open) return null;
 
@@ -276,7 +245,7 @@ export default function BookingFlow({
           >
             {/* Header */}
             <div className="flex items-center gap-3 px-5 py-4 border-b border-portal-border flex-shrink-0">
-              {STEP_BACK[step] && (
+              {STEP_BACK[step] && !isProcessing && (
                 <button
                   onClick={() => setStep(STEP_BACK[step]!)}
                   className="w-8 h-8 rounded-lg bg-portal-bg border border-portal-border flex items-center justify-center hover:bg-portal-bg2 transition-colors"
@@ -292,12 +261,14 @@ export default function BookingFlow({
                   {vendor.transportName} · {directionLabel}
                 </p>
               </div>
-              <button
-                onClick={handleClose}
-                className="w-8 h-8 rounded-lg bg-portal-bg border border-portal-border flex items-center justify-center hover:bg-portal-bg2 transition-colors flex-shrink-0"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              {!isProcessing && (
+                <button
+                  onClick={handleClose}
+                  className="w-8 h-8 rounded-lg bg-portal-bg border border-portal-border flex items-center justify-center hover:bg-portal-bg2 transition-colors flex-shrink-0"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
 
             <div className="flex-1 overflow-y-auto">
@@ -382,7 +353,9 @@ export default function BookingFlow({
                             <p className="text-[11px] text-portal-muted">
                               Pickup
                             </p>
-                            <p className="text-[13px] font-semibold">{pickup}</p>
+                            <p className="text-[13px] font-semibold">
+                              {pickup}
+                            </p>
                           </div>
                           <div>
                             <p className="text-[11px] text-portal-muted">
@@ -481,11 +454,6 @@ export default function BookingFlow({
                       noValidate
                       className="space-y-4"
                     >
-                      <div className="flex items-center gap-2 text-[12px] text-portal-muted bg-portal-bg border border-portal-border rounded-xl px-3.5 py-2.5">
-                        <User className="w-3.5 h-3.5 flex-shrink-0" />
-                        Name and phone are pre-filled from your profile.
-                      </div>
-
                       <Field label="Full Name" error={errors.name?.message}>
                         <input
                           {...register("name")}
@@ -590,14 +558,31 @@ export default function BookingFlow({
                         />
                       </Field>
 
-                      <div className="flex justify-between items-center bg-portal-bg rounded-xl px-4 py-3 text-[13px]">
-                        <span className="text-portal-text2">
-                          Total (fare + &#x20A6;200 fee)
-                        </span>
-                        <span className="font-heading font-extrabold text-base">
-                          &#x20A6;{totalAmount.toLocaleString()}
-                        </span>
-                      </div>
+                      {/* Insufficient balance warning */}
+                      {shortfall !== null && (
+                        <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-3">
+                          <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[12px] font-semibold text-amber-700">
+                              You&apos;re ₦{shortfall.toLocaleString()} short
+                            </p>
+                            <p className="text-[11px] text-amber-600 mt-0.5">
+                              Top up your wallet to complete this booking.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onOpenTopUp(shortfall, () =>
+                                submitBooking(getValues()),
+                              )
+                            }
+                            className="flex-shrink-0 text-[12px] font-semibold text-amber-700 underline underline-offset-2 hover:text-amber-800"
+                          >
+                            Top Up Now
+                          </button>
+                        </div>
+                      )}
 
                       {submitError && (
                         <p className="text-[12px] text-red-500 text-center">
@@ -607,12 +592,17 @@ export default function BookingFlow({
 
                       <button
                         type="submit"
-                        disabled={isSubmitting}
-                        className="w-full py-3 bg-portal-accent hover:bg-portal-accent2 text-white rounded-xl text-[14px] font-semibold transition-all hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+                        disabled={isProcessing}
+                        className="w-full py-3 bg-portal-accent hover:bg-portal-accent2 text-white rounded-xl text-[14px] font-semibold transition-all hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 flex items-center justify-center gap-2"
                       >
-                        {isSubmitting
-                          ? "Opening payment..."
-                          : `Pay \u20A6${totalAmount.toLocaleString()}`}
+                        {isProcessing ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Processing...
+                          </>
+                        ) : (
+                          `Pay \u20A6${totalAmount.toLocaleString()} from Wallet`
+                        )}
                       </button>
                     </form>
                   </motion.div>

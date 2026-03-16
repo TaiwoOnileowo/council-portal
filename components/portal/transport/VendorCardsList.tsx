@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { motion } from "motion/react";
 import Image from "next/image";
 import type {
@@ -10,6 +10,7 @@ import type {
 } from "@/lib/actions/vendor.action";
 import VendorDetailPopup from "./VendorDetailPopup";
 import BookingFlow from "./BookingFlow";
+import TopUpModal from "@/components/portal/TopUpModal";
 
 export function isVendorAvailable(vendor: PublicVendor): boolean {
   if (!vendor.isActive) return false;
@@ -36,6 +37,13 @@ export default function VendorCardsList({
     useState<PublicPriceList | null>(null);
   const [bookingRoute, setBookingRoute] = useState<PublicRoute | null>(null);
 
+  // Top-up modal state — lifted here so it renders outside BookingFlow's stacking context
+  const [topUpOpen, setTopUpOpen] = useState(false);
+  const [topUpPrefill, setTopUpPrefill] = useState(0);
+  const [topUpOnSuccess, setTopUpOnSuccess] = useState<(() => void) | null>(
+    null,
+  );
+
   function handleBookNow(
     vendor: PublicVendor,
     priceList: PublicPriceList,
@@ -45,6 +53,20 @@ export default function VendorCardsList({
     setBookingVendor(vendor);
     setBookingPriceList(priceList);
     setBookingRoute(route);
+  }
+
+  const handleOpenTopUp = useCallback(
+    (prefill: number, onSuccess: () => void) => {
+      setTopUpPrefill(prefill);
+      setTopUpOnSuccess(() => onSuccess);
+      setTopUpOpen(true);
+    },
+    [],
+  );
+
+  function handleTopUpClose() {
+    setTopUpOpen(false);
+    setTopUpOnSuccess(null);
   }
 
   return (
@@ -130,8 +152,16 @@ export default function VendorCardsList({
           }}
           initialRoute={bookingRoute}
           user={user}
+          onOpenTopUp={handleOpenTopUp}
         />
       )}
+
+      <TopUpModal
+        open={topUpOpen}
+        onClose={handleTopUpClose}
+        prefilledAmount={topUpPrefill}
+        onSuccess={topUpOnSuccess ?? undefined}
+      />
     </>
   );
 }
