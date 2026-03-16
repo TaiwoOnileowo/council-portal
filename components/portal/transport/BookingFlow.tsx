@@ -6,7 +6,6 @@ import {
   X,
   Search,
   MapPin,
-  Clock,
   ArrowRight,
   Bus,
   ChevronLeft,
@@ -16,28 +15,35 @@ import {
   MessageCircle,
   Info,
 } from "lucide-react";
-import type { Vendor, VendorLocation } from "./vendorData";
+import type {
+  PublicVendor,
+  PublicPriceList,
+  PublicRoute,
+} from "@/lib/actions/vendor.action";
 
 type Step = "pick-destination" | "ride-summary" | "payment" | "success";
 type RideType = "Private Ride" | "Shared Ride";
 
 export default function BookingFlow({
   vendor,
+  priceList,
   open,
   onClose,
-  initialLocation,
+  initialRoute,
 }: {
-  vendor: Vendor;
+  vendor: PublicVendor;
+  priceList: PublicPriceList;
   open: boolean;
   onClose: () => void;
-  initialLocation?: VendorLocation | null;
+  initialRoute?: PublicRoute | null;
 }) {
   const [step, setStep] = useState<Step>(
-    initialLocation ? "ride-summary" : "pick-destination",
+    initialRoute ? "ride-summary" : "pick-destination",
   );
   const [search, setSearch] = useState("");
-  const [selectedLocation, setSelectedLocation] =
-    useState<VendorLocation | null>(initialLocation ?? null);
+  const [selectedRoute, setSelectedRoute] = useState<PublicRoute | null>(
+    initialRoute ?? null,
+  );
   const [rideType, setRideType] = useState<RideType>("Private Ride");
   const [notes, setNotes] = useState("");
   const [bookingRef] = useState(
@@ -46,16 +52,16 @@ export default function BookingFlow({
   );
   const [copied, setCopied] = useState(false);
 
-  const filteredLocations = useMemo(() => {
-    if (!search.trim()) return vendor.locations;
+  const filteredRoutes = useMemo(() => {
+    if (!search.trim()) return priceList.routes;
     const q = search.toLowerCase();
-    return vendor.locations.filter((l) => l.name.toLowerCase().includes(q));
-  }, [search, vendor.locations]);
+    return priceList.routes.filter((r) => r.name.toLowerCase().includes(q));
+  }, [search, priceList.routes]);
 
   function reset() {
     setStep("pick-destination");
     setSearch("");
-    setSelectedLocation(null);
+    setSelectedRoute(null);
     setRideType("Private Ride");
     setNotes("");
     setCopied(false);
@@ -66,14 +72,13 @@ export default function BookingFlow({
     onClose();
   }
 
-  function handleSelectLocation(loc: VendorLocation) {
-    setSelectedLocation(loc);
+  function handleSelectRoute(route: PublicRoute) {
+    setSelectedRoute(route);
     setStep("ride-summary");
   }
 
   function handlePay() {
     setStep("payment");
-    // Simulate payment processing
     setTimeout(() => {
       setStep("success");
     }, 2000);
@@ -85,11 +90,11 @@ export default function BookingFlow({
     setTimeout(() => setCopied(false), 2000);
   }
 
-  const finalPrice = selectedLocation
-    ? rideType === "Shared Ride"
-      ? `₦${Math.round(selectedLocation.priceNum * 0.6).toLocaleString()}`
-      : selectedLocation.price
-    : "";
+  const basePrice = selectedRoute?.price ?? 0;
+  const finalPrice =
+    rideType === "Shared Ride"
+      ? `₦${Math.round(basePrice * 0.6).toLocaleString()}`
+      : `₦${basePrice.toLocaleString()}`;
 
   if (!open) return null;
 
@@ -138,7 +143,7 @@ export default function BookingFlow({
                   {step === "success" && "Booking Confirmed!"}
                 </h3>
                 <p className="text-[11px] text-portal-muted truncate">
-                  {vendor.name}
+                  {vendor.transportName}
                 </p>
               </div>
               <button
@@ -162,7 +167,6 @@ export default function BookingFlow({
                     transition={{ duration: 0.2 }}
                     className="p-5"
                   >
-                    {/* Search */}
                     <div className="relative mb-4">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-portal-muted" />
                       <input
@@ -174,17 +178,16 @@ export default function BookingFlow({
                       />
                     </div>
 
-                    {/* Locations */}
                     <div className="space-y-1.5">
-                      {filteredLocations.length === 0 && (
+                      {filteredRoutes.length === 0 && (
                         <p className="text-center text-[13px] text-portal-muted py-8">
                           No destinations found
                         </p>
                       )}
-                      {filteredLocations.map((loc) => (
+                      {filteredRoutes.map((route) => (
                         <button
-                          key={loc.name}
-                          onClick={() => handleSelectLocation(loc)}
+                          key={route.id}
+                          onClick={() => handleSelectRoute(route)}
                           className="w-full flex items-center gap-3 px-3.5 py-3 bg-portal-bg rounded-xl hover:bg-portal-bg2 hover:border-portal-accent-border border border-transparent transition-all text-left"
                         >
                           <div className="w-9 h-9 rounded-lg bg-portal-accent-bg flex items-center justify-center flex-shrink-0">
@@ -192,18 +195,17 @@ export default function BookingFlow({
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-[13px] font-semibold text-portal-text">
-                              {loc.name}
+                              {route.name}
                             </p>
-                            <div className="flex items-center gap-1 mt-0.5">
-                              <Clock className="w-3 h-3 text-portal-muted" />
-                              <span className="text-[11px] text-portal-muted">
-                                ~{loc.estimatedTime}
-                              </span>
-                            </div>
+                            {route.capacity !== null && (
+                              <p className="text-[11px] text-portal-muted mt-0.5">
+                                {route.capacity} seats
+                              </p>
+                            )}
                           </div>
                           <div className="text-right flex-shrink-0">
                             <p className="font-heading text-sm font-extrabold">
-                              {loc.price}
+                              ₦{route.price.toLocaleString()}
                             </p>
                           </div>
                           <ArrowRight className="w-4 h-4 text-portal-muted flex-shrink-0" />
@@ -214,7 +216,7 @@ export default function BookingFlow({
                 )}
 
                 {/* Step 2: Ride Summary */}
-                {step === "ride-summary" && selectedLocation && (
+                {step === "ride-summary" && selectedRoute && (
                   <motion.div
                     key="step-summary"
                     initial={{ opacity: 0, x: -10 }}
@@ -245,7 +247,7 @@ export default function BookingFlow({
                               Destination
                             </p>
                             <p className="text-[13px] font-semibold">
-                              {selectedLocation.name}
+                              {selectedRoute.name}
                             </p>
                           </div>
                         </div>
@@ -253,39 +255,32 @@ export default function BookingFlow({
 
                       <div className="flex gap-3 pt-3 border-t border-portal-border">
                         <div className="flex items-center gap-1.5 text-[12px] text-portal-text2">
-                          <Clock className="w-3.5 h-3.5 text-portal-muted" />~
-                          {selectedLocation.estimatedTime}
-                        </div>
-                        <div className="flex items-center gap-1.5 text-[12px] text-portal-text2">
                           <Bus className="w-3.5 h-3.5 text-portal-muted" />
-                          {vendor.name}
+                          {vendor.transportName}
                         </div>
+                        {selectedRoute.capacity !== null && (
+                          <div className="flex items-center gap-1.5 text-[12px] text-portal-text2">
+                            <span className="text-portal-muted">·</span>
+                            {selectedRoute.capacity} seats
+                          </div>
+                        )}
                       </div>
                     </div>
 
-                    {/* Ride Instructions */}
-                    {vendor.rideInstructions &&
-                      vendor.rideInstructions.length > 0 && (
-                        <div className="mb-4">
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-portal-muted mb-2 flex items-center gap-1">
-                            <Info className="w-3 h-3" />
-                            Ride Instructions from {vendor.name}
+                    {/* Notes from vendor */}
+                    {priceList.notes && (
+                      <div className="mb-4">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-portal-muted mb-2 flex items-center gap-1">
+                          <Info className="w-3 h-3" />
+                          Note from {vendor.transportName}
+                        </p>
+                        <div className="bg-portal-blue-bg border border-blue-200 rounded-xl p-3.5">
+                          <p className="text-[12px] text-portal-text2 leading-relaxed">
+                            {priceList.notes}
                           </p>
-                          <div className="bg-portal-blue-bg border border-blue-200 rounded-xl p-3.5 space-y-2">
-                            {vendor.rideInstructions.map((instruction, i) => (
-                              <div
-                                key={i}
-                                className="flex gap-2 text-[12px] text-portal-text2 leading-relaxed"
-                              >
-                                <span className="text-portal-blue font-bold mt-px">
-                                  •
-                                </span>
-                                <span>{instruction}</span>
-                              </div>
-                            ))}
-                          </div>
                         </div>
-                      )}
+                      </div>
+                    )}
 
                     {/* Ride type toggle */}
                     <div className="mb-4">
@@ -316,7 +311,7 @@ export default function BookingFlow({
                       )}
                     </div>
 
-                    {/* Notes */}
+                    {/* Special instructions */}
                     <div className="mb-4">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-portal-muted mb-2 flex items-center gap-1">
                         <StickyNote className="w-3 h-3" />
@@ -336,7 +331,7 @@ export default function BookingFlow({
                       <div className="flex justify-between text-[13px]">
                         <span className="text-portal-text2">Base fare</span>
                         <span className="font-semibold">
-                          {selectedLocation.price}
+                          ₦{basePrice.toLocaleString()}
                         </span>
                       </div>
                       {rideType === "Shared Ride" && (
@@ -345,10 +340,7 @@ export default function BookingFlow({
                             Shared ride discount
                           </span>
                           <span className="font-semibold text-portal-green">
-                            -₦
-                            {Math.round(
-                              selectedLocation.priceNum * 0.4,
-                            ).toLocaleString()}
+                            -₦{Math.round(basePrice * 0.4).toLocaleString()}
                           </span>
                         </div>
                       )}
@@ -360,7 +352,6 @@ export default function BookingFlow({
                       </div>
                     </div>
 
-                    {/* Pay button */}
                     <button
                       onClick={handlePay}
                       className="w-full py-3 bg-portal-accent hover:bg-portal-accent2 text-white rounded-xl text-[14px] font-semibold transition-all hover:-translate-y-0.5"
@@ -391,7 +382,7 @@ export default function BookingFlow({
                 )}
 
                 {/* Step 4: Success */}
-                {step === "success" && selectedLocation && (
+                {step === "success" && selectedRoute && (
                   <motion.div
                     key="step-success"
                     initial={{ opacity: 0, scale: 0.95 }}
@@ -400,7 +391,6 @@ export default function BookingFlow({
                     transition={{ duration: 0.3 }}
                     className="p-5"
                   >
-                    {/* Success icon */}
                     <div className="flex flex-col items-center mb-5">
                       <div className="w-16 h-16 rounded-full bg-portal-green-bg flex items-center justify-center mb-3">
                         <CheckCircle2 className="w-8 h-8 text-portal-green" />
@@ -413,7 +403,6 @@ export default function BookingFlow({
                       </p>
                     </div>
 
-                    {/* Booking details */}
                     <div className="bg-portal-bg rounded-xl p-4 space-y-3 mb-4">
                       <div className="flex justify-between text-[13px]">
                         <span className="text-portal-muted">Booking Ref</span>
@@ -432,23 +421,19 @@ export default function BookingFlow({
                       </div>
                       <div className="flex justify-between text-[13px]">
                         <span className="text-portal-muted">Vendor</span>
-                        <span className="font-semibold">{vendor.name}</span>
+                        <span className="font-semibold">
+                          {vendor.transportName}
+                        </span>
                       </div>
                       <div className="flex justify-between text-[13px]">
                         <span className="text-portal-muted">Route</span>
                         <span className="font-semibold">
-                          Main Gate → {selectedLocation.name}
+                          Main Gate → {selectedRoute.name}
                         </span>
                       </div>
                       <div className="flex justify-between text-[13px]">
                         <span className="text-portal-muted">Ride Type</span>
                         <span className="font-semibold">{rideType}</span>
-                      </div>
-                      <div className="flex justify-between text-[13px]">
-                        <span className="text-portal-muted">Est. Time</span>
-                        <span className="font-semibold">
-                          ~{selectedLocation.estimatedTime}
-                        </span>
                       </div>
                       <div className="flex justify-between text-[13px] pt-2 border-t border-portal-border">
                         <span className="font-bold">Total Paid</span>
@@ -458,26 +443,18 @@ export default function BookingFlow({
                       </div>
                     </div>
 
-                    {/* Vendor contact */}
-                    {vendor.socials.find((s) => s.platform === "WhatsApp") && (
-                      <div className="bg-portal-green-bg border border-green-200 rounded-xl p-3.5 flex items-center gap-3 mb-4">
-                        <MessageCircle className="w-5 h-5 text-portal-green flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[12px] font-semibold text-portal-green">
-                            Contact vendor on WhatsApp
-                          </p>
-                          <p className="text-[11px] text-portal-green/70">
-                            {
-                              vendor.socials.find(
-                                (s) => s.platform === "WhatsApp",
-                              )?.handle
-                            }
-                          </p>
-                        </div>
+                    <div className="bg-portal-green-bg border border-green-200 rounded-xl p-3.5 flex items-center gap-3 mb-4">
+                      <MessageCircle className="w-5 h-5 text-portal-green flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[12px] font-semibold text-portal-green">
+                          Contact vendor on WhatsApp
+                        </p>
+                        <p className="text-[11px] text-portal-green/70">
+                          {vendor.phone}
+                        </p>
                       </div>
-                    )}
+                    </div>
 
-                    {/* Actions */}
                     <div className="flex gap-3">
                       <button
                         onClick={handleClose}

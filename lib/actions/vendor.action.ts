@@ -248,6 +248,108 @@ export async function updateVendorBankDetails({
   }
 }
 
+// ─── Public transport types ───────────────────────────────────────────────────
+
+export type PublicRoute = {
+  id: string;
+  name: string;
+  price: number; // naira
+  capacity: number | null;
+};
+
+export type PublicPriceList = {
+  id: string;
+  name: string;
+  direction: "LEAVING" | "RETURNING";
+  availType: "ACTIVE" | "INACTIVE" | "SCHEDULED";
+  schedEnd: Date | null;
+  schedStart: Date | null;
+  luggagePolicy: string;
+  notes: string;
+  routes: PublicRoute[];
+  departureTimes: { day: string; time: string }[];
+};
+
+export type PublicVendor = {
+  id: string;
+  transportName: string;
+  image: string | null;
+  tagline: string | null;
+  description: string | null;
+  instagram: string | null;
+  tiktok: string | null;
+  phone: string;
+  isActive: boolean;
+  priceLists: PublicPriceList[];
+};
+
+export async function getPublicVendors(): Promise<PublicVendor[]> {
+  const rows = await db.vendor.findMany({
+    where: { isActive: true },
+    select: {
+      id: true,
+      transportName: true,
+      image: true,
+      tagline: true,
+      description: true,
+      instagram: true,
+      tiktok: true,
+      phone: true,
+      isActive: true,
+      priceLists: {
+        select: {
+          id: true,
+          name: true,
+          direction: true,
+          availType: true,
+          schedEnd: true,
+          schedStart: true,
+          luggagePolicy: true,
+          notes: true,
+          routes: {
+            where: { active: true },
+            select: { id: true, name: true, price: true, capacity: true },
+          },
+          departureTimes: {
+            select: { day: true, time: true },
+          },
+        },
+      },
+    },
+  });
+
+  return rows.map((v) => ({
+    id: v.id,
+    transportName: v.transportName,
+    image: v.image,
+    tagline: v.tagline,
+    description: v.description,
+    instagram: v.instagram,
+    tiktok: v.tiktok,
+    phone: v.phone ?? "",
+    isActive: v.isActive,
+    priceLists: v.priceLists
+      .filter((pl) => String(pl.availType) !== "INACTIVE")
+      .map((pl) => ({
+        id: pl.id,
+        name: pl.name,
+        direction: String(pl.direction) as "LEAVING" | "RETURNING",
+        availType: String(pl.availType) as "ACTIVE" | "INACTIVE" | "SCHEDULED",
+        schedEnd: pl.schedEnd,
+        schedStart: pl.schedStart,
+        luggagePolicy: pl.luggagePolicy,
+        notes: pl.notes,
+        routes: pl.routes.map((r) => ({
+          id: r.id,
+          name: r.name,
+          price: r.price,
+          capacity: r.capacity,
+        })),
+        departureTimes: pl.departureTimes,
+      })),
+  }));
+}
+
 export async function changeVendorPassword({
   vendorId,
   currentPassword,

@@ -4,7 +4,11 @@ import { signIn, signOut } from "@/auth";
 import { Level } from "@/generated/prisma/enums";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
-import { signInSchema, signUpSchema, updateProfileSchema } from "@/lib/validations/auth";
+import {
+  signInSchema,
+  signUpSchema,
+  updateProfileSchema,
+} from "@/lib/validations/auth";
 import { CallbackRouteError } from "@auth/core/errors";
 export async function getUserFromDb(email: string) {
   return db.user.findUnique({ where: { email } });
@@ -58,7 +62,10 @@ export async function signUpUser({
   level: string;
   password: string;
   confirmPassword: string;
-}) {
+}): Promise<
+  | { error: string; field?: "email" | "phone" | "matricNumber" }
+  | { success: boolean }
+> {
   const parsed = signUpSchema.safeParse({
     firstName,
     lastName,
@@ -76,17 +83,26 @@ export async function signUpUser({
 
   const existingEmail = await db.user.findUnique({ where: { email } });
   if (existingEmail) {
-    return { error: "An account with this email already exists", field: "email" as const };
+    return {
+      error: "An account with this email already exists",
+      field: "email" as const,
+    };
   }
 
   const existingPhone = await db.user.findUnique({ where: { phone } });
   if (existingPhone) {
-    return { error: "This phone number is already registered", field: "phone" as const };
+    return {
+      error: "This phone number is already registered",
+      field: "phone" as const,
+    };
   }
 
   const existingMatric = await db.user.findUnique({ where: { matricNumber } });
   if (existingMatric) {
-    return { error: "This matric number is already registered", field: "matricNumber" as const };
+    return {
+      error: "This matric number is already registered",
+      field: "matricNumber" as const,
+    };
   }
 
   const passwordHash = await hashPassword(password);

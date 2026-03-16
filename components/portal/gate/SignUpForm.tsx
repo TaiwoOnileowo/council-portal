@@ -269,9 +269,13 @@ export default function SignUpForm() {
 
   const onSubmit = handleSubmit(async (data) => {
     const result = await signUpUser(data);
-    if (result?.error) {
+    if ("error" in result) {
       toast.error(result.error);
-      setError("root", { message: result.error });
+      if ("field" in result && result.field) {
+        setError(result.field, { message: result.error });
+      } else {
+        setError("root", { message: result.error });
+      }
       return;
     }
     router.push("/");

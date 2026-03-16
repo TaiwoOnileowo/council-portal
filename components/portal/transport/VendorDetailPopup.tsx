@@ -1,32 +1,38 @@
 "use client";
 
-import {
-  ExternalLink,
-  Instagram,
-  MapPin,
-  MessageCircle,
-  Twitter,
-  X,
-} from "lucide-react";
+import { X, MapPin, Phone, Instagram } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
 import { useState } from "react";
-import type { Vendor } from "./vendorData";
+import type {
+  PublicVendor,
+  PublicPriceList,
+  PublicRoute,
+} from "@/lib/actions/vendor.action";
+import { isVendorAvailable } from "./VendorCardsList";
 
-function getSocialIcon(platform: string) {
-  switch (platform) {
-    case "Instagram":
-      return Instagram;
-    case "WhatsApp":
-      return MessageCircle;
-    case "Twitter":
-      return Twitter;
-    default:
-      return ExternalLink;
-  }
+type ActiveTab = "leaving" | "returning";
+
+function isPriceListActive(pl: PublicPriceList): boolean {
+  if (pl.availType === "ACTIVE") return true;
+  if (pl.availType === "INACTIVE") return false;
+  const now = new Date();
+  if (pl.schedStart && now < pl.schedStart) return false;
+  if (pl.schedEnd && now > pl.schedEnd) return false;
+  return true;
 }
 
-type ActiveTab = "prices" | "reviews";
+function closesToday(pl: PublicPriceList): boolean {
+  if (!pl.schedEnd) return false;
+  const today = new Date().toDateString();
+  return new Date(pl.schedEnd).toDateString() === today;
+}
+
+function closesSoon(pl: PublicPriceList): boolean {
+  if (!pl.schedEnd || closesToday(pl)) return false;
+  const diff = new Date(pl.schedEnd).getTime() - new Date().getTime();
+  return diff > 0 && diff <= 2 * 24 * 60 * 60 * 1000;
+}
 
 export default function VendorDetailPopup({
   vendor,
@@ -34,15 +40,27 @@ export default function VendorDetailPopup({
   onClose,
   onBookNow,
 }: {
-  vendor: Vendor;
+  vendor: PublicVendor;
   open: boolean;
   onClose: () => void;
   onBookNow: (
-    vendor: Vendor,
-    location?: import("./vendorData").VendorLocation,
+    vendor: PublicVendor,
+    priceList: PublicPriceList,
+    route: PublicRoute,
   ) => void;
 }) {
-  const [tab, setTab] = useState<ActiveTab>("prices");
+  const leavingList = vendor.priceLists.find(
+    (pl) => pl.direction === "LEAVING",
+  );
+  const returningList = vendor.priceLists.find(
+    (pl) => pl.direction === "RETURNING",
+  );
+
+  const defaultTab: ActiveTab = leavingList ? "leaving" : "returning";
+  const [tab, setTab] = useState<ActiveTab>(defaultTab);
+
+  const activeList = tab === "leaving" ? leavingList : returningList;
+  const listAvailable = activeList ? isPriceListActive(activeList) : false;
 
   if (!open) return null;
 
@@ -67,152 +85,216 @@ export default function VendorDetailPopup({
             onClick={(e) => e.stopPropagation()}
             className="bg-portal-surface rounded-2xl w-full max-w-[520px] max-h-[88vh] overflow-hidden flex flex-col shadow-2xl border border-portal-border"
           >
-            {/* Cover + Logo */}
-            <div className="relative flex-shrink-0">
-              <div className="h-[120px] relative overflow-hidden">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={vendor.coverImage}
-                  alt=""
-                  className="w-full h-full object-cover"
-                />
-                {/* Close */}
-                <button
-                  onClick={onClose}
-                  className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/30 text-white flex items-center justify-center hover:bg-black/50 transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-
-                {/* Availability badge */}
-                {vendor.available ? (
-                  <div className="absolute top-3 left-3 flex items-center gap-1.5 text-[11px] font-bold bg-green-500/90 text-white px-2.5 py-1 rounded-full">
-                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                    Available now
-                  </div>
+            {/* Header */}
+            <div className="flex items-start gap-4 px-5 pt-5 pb-4 border-b border-portal-border flex-shrink-0">
+              {/* Logo */}
+              <div className="w-[54px] h-[54px] rounded-[14px] overflow-hidden flex-shrink-0 bg-portal-accent-bg flex items-center justify-center">
+                {vendor.image ? (
+                  <Image
+                    src={vendor.image}
+                    alt={vendor.transportName}
+                    width={54}
+                    height={54}
+                    className="w-full h-full object-cover"
+                  />
                 ) : (
-                  <div className="absolute top-3 left-3 flex items-center gap-1.5 text-[11px] font-bold bg-gray-500/80 text-white px-2.5 py-1 rounded-full">
-                    <span className="w-1.5 h-1.5 rounded-full bg-white/60" />
-                    Not available today
-                  </div>
+                  <span className="text-portal-accent font-bold text-xl">
+                    {vendor.transportName.charAt(0).toUpperCase()}
+                  </span>
                 )}
               </div>
 
-              {/* Logo overlapping */}
-              <div className="absolute -bottom-7 left-5">
-                <div className="w-[58px] h-[58px] rounded-[16px] overflow-hidden border-[3px] border-portal-surface shadow-lg">
-                  <Image
-                    src={vendor.logo}
-                    alt={vendor.name}
-                    width={58}
-                    height={58}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto px-5 pt-10 pb-5">
-              {/* Header */}
-              <div className="flex items-start justify-between mb-1">
-                <div>
-                  <h2 className="font-heading text-[19px] font-extrabold flex items-center gap-2">
-                    {vendor.name}
-                    {/* {vendor.topRated && (
-                      <span className="flex items-center gap-1 text-[10px] font-bold bg-portal-gold-bg text-portal-gold border border-[#e8d5a0] px-2 py-0.5 rounded-md">
-                        <Award className="w-3 h-3" />
-                        Top Rated
-                      </span>
-                    )} */}
-                  </h2>
+              {/* Name + tagline */}
+              <div className="flex-1 min-w-0">
+                <h2 className="font-heading text-[18px] font-extrabold leading-tight">
+                  {vendor.transportName}
+                </h2>
+                {vendor.tagline && (
                   <p className="text-[13px] text-portal-muted mt-0.5">
                     {vendor.tagline}
                   </p>
+                )}
+                {/* Availability */}
+                <div className="mt-1.5">
+                  {isVendorAvailable(vendor) ? (
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                      Available now
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-portal-muted bg-portal-bg px-2 py-0.5 rounded-full border border-portal-border">
+                      <span className="w-1.5 h-1.5 rounded-full bg-portal-muted/60" />
+                      Not available today
+                    </span>
+                  )}
                 </div>
               </div>
 
-              {/* Rating */}
-              {/* <div className="flex items-center gap-2 mt-2 mb-4">
-                <StarRating full={vendor.fullStars} size="md" />
-                <span className="text-sm font-bold">{vendor.rating}</span>
-                <span className="text-xs text-portal-muted">
-                  ({vendor.reviews} reviews)
-                </span>
-              </div> */}
+              <button
+                onClick={onClose}
+                className="w-8 h-8 rounded-full bg-portal-bg border border-portal-border flex items-center justify-center hover:bg-portal-bg2 transition-colors flex-shrink-0 mt-0.5"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
-              {/* About */}
-              <p className="text-[13px] text-portal-text2 leading-relaxed mb-4">
-                {vendor.about}
-              </p>
+            {/* Scrollable content */}
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+              {/* Description */}
+              {vendor.description && (
+                <p className="text-[13px] text-portal-text2 leading-relaxed">
+                  {vendor.description}
+                </p>
+              )}
 
-              {/* Socials */}
-              <div className="flex flex-wrap gap-2 mb-5">
-                {vendor.socials.map((s) => {
-                  const Icon = getSocialIcon(s.platform);
-                  return (
-                    <div
-                      key={s.platform}
-                      className="flex items-center gap-1.5 text-xs text-portal-text2 bg-portal-bg border border-portal-border px-3 py-1.5 rounded-lg"
+              {/* Contact + Socials */}
+              <div className="flex flex-wrap gap-2">
+                <a
+                  href={`tel:${vendor.phone}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex items-center gap-1.5 text-xs text-portal-text2 bg-portal-bg border border-portal-border px-3 py-1.5 rounded-lg hover:border-portal-accent-border transition-colors"
+                >
+                  <Phone className="w-3.5 h-3.5 text-portal-muted" />
+                  {vendor.phone}
+                </a>
+                {vendor.instagram && (
+                  <a
+                    href={`https://instagram.com/${vendor.instagram.replace(/^@/, "")}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="flex items-center gap-1.5 text-xs text-portal-text2 bg-portal-bg border border-portal-border px-3 py-1.5 rounded-lg hover:border-portal-accent-border transition-colors"
+                  >
+                    <Instagram className="w-3.5 h-3.5 text-portal-muted" />
+                    {vendor.instagram}
+                  </a>
+                )}
+                {vendor.tiktok && (
+                  <a
+                    href={`https://tiktok.com/@${vendor.tiktok.replace(/^@/, "")}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="flex items-center gap-1.5 text-xs text-portal-text2 bg-portal-bg border border-portal-border px-3 py-1.5 rounded-lg hover:border-portal-accent-border transition-colors"
+                  >
+                    {/* TikTok icon via SVG */}
+                    <svg
+                      className="w-3.5 h-3.5 text-portal-muted"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
                     >
-                      <Icon className="w-3.5 h-3.5 text-portal-muted" />
-                      {s.handle}
-                    </div>
-                  );
-                })}
+                      <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.73a8.17 8.17 0 004.77 1.52V6.8a4.85 4.85 0 01-1-.11z" />
+                    </svg>
+                    {vendor.tiktok}
+                  </a>
+                )}
               </div>
 
               {/* Tabs */}
-              <div className="flex gap-1 bg-portal-bg rounded-lg p-1 mb-4">
-                <button
-                  onClick={() => setTab("prices")}
-                  className={`flex-1 text-[13px] font-semibold py-2 rounded-md transition-all ${
-                    tab === "prices"
-                      ? "bg-portal-surface text-portal-text shadow-sm"
-                      : "text-portal-muted hover:text-portal-text2"
-                  }`}
-                >
-                  Leaving School
-                </button>
-                <button
-                  onClick={() => setTab("prices")}
-                  className={`flex-1 text-[13px] font-semibold py-2 rounded-md transition-all ${
-                    tab === "prices"
-                      ? "bg-portal-surface text-portal-text shadow-sm"
-                      : "text-portal-muted hover:text-portal-text2"
-                  }`}
-                >
-                  Returning to School
-                </button>
-              </div>
-
-              {/* Tab content */}
-              {tab === "prices" && (
-                <div className="space-y-1.5">
-                  {vendor.locations.map((loc) => (
-                    <div
-                      key={loc.name}
-                      className="flex items-center gap-3 px-3.5 py-3 bg-portal-bg rounded-xl hover:bg-portal-bg2 transition-colors"
-                    >
-                      <MapPin className="w-4 h-4 text-portal-muted flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[13px] font-semibold text-portal-text">
-                          {loc.name}
-                        </p>
-                      </div>
-                      <p className="font-heading text-sm font-extrabold flex-shrink-0">
-                        {loc.price}
-                      </p>
+              {(leavingList || returningList) && (
+                <>
+                  <div className="flex gap-1 bg-portal-bg rounded-lg p-1">
+                    {leavingList && (
                       <button
-                        onClick={() => onBookNow(vendor, loc)}
-                        disabled={!vendor.available}
-                        className="px-3 py-1.5 bg-portal-accent-bg border border-portal-accent-border rounded-lg text-portal-accent text-[12px] font-semibold hover:bg-portal-accent hover:text-white transition-all duration-200 flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-portal-accent-bg disabled:hover:text-portal-accent"
+                        onClick={() => setTab("leaving")}
+                        className={`flex-1 text-[13px] font-semibold py-2 rounded-md transition-all ${
+                          tab === "leaving"
+                            ? "bg-portal-surface text-portal-text shadow-sm"
+                            : "text-portal-muted hover:text-portal-text2"
+                        }`}
                       >
-                        Book
+                        Leaving School
                       </button>
+                    )}
+                    {returningList && (
+                      <button
+                        onClick={() => setTab("returning")}
+                        className={`flex-1 text-[13px] font-semibold py-2 rounded-md transition-all ${
+                          tab === "returning"
+                            ? "bg-portal-surface text-portal-text shadow-sm"
+                            : "text-portal-muted hover:text-portal-text2"
+                        }`}
+                      >
+                        Returning to School
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Price list status badges */}
+                  {activeList && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {!listAvailable && (
+                        <span className="text-[11px] font-semibold bg-gray-100 text-gray-500 border border-gray-200 px-2 py-0.5 rounded-full">
+                          Not currently active
+                        </span>
+                      )}
+                      {closesToday(activeList) && (
+                        <span className="text-[11px] font-semibold bg-amber-50 text-amber-600 border border-amber-200 px-2 py-0.5 rounded-full">
+                          Closes today
+                        </span>
+                      )}
+                      {closesSoon(activeList) && (
+                        <span className="text-[11px] font-semibold bg-amber-50 text-amber-600 border border-amber-200 px-2 py-0.5 rounded-full">
+                          Closes soon
+                        </span>
+                      )}
+                      {activeList.luggagePolicy && (
+                        <span className="text-[11px] text-portal-muted bg-portal-bg border border-portal-border px-2 py-0.5 rounded-full">
+                          {activeList.luggagePolicy}
+                        </span>
+                      )}
                     </div>
-                  ))}
-                </div>
+                  )}
+
+                  {/* Routes */}
+                  {activeList && (
+                    <div className="space-y-1.5">
+                      {activeList.routes.length === 0 ? (
+                        <p className="text-center text-[13px] text-portal-muted py-6">
+                          No routes available
+                        </p>
+                      ) : (
+                        activeList.routes.map((route) => (
+                          <div
+                            key={route.id}
+                            className="flex items-center gap-3 px-3.5 py-3 bg-portal-bg rounded-xl hover:bg-portal-bg2 transition-colors"
+                          >
+                            <MapPin className="w-4 h-4 text-portal-muted flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[13px] font-semibold text-portal-text">
+                                {route.name}
+                              </p>
+                              {route.capacity !== null && (
+                                <span className="inline-block mt-0.5 text-[10px] font-semibold text-portal-accent bg-portal-accent-bg border border-portal-accent-border px-1.5 py-0.5 rounded-md">
+                                  {route.capacity} seats
+                                </span>
+                              )}
+                            </div>
+                            <p className="font-heading text-sm font-extrabold flex-shrink-0">
+                              ₦{route.price.toLocaleString()}
+                            </p>
+                            <button
+                              onClick={() =>
+                                onBookNow(vendor, activeList, route)
+                              }
+                              disabled={!vendor.isActive || !listAvailable}
+                              className="px-3 py-1.5 bg-portal-accent-bg border border-portal-accent-border rounded-lg text-portal-accent text-[12px] font-semibold hover:bg-portal-accent hover:text-white transition-all duration-200 flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-portal-accent-bg disabled:hover:text-portal-accent"
+                            >
+                              Book
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+
+                  {/* Notes */}
+                  {activeList?.notes && (
+                    <p className="text-[12px] text-portal-muted italic">
+                      {activeList.notes}
+                    </p>
+                  )}
+                </>
               )}
             </div>
           </motion.div>
