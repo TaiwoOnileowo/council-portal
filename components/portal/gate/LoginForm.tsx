@@ -34,7 +34,7 @@ export default function LoginForm({ onForgotPassword }: LoginFormProps) {
       setError("root", { message: result.error });
       return;
     }
-
+    toast.success("Logged in successfully");
     router.push("/");
     router.refresh();
   }

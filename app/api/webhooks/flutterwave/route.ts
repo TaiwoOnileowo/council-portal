@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
   // Verify Flutterwave secret hash
-  const secretHash = process.env.FLUTTERWAVE_SECRET_HASH;
+  const secretHash = process.env.FLUTTERWAVE_ENCRYPTION_KEY;
   const signature = req.headers.get("verif-hash");
 
   if (!secretHash || signature !== secretHash) {
@@ -32,7 +32,13 @@ export async function POST(req: NextRequest) {
   const meta = data.meta as Record<string, unknown> | undefined;
   const userId = meta?.userId as string | undefined;
 
-  if (!txRef || !userId || status !== "successful" || currency !== "NGN" || !amount) {
+  if (
+    !txRef ||
+    !userId ||
+    status !== "successful" ||
+    currency !== "NGN" ||
+    !amount
+  ) {
     return NextResponse.json({ received: true });
   }
 

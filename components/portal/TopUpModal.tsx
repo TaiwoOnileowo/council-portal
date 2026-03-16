@@ -45,7 +45,7 @@ export default function TopUpModal({
   prefilledAmount?: number;
   onSuccess?: () => void;
 }) {
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const [step, setStep] = useState<Step>("enter-amount");
   const [amountInput, setAmountInput] = useState("");
   const [tagline] = useState(
@@ -91,13 +91,12 @@ export default function TopUpModal({
 
   // Load Flutterwave script
   useEffect(() => {
-    if (typeof window === "undefined" || window.FlutterwaveCheckout) return;
-    if (
-      document.querySelector(
-        'script[src="https://checkout.flutterwave.com/v3.js"]',
-      )
-    )
-      return;
+    if (typeof window === "undefined") return;
+
+    const existing = document.querySelector(
+      'script[src="https://checkout.flutterwave.com/v3.js"]',
+    );
+    if (existing) return;
     const script = document.createElement("script");
     script.src = "https://checkout.flutterwave.com/v3.js";
     script.async = true;
@@ -123,7 +122,6 @@ export default function TopUpModal({
 
   const amountNaira = parseAmount(amountInput);
   const amountKobo = amountNaira * 100;
-
   function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
     setAmountInput(formatWithCommas(e.target.value));
   }
@@ -275,8 +273,8 @@ export default function TopUpModal({
             )}
 
             <button
-              onClick={handlePay}
-              disabled={amountKobo <= 0}
+              onClick={() => handlePay()}
+              disabled={amountKobo <= 0 || sessionStatus !== "authenticated"}
               className="w-full py-3 bg-portal-accent hover:bg-portal-accent2 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl text-[14px] font-semibold transition-all hover:enabled:-translate-y-0.5"
             >
               {amountNaira > 0
