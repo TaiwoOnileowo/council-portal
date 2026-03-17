@@ -20,14 +20,14 @@ export default function VendorDashboardHeader() {
             <h1 className="font-heading text-[24px] font-extrabold text-portal-text">
               {vendorProfile.name}
             </h1>
-            <p className="text-[13px] text-portal-muted mt-0.5 flex items-center gap-1.5">
+            {/* <p className="text-[13px] text-portal-muted mt-0.5 flex items-center gap-1.5">
               <span className="inline-flex items-center gap-0.5 text-portal-gold">
                 <Star className="w-3 h-3 fill-portal-gold" />
                 {vendorProfile.rating}
               </span>
               <span className="text-portal-border">·</span>
               {vendorProfile.reviews} reviews
-            </p>
+            </p> */}
           </div>
         </div>
       </div>

@@ -59,9 +59,9 @@ export default function RecentTrips() {
     >
       <div className="flex items-center justify-between mb-3.5">
         <h2 className="font-heading text-[17px] font-bold">Recent Trips</h2>
-        <button className="text-[13px] font-medium text-portal-accent hover:underline">
+        {/* <button className="text-[13px] font-medium text-portal-accent hover:underline">
           Full history →
-        </button>
+        </button> */}
       </div>
 
       <div className="bg-portal-surface border border-portal-border rounded-2xl overflow-hidden">

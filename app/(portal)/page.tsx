@@ -25,9 +25,9 @@ export default async function Home() {
       <AnnouncementBanner />
       <StatsRow />
 
-      {/* <div className="grid grid-cols-[1.4fr_1fr] gap-5 mb-7">
+      <div className="grid grid-cols-[1.4fr_1fr] gap-5 mb-7">
         <BookingsList />
-      </div> */}
+      </div>
     </>
   );
 }
