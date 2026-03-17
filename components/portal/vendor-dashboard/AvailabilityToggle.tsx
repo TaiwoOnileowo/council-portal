@@ -3,9 +3,36 @@
 import { useState } from "react";
 import { motion } from "motion/react";
 import { Power } from "lucide-react";
+import { toast } from "sonner";
 
-export default function AvailabilityToggle() {
-  const [available, setAvailable] = useState(true);
+type Props = {
+  initialIsActive: boolean;
+};
+
+export default function AvailabilityToggle({ initialIsActive }: Props) {
+  const [available, setAvailable] = useState(initialIsActive);
+  const [isPending, setIsPending] = useState(false);
+
+  async function handleToggle() {
+    const next = !available;
+    setAvailable(next); // optimistic
+    setIsPending(true);
+
+    try {
+      const res = await fetch("/api/vendor/availability", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: next }),
+      });
+
+      if (!res.ok) throw new Error();
+    } catch {
+      setAvailable(!next); // revert
+      toast.error("Failed to update availability. Please try again.");
+    } finally {
+      setIsPending(false);
+    }
+  }
 
   return (
     <motion.div
@@ -39,8 +66,9 @@ export default function AvailabilityToggle() {
       </div>
 
       <button
-        onClick={() => setAvailable(!available)}
-        className={`relative w-[52px] h-[28px] rounded-full transition-colors duration-300 flex-shrink-0 ${
+        onClick={handleToggle}
+        disabled={isPending}
+        className={`relative w-[52px] h-[28px] rounded-full transition-colors duration-300 flex-shrink-0 disabled:opacity-70 ${
           available ? "bg-portal-green" : "bg-gray-300"
         }`}
       >
