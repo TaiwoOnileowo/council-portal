@@ -209,6 +209,7 @@ export default function BookingFlow({
       }
 
       queryClient.invalidateQueries({ queryKey: ["wallet-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
       setBookingRef(result.reference);
       setStep("success");
     } catch {

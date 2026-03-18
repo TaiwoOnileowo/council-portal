@@ -146,7 +146,6 @@ model DepartureTime {
 }
 
 enum BookingStatus {
-  PENDING
   CONFIRMED
   CANCELLED
   FAILED
@@ -156,7 +155,7 @@ model Booking {
   id             String             @id @default(uuid())
   reference      String             @unique // our tx_ref passed to Flutterwave
   flwRef         String?            // Flutterwave's internal flw_ref
-  status         BookingStatus      @default(PENDING)
+  status         BookingStatus      @default(CONFIRMED)
 
   // Passenger snapshot
   passengerName  String

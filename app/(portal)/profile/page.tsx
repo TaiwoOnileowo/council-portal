@@ -39,9 +39,9 @@ export default async function ProfilePage() {
           <ChangePassword email={dbUser.email} />
         </div>
 
-        <div>
+        {/* <div>
           <MyReviews />
-        </div>
+        </div> */}
       </div>
     </>
   );
