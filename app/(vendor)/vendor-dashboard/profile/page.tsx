@@ -1,11 +1,10 @@
-import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { db } from "@/lib/db";
+import ChangePassword from "@/components/portal/profile/ChangePassword";
+import VendorBankDetails from "@/components/portal/vendor/profile/VendorBankDetails";
 import VendorProfileDetails from "@/components/portal/vendor/profile/VendorProfileDetails";
 import VendorTransportProfile from "@/components/portal/vendor/profile/VendorTransportProfile";
-import ChangePassword from "@/components/portal/profile/ChangePassword";
-import VendorReviews from "@/components/portal/vendor/profile/VendorReviews";
-import VendorBankDetails from "@/components/portal/vendor/profile/VendorBankDetails";
+import { db } from "@/lib/db";
+import { redirect } from "next/navigation";
 
 export default async function VendorProfilePage() {
   const session = await auth();
@@ -17,7 +16,9 @@ export default async function VendorProfilePage() {
   return (
     <>
       <div className="mb-6">
-        <h1 className="font-heading text-[24px] font-extrabold text-portal-text">Profile</h1>
+        <h1 className="font-heading text-[24px] font-extrabold text-portal-text">
+          Profile
+        </h1>
         <p className="text-[13px] text-portal-muted mt-1">
           Manage your personal information and transport profile
         </p>
@@ -61,7 +62,6 @@ export default async function VendorProfilePage() {
               image: vendor.image ?? "",
             }}
           />
-          <VendorReviews />
         </div>
       </div>
     </>

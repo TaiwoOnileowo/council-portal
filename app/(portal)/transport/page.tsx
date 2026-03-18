@@ -1,3 +1,4 @@
+import BookingsList from "@/components/portal/BookingsList";
 import QuickBookBar from "@/components/portal/transport/QuickBookBar";
 import RecentTrips from "@/components/portal/transport/RecentTrips";
 import TransportHeader from "@/components/portal/transport/TransportHeader";
@@ -10,7 +11,7 @@ export default function TransportPage() {
       {/* <QuickBookBar /> */}
       <VendorCards />
       {/* <SharedRides /> */}
-      <RecentTrips />
+      <BookingsList />
     </>
   );
 }

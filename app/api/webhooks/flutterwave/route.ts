@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
   // Verify Flutterwave secret hash
-  const secretHash = process.env.FLUTTERWAVE_ENCRYPTION_KEY;
+  const secretHash = process.env.FLW_ENCRYPTION_KEY;
   const signature = req.headers.get("verif-hash");
 
   if (!secretHash || signature !== secretHash) {

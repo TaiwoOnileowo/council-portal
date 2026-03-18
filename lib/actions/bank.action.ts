@@ -1,6 +1,7 @@
 "use server";
 
 import { redis } from "@/lib/redis";
+import { chownSync } from "fs";
 
 export type Bank = {
   id: number;
@@ -17,7 +18,7 @@ const BANKS_CACHE_KEY = "flutterwave:banks:NG";
 const BANKS_TTL = 60 * 60 * 24 * 7; // 7 days — banks almost never change
 
 export async function getBanks(): Promise<{ banks?: Bank[]; error?: string }> {
-  const secret = process.env.FLUTTERWAVE_SECRET_KEY;
+  const secret = process.env.FLW_SECRET_KEY;
   if (!secret) return { error: "Payment service is not configured." };
 
   // Try Redis cache first
@@ -32,22 +33,23 @@ export async function getBanks(): Promise<{ banks?: Bank[]; error?: string }> {
     if (!res.ok) return { error: "Failed to fetch banks. Please try again." };
 
     const json = await res.json();
-    if (json.status !== "success") return { error: json.message ?? "Failed to fetch banks." };
+    if (json.status !== "success")
+      return { error: json.message ?? "Failed to fetch banks." };
 
     const banks = json.data as Bank[];
     await redis.setex(BANKS_CACHE_KEY, BANKS_TTL, banks);
 
     return { banks };
-  } catch {
+  } catch (error: any) {
     return { error: "Failed to fetch banks. Please check your connection." };
   }
 }
 
 export async function verifyBankAccount(
   accountNumber: string,
-  bankCode: string
+  bankCode: string,
 ): Promise<{ account?: VerifiedAccount; error?: string }> {
-  const secret = process.env.FLUTTERWAVE_SECRET_KEY;
+  const secret = process.env.FLW_SECRET_KEY;
   if (!secret) return { error: "Payment service is not configured." };
 
   if (!/^\d{10}$/.test(accountNumber)) {
@@ -61,13 +63,19 @@ export async function verifyBankAccount(
         Authorization: `Bearer ${secret}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ account_number: accountNumber, account_bank: bankCode }),
+      body: JSON.stringify({
+        account_number: accountNumber,
+        account_bank: bankCode,
+      }),
     });
 
     const json = await res.json();
 
     if (json.status !== "success") {
-      return { error: json.message ?? "Could not verify account. Please check the details." };
+      return {
+        error:
+          json.message ?? "Could not verify account. Please check the details.",
+      };
     }
 
     return {

@@ -77,7 +77,7 @@ export async function verifyAndTopUpWallet({
       `https://api.flutterwave.com/v3/transactions/${transactionId}/verify`,
       {
         headers: {
-          Authorization: `Bearer ${process.env.FLUTTERWAVE_SECRET_KEY}`,
+          Authorization: `Bearer ${process.env.FLW_SECRET_KEY}`,
         },
       },
     );
