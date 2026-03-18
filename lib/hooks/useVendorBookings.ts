@@ -5,6 +5,9 @@ export type VendorBooking = {
   reference: string;
   passengerName: string;
   passengerPhone: string;
+  parentsPhone: string;
+  hall: string;
+  roomNumber: string;
   routeName: string;
   direction: "LEAVING" | "RETURNING";
   fare: number;
