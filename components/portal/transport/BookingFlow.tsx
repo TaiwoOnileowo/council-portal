@@ -29,7 +29,7 @@ import { Controller, useForm } from "react-hook-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 
-const SERVICE_FEE = 200;
+const SERVICE_FEE = 0
 
 const HALLS = [
   "Joseph Hall",
@@ -419,12 +419,12 @@ export default function BookingFlow({
                           &#x20A6;{basePrice.toLocaleString()}
                         </span>
                       </div>
-                      <div className="flex justify-between text-[13px]">
+                      {/* <div className="flex justify-between text-[13px]">
                         <span className="text-portal-text2">Service fee</span>
                         <span className="font-semibold">
                           &#x20A6;{SERVICE_FEE.toLocaleString()}
                         </span>
-                      </div>
+                      </div> */}
                       <div className="flex justify-between text-[14px] pt-2 border-t border-portal-border">
                         <span className="font-bold">Total</span>
                         <span className="font-heading font-extrabold text-base">
