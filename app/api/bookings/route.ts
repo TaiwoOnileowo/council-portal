@@ -23,6 +23,7 @@ export async function GET() {
       routeName: true,
       fare: true,
       serviceFee: true,
+      studentNotes: true,
       createdAt: true,
       vendor: {
         select: {

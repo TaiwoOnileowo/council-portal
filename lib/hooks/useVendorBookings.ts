@@ -8,6 +8,7 @@ export type VendorBooking = {
   routeName: string;
   direction: "LEAVING" | "RETURNING";
   fare: number;
+  studentNotes: string | null;
   status: "PENDING" | "CONFIRMED" | "CANCELLED" | "FAILED";
   createdAt: string;
 };

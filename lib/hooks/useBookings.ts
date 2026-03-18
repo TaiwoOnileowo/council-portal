@@ -13,6 +13,7 @@ export type StudentBooking = {
   routeName: string;
   fare: number;
   serviceFee: number;
+  studentNotes: string | null;
   createdAt: string;
   vendor: {
     transportName: string;

@@ -221,6 +221,11 @@ export default function IncomingBookings() {
                         <p className="text-[11px] text-portal-muted">
                           {booking.passengerPhone}
                         </p>
+                        {booking.studentNotes && (
+                          <p className="text-[11px] text-portal-accent mt-0.5 italic max-w-[200px] truncate" title={booking.studentNotes}>
+                            &ldquo;{booking.studentNotes}&rdquo;
+                          </p>
+                        )}
                       </td>
                       <td className="px-4 py-3.5 text-[13px] text-portal-text">
                         {booking.routeName}

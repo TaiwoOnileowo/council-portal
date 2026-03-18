@@ -169,6 +169,7 @@ model Booking {
   routeName      String
   fare           Int                // naira
   serviceFee     Int                // naira
+  studentNotes   String?            // optional note from student to vendor
 
   // Relations
   userId         String?

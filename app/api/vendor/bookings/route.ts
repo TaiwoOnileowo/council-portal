@@ -16,9 +16,7 @@ export async function GET(req: NextRequest) {
   const dateTo = searchParams.get("dateTo");
 
   const statusFilter: BookingStatus[] =
-    tab === "upcoming"
-      ? ["CONFIRMED", "PENDING"]
-      : ["CANCELLED", "FAILED"];
+    tab === "upcoming" ? ["CONFIRMED"] : ["CANCELLED", "FAILED"];
 
   const dateRange: { gte?: Date; lte?: Date } = {};
   if (dateFrom) dateRange.gte = new Date(dateFrom);
@@ -45,6 +43,7 @@ export async function GET(req: NextRequest) {
         routeName: true,
         direction: true,
         fare: true,
+        studentNotes: true,
         status: true,
         createdAt: true,
       },

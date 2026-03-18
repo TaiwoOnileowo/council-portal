@@ -129,6 +129,16 @@ export default function BookingDetailModal({ booking, open, onClose }: Props) {
           />
         </div>
 
+        {/* Student's note */}
+        {booking.studentNotes && (
+          <div className="bg-portal-bg rounded-xl border border-portal-border p-4 mb-5">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1">
+              Your Note to Vendor
+            </p>
+            <p className="text-[13px] text-portal-text">{booking.studentNotes}</p>
+          </div>
+        )}
+
         {/* Luggage & Notes */}
         {(booking.route.priceList.luggagePolicy || booking.route.priceList.notes) && (
           <div className="space-y-3 mb-5">

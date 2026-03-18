@@ -55,6 +55,7 @@ const passengerSchema = z.object({
     }),
   phone: z.string().regex(/^\d{11}$/, "Must be exactly 11 digits"),
   parentsPhone: z.string().regex(/^\d{11}$/, "Must be exactly 11 digits"),
+  studentNotes: z.string().max(300, "Max 300 characters").optional(),
 });
 
 type PassengerValues = z.infer<typeof passengerSchema>;
@@ -196,6 +197,7 @@ export default function BookingFlow({
         routeName: selectedRoute.name,
         fare: basePrice,
         serviceFee: SERVICE_FEE,
+        studentNotes: values.studentNotes,
       });
 
       if ("error" in result) {
@@ -556,6 +558,19 @@ export default function BookingFlow({
                               className={inputCls(!!errors.parentsPhone)}
                             />
                           )}
+                        />
+                      </Field>
+
+                      <Field
+                        label={`Note to ${vendor.transportName}`}
+                        hint="Optional — e.g. luggage details, special requests"
+                      >
+                        <textarea
+                          {...register("studentNotes")}
+                          placeholder="Add a note for the vendor…"
+                          maxLength={300}
+                          rows={3}
+                          className="w-full px-3.5 py-2.5 bg-portal-bg border border-portal-border rounded-xl text-sm text-portal-text placeholder:text-portal-muted outline-none focus:border-portal-accent transition-colors resize-none"
                         />
                       </Field>
 
