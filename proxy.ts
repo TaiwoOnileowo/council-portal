@@ -33,6 +33,11 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // UploadThing: public upload endpoint (auth handled inside the route handler)
+  if (/^\/api\/uploadthing(\/.*)?$/.test(pathname)) {
+    return NextResponse.next();
+  }
+
   // Every other route requires a session
   const session = await auth();
 

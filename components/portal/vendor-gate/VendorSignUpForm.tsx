@@ -94,7 +94,8 @@ function ImageUpload({
         onChange(res[0].ufsUrl);
         toast.success("Image uploaded!");
       }
-    } catch {
+    } catch (err) {
+      console.error("Upload error:", err);
       toast.error("Failed to upload image. Please try again.");
     } finally {
       setUploading(false);
@@ -108,7 +109,11 @@ function ImageUpload({
         onClick={() => fileInputRef.current?.click()}
       >
         {value ? (
-          <img src={value} alt="Profile" className="w-full h-full object-cover" />
+          <img
+            src={value}
+            alt="Profile"
+            className="w-full h-full object-cover"
+          />
         ) : (
           <div className="flex flex-col items-center gap-1 text-portal-muted">
             <Upload className="w-6 h-6" />
@@ -163,7 +168,7 @@ function BankSelector({
   const ref = useRef<HTMLDivElement>(null);
 
   const filtered = banks.filter((b) =>
-    b.name.toLowerCase().includes(search.toLowerCase())
+    b.name.toLowerCase().includes(search.toLowerCase()),
   );
 
   // Close on outside click
@@ -210,7 +215,9 @@ function BankSelector({
           </div>
           <div className="max-h-52 overflow-y-auto">
             {filtered.length === 0 ? (
-              <p className="text-[13px] text-portal-muted text-center py-4">No banks found</p>
+              <p className="text-[13px] text-portal-muted text-center py-4">
+                No banks found
+              </p>
             ) : (
               filtered.map((bank) => (
                 <button
@@ -268,12 +275,18 @@ function BankStep({
     });
   }, []);
 
-  const selectedBank =
-    value.bankCode ? { code: value.bankCode, name: value.bankName } : null;
+  const selectedBank = value.bankCode
+    ? { code: value.bankCode, name: value.bankName }
+    : null;
 
   function handleBankChange(bank: { code: string; name: string }) {
     // Reset verification when bank changes
-    onChange({ ...value, bankCode: bank.code, bankName: bank.name, accountName: "" });
+    onChange({
+      ...value,
+      bankCode: bank.code,
+      bankName: bank.name,
+      accountName: "",
+    });
     setFieldErrors({});
   }
 
@@ -369,9 +382,7 @@ function BankStep({
             type="button"
             onClick={handleVerify}
             disabled={
-              verifying ||
-              !value.bankCode ||
-              value.accountNumber.length !== 10
+              verifying || !value.bankCode || value.accountNumber.length !== 10
             }
             className="px-4 rounded-lg bg-portal-accent hover:bg-portal-accent2 text-white text-[14px] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-1.5"
           >
@@ -384,7 +395,9 @@ function BankStep({
           </button>
         </div>
         {fieldErrors.accountNumber && (
-          <p className="mt-1 text-xs text-red-500">{fieldErrors.accountNumber}</p>
+          <p className="mt-1 text-xs text-red-500">
+            {fieldErrors.accountNumber}
+          </p>
         )}
       </div>
 
@@ -398,12 +411,16 @@ function BankStep({
             <p className="text-[12px] text-green-700 font-medium uppercase tracking-wide">
               Account Verified
             </p>
-            <p className="text-[15px] font-semibold text-portal-text">{value.accountName}</p>
+            <p className="text-[15px] font-semibold text-portal-text">
+              {value.accountName}
+            </p>
           </div>
         </div>
       ) : (
         <div className="rounded-xl border border-portal-border bg-portal-bg px-4 py-3 text-[13px] text-portal-muted">
-          Enter your account number and click <span className="font-medium text-portal-text">Verify</span> to confirm your account details.
+          Enter your account number and click{" "}
+          <span className="font-medium text-portal-text">Verify</span> to
+          confirm your account details.
         </div>
       )}
 
@@ -448,11 +465,15 @@ function UnapprovedScreen({
         <X className="w-7 h-7 text-red-500" />
       </div>
       <div className="space-y-1.5">
-        <h3 className="font-heading font-bold text-portal-text text-lg">Not approved</h3>
+        <h3 className="font-heading font-bold text-portal-text text-lg">
+          Not approved
+        </h3>
         <p className="text-portal-muted text-sm leading-relaxed">
-          <span className="text-portal-text font-medium break-all">{email}</span>{" "}
-          is not on our approved vendor list. If you believe this is a mistake, please contact the
-          Student Council.
+          <span className="text-portal-text font-medium break-all">
+            {email}
+          </span>{" "}
+          is not on our approved vendor list. If you believe this is a mistake,
+          please contact the Student Council.
         </p>
       </div>
       <button
@@ -484,15 +505,19 @@ function CommissionStep({
           <div className="w-8 h-8 rounded-full bg-portal-accent flex items-center justify-center flex-shrink-0">
             <Check className="w-4 h-4 text-white" />
           </div>
-          <h3 className="font-heading font-bold text-portal-text">Commission Structure</h3>
+          <h3 className="font-heading font-bold text-portal-text">
+            Commission Structure
+          </h3>
         </div>
         <p className="text-portal-text2 text-sm leading-relaxed">
-          As a transport vendor on the CU Student Council portal, a flat commission of{" "}
-          <span className="font-semibold text-portal-text">₦1,000</span> is charged per completed,
-          booked ride.
+          As a transport vendor on the CU Student Council portal, a flat
+          commission of{" "}
+          <span className="font-semibold text-portal-text">₦1,000</span> is
+          charged per completed, booked ride.
         </p>
         <p className="text-[12px] text-portal-muted pt-1">
-          By clicking &ldquo;Accept &amp; Create Account&rdquo; you agree to these terms.
+          By clicking &ldquo;Accept &amp; Create Account&rdquo; you agree to
+          these terms.
         </p>
       </div>
 
@@ -665,7 +690,9 @@ export default function VendorSignUpForm() {
                 className={inputClass(errors.firstName?.message)}
               />
               {errors.firstName && (
-                <p className="mt-1 text-xs text-red-500">{errors.firstName.message}</p>
+                <p className="mt-1 text-xs text-red-500">
+                  {errors.firstName.message}
+                </p>
               )}
             </div>
             <div className="flex-1">
@@ -679,7 +706,9 @@ export default function VendorSignUpForm() {
                 className={inputClass(errors.lastName?.message)}
               />
               {errors.lastName && (
-                <p className="mt-1 text-xs text-red-500">{errors.lastName.message}</p>
+                <p className="mt-1 text-xs text-red-500">
+                  {errors.lastName.message}
+                </p>
               )}
             </div>
           </div>
@@ -695,7 +724,9 @@ export default function VendorSignUpForm() {
               className={inputClass(errors.email?.message)}
             />
             {errors.email && (
-              <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>
+              <p className="mt-1 text-xs text-red-500">
+                {errors.email.message}
+              </p>
             )}
           </div>
 
@@ -710,7 +741,11 @@ export default function VendorSignUpForm() {
                 <input
                   {...field}
                   type="tel"
-                  onChange={(e) => field.onChange(e.target.value.replace(/\D/g, "").slice(0, 11))}
+                  onChange={(e) =>
+                    field.onChange(
+                      e.target.value.replace(/\D/g, "").slice(0, 11),
+                    )
+                  }
                   inputMode="numeric"
                   maxLength={11}
                   placeholder="08012345678"
@@ -719,7 +754,9 @@ export default function VendorSignUpForm() {
               )}
             />
             {errors.phone && (
-              <p className="mt-1 text-xs text-red-500">{errors.phone.message}</p>
+              <p className="mt-1 text-xs text-red-500">
+                {errors.phone.message}
+              </p>
             )}
           </div>
 
@@ -744,7 +781,9 @@ export default function VendorSignUpForm() {
               </button>
             </div>
             {errors.password && (
-              <p className="mt-1 text-xs text-red-500">{errors.password.message}</p>
+              <p className="mt-1 text-xs text-red-500">
+                {errors.password.message}
+              </p>
             )}
           </div>
 
@@ -769,7 +808,9 @@ export default function VendorSignUpForm() {
               </button>
             </div>
             {errors.confirmPassword && (
-              <p className="mt-1 text-xs text-red-500">{errors.confirmPassword.message}</p>
+              <p className="mt-1 text-xs text-red-500">
+                {errors.confirmPassword.message}
+              </p>
             )}
           </div>
 
@@ -799,7 +840,9 @@ export default function VendorSignUpForm() {
               autoFocus
             />
             {errors.transportName && (
-              <p className="mt-1 text-xs text-red-500">{errors.transportName.message}</p>
+              <p className="mt-1 text-xs text-red-500">
+                {errors.transportName.message}
+              </p>
             )}
           </div>
 
@@ -823,7 +866,9 @@ export default function VendorSignUpForm() {
               ) : (
                 <span />
               )}
-              <span className="text-xs text-portal-muted">{watch("tagline")?.length ?? 0}/80</span>
+              <span className="text-xs text-portal-muted">
+                {watch("tagline")?.length ?? 0}/80
+              </span>
             </div>
           </div>
 
@@ -847,20 +892,27 @@ export default function VendorSignUpForm() {
             />
             <div className="flex justify-between mt-1">
               {errors.description ? (
-                <p className="text-xs text-red-500">{errors.description.message}</p>
+                <p className="text-xs text-red-500">
+                  {errors.description.message}
+                </p>
               ) : (
                 <span />
               )}
-              <span className="text-xs text-portal-muted">{watch("description")?.length ?? 0}/500</span>
+              <span className="text-xs text-portal-muted">
+                {watch("description")?.length ?? 0}/500
+              </span>
             </div>
           </div>
 
           <div className="space-y-3">
             <p className="text-sm font-medium text-portal-text">
-              Socials <span className="text-portal-muted font-normal">(optional)</span>
+              Socials{" "}
+              <span className="text-portal-muted font-normal">(optional)</span>
             </p>
             <div>
-              <label className="block text-xs text-portal-muted mb-1">Instagram URL</label>
+              <label className="block text-xs text-portal-muted mb-1">
+                Instagram URL
+              </label>
               <input
                 type="url"
                 {...register("instagram")}
@@ -868,11 +920,15 @@ export default function VendorSignUpForm() {
                 className={inputClass(errors.instagram?.message)}
               />
               {errors.instagram && (
-                <p className="mt-1 text-xs text-red-500">{errors.instagram.message}</p>
+                <p className="mt-1 text-xs text-red-500">
+                  {errors.instagram.message}
+                </p>
               )}
             </div>
             <div>
-              <label className="block text-xs text-portal-muted mb-1">TikTok URL</label>
+              <label className="block text-xs text-portal-muted mb-1">
+                TikTok URL
+              </label>
               <input
                 type="url"
                 {...register("tiktok")}
@@ -880,7 +936,9 @@ export default function VendorSignUpForm() {
                 className={inputClass(errors.tiktok?.message)}
               />
               {errors.tiktok && (
-                <p className="mt-1 text-xs text-red-500">{errors.tiktok.message}</p>
+                <p className="mt-1 text-xs text-red-500">
+                  {errors.tiktok.message}
+                </p>
               )}
             </div>
           </div>
