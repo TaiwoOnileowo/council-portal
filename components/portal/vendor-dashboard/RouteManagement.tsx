@@ -3,7 +3,16 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { motion } from "motion/react";
-import { CalendarIcon, House, Loader2, Plus, RefreshCw, Rocket, Trash2, X } from "lucide-react";
+import {
+  CalendarIcon,
+  House,
+  Loader2,
+  Plus,
+  RefreshCw,
+  Rocket,
+  Trash2,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useForm, useFieldArray, useWatch, Controller } from "react-hook-form";
 import {
@@ -19,7 +28,11 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   type PriceList,
   type PriceListAvailability,
@@ -83,7 +96,9 @@ function draftFromRoute(r: PriceListRoute) {
   return {
     name: r.name,
     price: r.price > 0 ? r.price.toLocaleString("en-NG") : "",
-    capacityType: (r.capacity === "unlimited" ? "unlimited" : "number") as "number" | "unlimited",
+    capacityType: (r.capacity === "unlimited" ? "unlimited" : "number") as
+      | "number"
+      | "unlimited",
     capacityValue: r.capacity === "unlimited" ? "" : String(r.capacity),
     active: r.active,
   };
@@ -94,7 +109,10 @@ function formValuesFromPriceList(pl: PriceList): DrawerFormValues {
     name: pl.name,
     direction: pl.direction,
     routes: pl.routes.map(draftFromRoute),
-    departureTimes: pl.departureTimes.map((dt) => ({ day: dt.day, time: dt.time })),
+    departureTimes: pl.departureTimes.map((dt) => ({
+      day: dt.day,
+      time: dt.time,
+    })),
     luggagePolicy: pl.luggagePolicy,
     notes: pl.notes,
     availType: pl.availability.type,
@@ -123,7 +141,11 @@ function buildBody(form: DrawerFormValues): PriceListBody {
 
   const availability: PriceListBody["availability"] =
     form.availType === "scheduled"
-      ? { type: "scheduled", startDate: form.schedStart, endDate: form.schedEnd }
+      ? {
+          type: "scheduled",
+          startDate: form.schedStart,
+          endDate: form.schedEnd,
+        }
       : form.availType === "inactive"
         ? { type: "inactive" }
         : { type: "active" };
@@ -275,12 +297,17 @@ function DatePickerField({
             className="w-full flex items-center gap-2 px-3 py-2 text-[13px] border border-portal-border rounded-lg bg-portal-bg text-left focus:outline-none hover:border-portal-accent transition-colors"
           >
             <CalendarIcon className="w-3.5 h-3.5 text-portal-muted flex-shrink-0" />
-            <span className={selected ? "text-portal-text" : "text-portal-muted/50"}>
+            <span
+              className={selected ? "text-portal-text" : "text-portal-muted/50"}
+            >
               {selected ? format(selected, "dd MMM yyyy") : "Pick a date"}
             </span>
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0 rounded-xl border-portal-border" align="start">
+        <PopoverContent
+          className="w-auto p-0 rounded-xl border-portal-border"
+          align="start"
+        >
           <Calendar
             mode="single"
             selected={selected}
@@ -361,8 +388,12 @@ function AddCard({ onAdd }: { onAdd: () => void }) {
           <Plus className="w-3.5 h-3.5 text-portal-accent" />
         </div>
         <div>
-          <p className="text-[13px] font-medium text-portal-text">Add price list</p>
-          <p className="text-[11px] text-portal-muted mt-0.5">Set routes, prices & departure times</p>
+          <p className="text-[13px] font-medium text-portal-text">
+            Add price list
+          </p>
+          <p className="text-[11px] text-portal-muted mt-0.5">
+            Set routes, prices & departure times
+          </p>
         </div>
       </div>
     </button>
@@ -372,7 +403,12 @@ function AddCard({ onAdd }: { onAdd: () => void }) {
 // --- Main component ---
 
 export default function RouteManagement() {
-  const { data: priceLists, isLoading, isError, refetch } = useVendorPriceLists();
+  const {
+    data: priceLists,
+    isLoading,
+    isError,
+    refetch,
+  } = useVendorPriceLists();
   const createMutation = useCreatePriceList();
   const updateMutation = useUpdatePriceList();
 
@@ -411,8 +447,10 @@ export default function RouteManagement() {
   const watchedSchedStart = useWatch({ control, name: "schedStart" });
   const watchedSchedEnd = useWatch({ control, name: "schedEnd" });
 
-  const leaving = (priceLists ?? []).find((p) => p.direction === "leaving") ?? null;
-  const returning = (priceLists ?? []).find((p) => p.direction === "returning") ?? null;
+  const leaving =
+    (priceLists ?? []).find((p) => p.direction === "leaving") ?? null;
+  const returning =
+    (priceLists ?? []).find((p) => p.direction === "returning") ?? null;
 
   function openNew(direction: "leaving" | "returning") {
     reset(emptyFormValues(direction));
@@ -440,7 +478,13 @@ export default function RouteManagement() {
   }
 
   function addRoute() {
-    appendRoute({ name: "", price: "", capacityType: "number", capacityValue: "", active: true });
+    appendRoute({
+      name: "",
+      price: "",
+      capacityType: "number",
+      capacityValue: "",
+      active: true,
+    });
   }
 
   function addDeparture() {
@@ -527,7 +571,10 @@ export default function RouteManagement() {
                 Returning to School
               </h3>
               {returning ? (
-                <PriceListCard pl={returning} onEdit={() => openEdit(returning)} />
+                <PriceListCard
+                  pl={returning}
+                  onEdit={() => openEdit(returning)}
+                />
               ) : (
                 <AddCard onAdd={() => openNew("returning")} />
               )}
@@ -561,10 +608,14 @@ export default function RouteManagement() {
       </Dialog>
 
       {/* Drawer */}
-      <Drawer open={drawerOpen} onOpenChange={handleDrawerOpenChange} direction="right">
+      <Drawer
+        open={drawerOpen}
+        onOpenChange={handleDrawerOpenChange}
+        direction="right"
+      >
         <DrawerContent
           style={{ width: "min(560px, 100vw)" }}
-          className="bg-portal-surface flex flex-col overflow-hidden p-0"
+          className="bg-portal-surface flex flex-col overflow-hidden p-0 !h-[100dvh]"
         >
           <DrawerTitle className="sr-only">
             {editingId ? "Edit Price List" : "New Price List"}
@@ -594,8 +645,9 @@ export default function RouteManagement() {
             </DrawerClose>
           </div>
 
-          {/* Scrollable body */}
-          <div className="flex-1 overflow-y-auto">
+          {/* Scrollable body — data-vaul-no-drag prevents vaul from treating
+              keyboard viewport changes as a drag/dismiss gesture on mobile */}
+          <div className="flex-1 overflow-y-auto" data-vaul-no-drag>
             {/* Routes table */}
             <div className="border-b border-portal-border">
               <div className="hidden sm:grid grid-cols-[1fr_90px_160px_36px_32px] gap-2 px-5 py-2.5 bg-portal-bg border-b border-portal-border">
@@ -639,7 +691,11 @@ export default function RouteManagement() {
                           type="text"
                           inputMode="numeric"
                           value={priceField.value}
-                          onChange={(e) => priceField.onChange(formatWithCommas(e.target.value))}
+                          onChange={(e) =>
+                            priceField.onChange(
+                              formatWithCommas(e.target.value),
+                            )
+                          }
                           placeholder="₦ 0"
                           className="w-24 sm:w-full px-2 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
                         />
@@ -669,7 +725,10 @@ export default function RouteManagement() {
                       name={`routes.${index}.active`}
                       control={control}
                       render={({ field: activeField }) => (
-                        <Toggle on={activeField.value} onChange={activeField.onChange} />
+                        <Toggle
+                          on={activeField.value}
+                          onChange={activeField.onChange}
+                        />
                       )}
                     />
 
@@ -707,7 +766,10 @@ export default function RouteManagement() {
                 )}
                 <div className="space-y-2">
                   {departureFields.map((field, index) => (
-                    <div key={field.id} className="flex flex-col sm:flex-row sm:items-center gap-2">
+                    <div
+                      key={field.id}
+                      className="flex flex-col sm:flex-row sm:items-center gap-2"
+                    >
                       <select
                         {...register(`departureTimes.${index}.day`)}
                         className="sm:flex-1 min-w-0 px-2 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
@@ -723,7 +785,10 @@ export default function RouteManagement() {
                           name={`departureTimes.${index}.time`}
                           control={control}
                           render={({ field: timeField }) => (
-                            <TimeInput value={timeField.value} onChange={timeField.onChange} />
+                            <TimeInput
+                              value={timeField.value}
+                              onChange={timeField.onChange}
+                            />
                           )}
                         />
                         <button
@@ -797,7 +862,9 @@ export default function RouteManagement() {
                   <button
                     key={value}
                     type="button"
-                    onClick={() => setValue("availType", value, { shouldDirty: true })}
+                    onClick={() =>
+                      setValue("availType", value, { shouldDirty: true })
+                    }
                     className={`px-3 py-1.5 text-[12px] font-medium rounded-lg border transition-colors ${
                       watchedAvailType === value
                         ? "border-portal-accent text-portal-accent bg-portal-accent/5"
@@ -839,7 +906,7 @@ export default function RouteManagement() {
           </div>
 
           {/* Footer */}
-          <div className="px-5 py-4 border-t border-portal-border flex-shrink-0">
+          <div className="px-5 pt-4 pb-[max(16px,env(safe-area-inset-bottom))] border-t border-portal-border flex-shrink-0">
             <button
               onClick={save}
               disabled={!canSave || isSaving}
