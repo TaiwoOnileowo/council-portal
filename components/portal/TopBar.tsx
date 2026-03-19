@@ -18,7 +18,7 @@ export default function TopBar({ firstName }: { firstName: string }) {
       transition={{ duration: 0.45, ease: "easeOut" }}
     >
       <div>
-        <h1 className="font-heading text-[26px] font-bold leading-tight text-portal-text">
+        <h1 className="font-heading text-[20px] sm:text-[26px] font-bold leading-tight text-portal-text">
           {getGreeting()},{" "}
           <span className="text-portal-accent">{firstName}</span>{" "}
           <span className="inline-block origin-[70%_70%] animate-[wave_2.5s_ease-in-out_infinite]">

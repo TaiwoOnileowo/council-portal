@@ -563,7 +563,7 @@ export default function RouteManagement() {
       {/* Drawer */}
       <Drawer open={drawerOpen} onOpenChange={handleDrawerOpenChange} direction="right">
         <DrawerContent
-          style={{ width: 560, maxWidth: "calc(100vw - 32px)" }}
+          style={{ width: "min(560px, 100vw)" }}
           className="bg-portal-surface flex flex-col overflow-hidden p-0"
         >
           <DrawerTitle className="sr-only">
@@ -598,7 +598,7 @@ export default function RouteManagement() {
           <div className="flex-1 overflow-y-auto">
             {/* Routes table */}
             <div className="border-b border-portal-border">
-              <div className="grid grid-cols-[1fr_90px_160px_36px_32px] gap-2 px-5 py-2.5 bg-portal-bg border-b border-portal-border">
+              <div className="hidden sm:grid grid-cols-[1fr_90px_160px_36px_32px] gap-2 px-5 py-2.5 bg-portal-bg border-b border-portal-border">
                 {["Route", "Price (₦)", "Capacity", "", ""].map((h, i) => (
                   <span
                     key={i}
@@ -618,8 +618,9 @@ export default function RouteManagement() {
               {routeFields.map((field, index) => (
                 <div
                   key={field.id}
-                  className="grid grid-cols-[1fr_90px_160px_36px_32px] gap-2 px-5 py-2.5 items-center border-b border-portal-border last:border-b-0"
+                  className="grid grid-cols-1 sm:grid-cols-[1fr_90px_160px_36px_32px] gap-2 px-5 py-3 items-center border-b border-portal-border last:border-b-0"
                 >
+                  {/* Route name — always full width on its own row */}
                   <input
                     {...register(`routes.${index}.name`)}
                     type="text"
@@ -627,55 +628,59 @@ export default function RouteManagement() {
                     className="w-full px-2 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
                   />
 
-                  <Controller
-                    name={`routes.${index}.price`}
-                    control={control}
-                    render={({ field: priceField }) => (
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        value={priceField.value}
-                        onChange={(e) => priceField.onChange(formatWithCommas(e.target.value))}
-                        placeholder="0"
-                        className="w-full px-2 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
-                      />
-                    )}
-                  />
+                  {/* On mobile: flex row for the remaining controls.
+                      On sm+: sm:contents makes children flow into grid cols 2–5. */}
+                  <div className="flex items-center gap-2 sm:contents">
+                    <Controller
+                      name={`routes.${index}.price`}
+                      control={control}
+                      render={({ field: priceField }) => (
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={priceField.value}
+                          onChange={(e) => priceField.onChange(formatWithCommas(e.target.value))}
+                          placeholder="₦ 0"
+                          className="w-24 sm:w-full px-2 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
+                        />
+                      )}
+                    />
 
-                  <div className="flex items-center gap-1.5">
-                    <select
-                      {...register(`routes.${index}.capacityType`)}
-                      className="flex-1 min-w-0 px-2 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
+                    <div className="flex items-center gap-1.5 flex-1 sm:flex-none">
+                      <select
+                        {...register(`routes.${index}.capacityType`)}
+                        className="flex-1 min-w-0 px-2 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
+                      >
+                        <option value="unlimited">Unlimited</option>
+                        <option value="number">Limited</option>
+                      </select>
+                      {watchedRoutes[index]?.capacityType === "number" && (
+                        <input
+                          {...register(`routes.${index}.capacityValue`)}
+                          type="number"
+                          placeholder="Max"
+                          min="1"
+                          className="w-14 px-1.5 py-1.5 text-[12px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
+                        />
+                      )}
+                    </div>
+
+                    <Controller
+                      name={`routes.${index}.active`}
+                      control={control}
+                      render={({ field: activeField }) => (
+                        <Toggle on={activeField.value} onChange={activeField.onChange} />
+                      )}
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => removeRoute(index)}
+                      className="w-7 h-7 flex items-center justify-center text-portal-muted hover:text-red-500 hover:bg-red-50 rounded-md transition-colors ml-auto sm:ml-0"
                     >
-                      <option value="unlimited">Unlimited</option>
-                      <option value="number">Limited</option>
-                    </select>
-                    {watchedRoutes[index]?.capacityType === "number" && (
-                      <input
-                        {...register(`routes.${index}.capacityValue`)}
-                        type="number"
-                        placeholder="Max"
-                        min="1"
-                        className="w-14 px-1.5 py-1.5 text-[12px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
-                      />
-                    )}
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-
-                  <Controller
-                    name={`routes.${index}.active`}
-                    control={control}
-                    render={({ field: activeField }) => (
-                      <Toggle on={activeField.value} onChange={activeField.onChange} />
-                    )}
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() => removeRoute(index)}
-                    className="w-7 h-7 flex items-center justify-center text-portal-muted hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
                 </div>
               ))}
 
@@ -702,10 +707,10 @@ export default function RouteManagement() {
                 )}
                 <div className="space-y-2">
                   {departureFields.map((field, index) => (
-                    <div key={field.id} className="flex items-center gap-2">
+                    <div key={field.id} className="flex flex-col sm:flex-row sm:items-center gap-2">
                       <select
                         {...register(`departureTimes.${index}.day`)}
-                        className="flex-1 min-w-0 px-2 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
+                        className="sm:flex-1 min-w-0 px-2 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
                       >
                         {DAYS.map((d) => (
                           <option key={d} value={d}>
@@ -713,20 +718,22 @@ export default function RouteManagement() {
                           </option>
                         ))}
                       </select>
-                      <Controller
-                        name={`departureTimes.${index}.time`}
-                        control={control}
-                        render={({ field: timeField }) => (
-                          <TimeInput value={timeField.value} onChange={timeField.onChange} />
-                        )}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeDeparture(index)}
-                        className="w-7 h-7 flex items-center justify-center text-portal-muted hover:text-red-500 hover:bg-red-50 rounded-md transition-colors flex-shrink-0"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <Controller
+                          name={`departureTimes.${index}.time`}
+                          control={control}
+                          render={({ field: timeField }) => (
+                            <TimeInput value={timeField.value} onChange={timeField.onChange} />
+                          )}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeDeparture(index)}
+                          className="w-7 h-7 flex items-center justify-center text-portal-muted hover:text-red-500 hover:bg-red-50 rounded-md transition-colors flex-shrink-0"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>

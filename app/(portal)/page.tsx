@@ -1,9 +1,8 @@
 import { auth } from "@/auth";
-import { db } from "@/lib/db";
 import AnnouncementBanner from "@/components/portal/AnnouncementBanner";
-import BookingsList from "@/components/portal/BookingsList";
 import { StatsRow } from "@/components/portal/StatsRow";
 import TopBar from "@/components/portal/TopBar";
+import { db } from "@/lib/db";
 
 export default async function Home() {
   const session = await auth();
@@ -24,10 +23,6 @@ export default async function Home() {
       <TopBar firstName={firstName} />
       <AnnouncementBanner />
       <StatsRow />
-
-      <div className="grid grid-cols-1 xl:grid-cols-[1.4fr_1fr] gap-5 mb-7">
-        <BookingsList />
-      </div>
     </>
   );
 }

@@ -44,7 +44,7 @@ export default function VendorDashboardHeader({
             </div>
           )}
           <div>
-            <h1 className="font-heading text-[24px] font-extrabold text-portal-text">
+            <h1 className="font-heading text-[20px] sm:text-[24px] font-extrabold text-portal-text">
               {transportName}
             </h1>
             <p className="text-[12.5px] text-portal-muted mt-0.5">

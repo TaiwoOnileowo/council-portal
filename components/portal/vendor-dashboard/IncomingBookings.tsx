@@ -81,12 +81,12 @@ export default function IncomingBookings() {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-2 mb-3 print:hidden">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 mb-3 print:hidden">
           <div className="relative">
             <select
               value={route}
               onChange={(e) => setRoute(e.target.value)}
-              className="appearance-none bg-portal-surface border border-portal-border rounded-lg text-[12px] text-portal-text pl-3 pr-7 py-1.5 cursor-pointer focus:outline-none focus:border-portal-accent"
+              className="w-full sm:w-auto appearance-none bg-portal-surface border border-portal-border rounded-lg text-[12px] text-portal-text pl-3 pr-7 py-1.5 cursor-pointer focus:outline-none focus:border-portal-accent"
             >
               <option value="all">All routes</option>
               {routes.map((r) => (
@@ -98,30 +98,32 @@ export default function IncomingBookings() {
             <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-portal-muted pointer-events-none" />
           </div>
 
-          <input
-            type="date"
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-            className="bg-portal-surface border border-portal-border rounded-lg text-[12px] text-portal-text px-3 py-1.5 focus:outline-none focus:border-portal-accent"
-          />
-          <span className="text-[11px] text-portal-muted">to</span>
-          <input
-            type="date"
-            value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
-            className="bg-portal-surface border border-portal-border rounded-lg text-[12px] text-portal-text px-3 py-1.5 focus:outline-none focus:border-portal-accent"
-          />
-          {(dateFrom || dateTo) && (
-            <button
-              onClick={() => {
-                setDateFrom("");
-                setDateTo("");
-              }}
-              className="text-[11px] text-portal-muted hover:text-portal-text underline"
-            >
-              Clear
-            </button>
-          )}
+          <div className="flex items-center gap-2 flex-wrap">
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="flex-1 sm:flex-none bg-portal-surface border border-portal-border rounded-lg text-[12px] text-portal-text px-3 py-1.5 focus:outline-none focus:border-portal-accent"
+            />
+            <span className="text-[11px] text-portal-muted">to</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="flex-1 sm:flex-none bg-portal-surface border border-portal-border rounded-lg text-[12px] text-portal-text px-3 py-1.5 focus:outline-none focus:border-portal-accent"
+            />
+            {(dateFrom || dateTo) && (
+              <button
+                onClick={() => {
+                  setDateFrom("");
+                  setDateTo("");
+                }}
+                className="text-[11px] text-portal-muted hover:text-portal-text underline"
+              >
+                Clear
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Summary line when filtering by route */}
