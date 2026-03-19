@@ -215,9 +215,9 @@ export default function TopUpModal({
             className="p-5"
           >
             {prefilledAmount && prefilledAmount > 0 && (
-              <div className="mb-4 flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5 text-[12px] text-amber-700">
+              <div className="mb-4 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5 text-[12px] text-amber-700">
                 <span className="font-semibold">
-                  You&apos;re ₦{prefilledAmount.toLocaleString()} short.
+                  You&apos;re ₦{prefilledAmount.toLocaleString()} short.{" "}
                 </span>
                 <span className="text-amber-600">
                   Top up at least this amount to continue.
@@ -249,7 +249,7 @@ export default function TopUpModal({
               <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-portal-muted mb-2">
                 Quick Select
               </p>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {QUICK_AMOUNTS.map((amount) => (
                   <button
                     key={amount}

@@ -29,7 +29,7 @@ export default function Modal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-0 sm:p-4"
           onClick={onClose}
         >
           <motion.div
@@ -39,7 +39,7 @@ export default function Modal({
             exit={{ opacity: 0, scale: 0.96, y: 20 }}
             transition={{ duration: 0.25, ease: "easeOut" }}
             onClick={(e) => e.stopPropagation()}
-            className={`bg-portal-surface rounded-2xl w-full ${maxWidth} max-h-[85vh] overflow-hidden flex flex-col shadow-2xl border border-portal-border`}
+            className={`bg-portal-surface rounded-t-2xl sm:rounded-2xl w-full ${maxWidth} max-h-[92dvh] sm:max-h-[85vh] overflow-hidden flex flex-col shadow-2xl border border-portal-border`}
           >
             {/* Header */}
             <div className="flex items-start justify-between px-5 py-4 border-b border-portal-border flex-shrink-0">
@@ -60,7 +60,7 @@ export default function Modal({
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto">{children}</div>
+            <div className="flex-1 overflow-y-auto pb-[env(safe-area-inset-bottom)]">{children}</div>
           </motion.div>
         </motion.div>
       )}
