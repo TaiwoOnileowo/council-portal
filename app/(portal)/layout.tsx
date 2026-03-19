@@ -26,9 +26,9 @@ export default async function PortalLayout({ children }: { children: React.React
   }
 
   return (
-    <div className="flex min-h-screen bg-portal-bg">
+    <div className="flex min-h-screen bg-portal-bg ">
       <Sidebar user={sidebarUser} />
-      <main className="ml-[260px] flex-1 px-10 py-8 max-w-[calc(100vw-260px)]">
+      <main className="lg:ml-[260px] flex-1 px-4 pt-[70px] pb-8 sm:px-6 lg:px-10 lg:pt-8 lg:max-w-[calc(100vw-260px)]">
         {children}
       </main>
     </div>

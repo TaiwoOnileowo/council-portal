@@ -81,7 +81,7 @@ export default function VendorCardsList({
           <h2 className="font-heading text-[17px] font-bold">All Vendors</h2>
         </div>
 
-        <div className="grid grid-cols-3 gap-3.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5">
           {vendors.map((vendor) => {
             const available = isVendorAvailable(vendor);
             return (

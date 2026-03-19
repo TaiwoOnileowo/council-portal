@@ -20,7 +20,7 @@ export default function GatePage() {
 
   return (
     <>
-      <div className="mb-10">
+      <div className="mb-6 sm:mb-8 lg:mb-10">
         <Image
           src="/logo.png"
           alt="Covenant University"

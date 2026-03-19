@@ -1,6 +1,6 @@
 "use client";
 
-import { Bus } from "lucide-react";
+// import { Bus } from "lucide-react";
 import { motion } from "motion/react";
 import { WalletCard } from "./WalletCard";
 
@@ -46,7 +46,7 @@ export function StatCard({
 
 export function StatsRow() {
   return (
-    <div className="grid grid-cols-4 gap-3.5 mb-7">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 mb-7">
       <WalletCard />
       {/* <StatCard
         icon={<Bus className="w-[18px] h-[18px] text-portal-accent" />}

@@ -1,12 +1,13 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { Home, User, LogOut } from "lucide-react";
+import { Home, User, LogOut, Menu, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "motion/react";
 import Image from "next/image";
 import { signOutUser } from "@/lib/actions/user.action";
+import { useState, useEffect } from "react";
 
 const mainNav = [
   { label: "Home", icon: Home, href: "/vendor-dashboard" },
@@ -58,83 +59,136 @@ type VendorSidebarUser = {
 
 export default function VendorSidebar({ vendor }: { vendor?: VendorSidebarUser | null }) {
   const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
 
   return (
-    <aside className="fixed top-0 left-0 bottom-0 w-[260px] bg-portal-surface border-r border-portal-border flex flex-col z-10">
-      <div className="px-4 pt-6 pb-5">
-        {/* Logo */}
-        <div className="flex items-center gap-2.5 pb-5 border-b border-portal-border mb-5">
+    <>
+      {/* Mobile top bar */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-20 h-14 bg-portal-surface border-b border-portal-border px-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
           <Image
             src="/logo.png"
             alt="Logo"
-            width={36}
-            height={36}
-            className="rounded-[10px] flex-shrink-0"
+            width={28}
+            height={28}
+            className="rounded-lg"
           />
-          <div>
-            <div className="font-heading text-sm font-bold leading-tight text-portal-text">
-              CU Student Council
-            </div>
-            <div className="text-[11px] text-portal-muted">Vendor Portal</div>
-          </div>
+          <span className="font-heading text-[13.5px] font-bold text-portal-text">
+            Vendor Portal
+          </span>
         </div>
-
-        {/* Navigation */}
-        <nav>
-          <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-portal-muted">
-            Menu
-          </p>
-          <div className="space-y-0.5">
-            {mainNav.map((item) => (
-              <NavItem
-                key={item.href}
-                label={item.label}
-                icon={item.icon}
-                href={item.href}
-                isActive={pathname === item.href}
-              />
-            ))}
-          </div>
-        </nav>
+        <button
+          onClick={() => setMobileOpen(true)}
+          className="p-2 rounded-lg text-portal-muted hover:bg-portal-bg transition-colors"
+          aria-label="Open menu"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
       </div>
 
-      {/* Vendor pill */}
-      <div className="mt-auto border-t border-portal-border px-4 py-4">
-        <div className="flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl bg-portal-bg hover:bg-portal-bg2 transition-colors">
-          {vendor?.image ? (
+      {/* Backdrop */}
+      {mobileOpen && (
+        <div
+          className="lg:hidden fixed inset-0 bg-black/40 z-30"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={cn(
+          "fixed top-0 left-0 bottom-0 w-[260px] bg-portal-surface border-r border-portal-border flex flex-col z-40 transition-transform duration-300 ease-in-out",
+          mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
+        )}
+      >
+        <div className="px-4 pt-6 pb-5 relative">
+          {/* Mobile close button */}
+          <button
+            className="lg:hidden absolute top-4 right-4 p-1.5 rounded-lg text-portal-muted hover:bg-portal-bg transition-colors"
+            onClick={() => setMobileOpen(false)}
+            aria-label="Close menu"
+          >
+            <X className="w-4 h-4" />
+          </button>
+
+          {/* Logo */}
+          <div className="flex items-center gap-2.5 pb-5 border-b border-portal-border mb-5">
             <Image
-              src={vendor.image}
-              alt={vendor.name}
-              width={32}
-              height={32}
-              className="rounded-full flex-shrink-0 object-cover"
+              src="/logo.png"
+              alt="Logo"
+              width={36}
+              height={36}
+              className="rounded-[10px] flex-shrink-0"
             />
-          ) : (
-            <div className="w-8 h-8 rounded-full bg-portal-accent flex items-center justify-center flex-shrink-0">
-              <span className="text-white text-[11px] font-bold">
-                {vendor?.name?.charAt(0) ?? "V"}
-              </span>
-            </div>
-          )}
-          <div className="min-w-0 flex-1">
-            <div className="text-[13px] font-semibold text-portal-text truncate">
-              {vendor?.name ?? "Vendor"}
-            </div>
-            <div className="text-[11px] text-portal-muted truncate">
-              {vendor?.email ?? ""}
+            <div>
+              <div className="font-heading text-sm font-bold leading-tight text-portal-text">
+                CU Student Council
+              </div>
+              <div className="text-[11px] text-portal-muted">Vendor Portal</div>
             </div>
           </div>
-          <form action={signOutUser}>
-            <button
-              type="submit"
-              title="Logout"
-              className="p-1.5 rounded-lg text-portal-muted hover:text-red-500 hover:bg-red-50 transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </form>
+
+          {/* Navigation */}
+          <nav>
+            <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-portal-muted">
+              Menu
+            </p>
+            <div className="space-y-0.5">
+              {mainNav.map((item) => (
+                <NavItem
+                  key={item.href}
+                  label={item.label}
+                  icon={item.icon}
+                  href={item.href}
+                  isActive={pathname === item.href}
+                />
+              ))}
+            </div>
+          </nav>
         </div>
-      </div>
-    </aside>
+
+        {/* Vendor pill */}
+        <div className="mt-auto border-t border-portal-border px-4 py-4">
+          <div className="flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl bg-portal-bg hover:bg-portal-bg2 transition-colors">
+            {vendor?.image ? (
+              <Image
+                src={vendor.image}
+                alt={vendor.name}
+                width={32}
+                height={32}
+                className="rounded-full flex-shrink-0 object-cover"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-portal-accent flex items-center justify-center flex-shrink-0">
+                <span className="text-white text-[11px] font-bold">
+                  {vendor?.name?.charAt(0) ?? "V"}
+                </span>
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <div className="text-[13px] font-semibold text-portal-text truncate">
+                {vendor?.name ?? "Vendor"}
+              </div>
+              <div className="text-[11px] text-portal-muted truncate">
+                {vendor?.email ?? ""}
+              </div>
+            </div>
+            <form action={signOutUser}>
+              <button
+                type="submit"
+                title="Logout"
+                className="p-1.5 rounded-lg text-portal-muted hover:text-red-500 hover:bg-red-50 transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </form>
+          </div>
+        </div>
+      </aside>
+    </>
   );
 }

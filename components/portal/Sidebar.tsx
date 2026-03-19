@@ -2,11 +2,12 @@
 
 import { signOutUser } from "@/lib/actions/user.action";
 import { cn } from "@/lib/utils";
-import { Bus, Home, LogOut, User } from "lucide-react";
+import { Bus, Home, LogOut, Menu, User, X } from "lucide-react";
 import { motion } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
 
 const mainNav = [{ label: "Home", icon: Home, href: "/", badge: null }];
 
@@ -81,57 +82,110 @@ type SidebarUser = {
 
 export default function Sidebar({ user }: { user?: SidebarUser | null }) {
   const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
 
   return (
-    <aside className="fixed top-0 left-0 bottom-0 w-[260px] bg-portal-surface border-r border-portal-border flex flex-col z-10">
-      <div className="px-4 pt-6 pb-5">
-        {/* Logo */}
-        <div className="flex items-center gap-2.5 pb-5 border-b border-portal-border mb-5">
+    <>
+      {/* Mobile top bar */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-20 h-14 bg-portal-surface border-b border-portal-border px-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
           <Image
             src="/logo.png"
             alt="Logo"
-            width={36}
-            height={36}
-            className="rounded-[10px] flex-shrink-0"
+            width={28}
+            height={28}
+            className="rounded-lg"
           />
-          <div>
-            <div className="font-heading text-sm font-bold leading-tight text-portal-text">
-              CU Student Council
-            </div>
-            <div className="text-[11px] text-portal-muted">Student Portal</div>
-          </div>
+          <span className="font-heading text-[13.5px] font-bold text-portal-text">
+            CU Student Council
+          </span>
         </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto">
-          <NavGroup label="Menu" items={mainNav} pathname={pathname} />
-          <NavGroup label="Services" items={servicesNav} pathname={pathname} />
-          <NavGroup label="Account" items={accountNav} pathname={pathname} />
-        </nav>
+        <button
+          onClick={() => setMobileOpen(true)}
+          className="p-2 rounded-lg text-portal-muted hover:bg-portal-bg transition-colors"
+          aria-label="Open menu"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
       </div>
 
-      {/* User pill */}
-      <div className="mt-auto border-t border-portal-border px-4 py-4">
-        <div className="flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl bg-portal-bg hover:bg-portal-bg2 transition-colors">
-          <div className="min-w-0 flex-1">
-            <div className="text-[13px] font-semibold text-portal-text truncate">
-              {user?.name ?? "Student"}
-            </div>
-            <div className="text-[11px] text-portal-muted truncate">
-              {user ? `${user.matricNumber} · ${user.level}L` : ""}
+      {/* Backdrop */}
+      {mobileOpen && (
+        <div
+          className="lg:hidden fixed inset-0 bg-black/40 z-30"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={cn(
+          "fixed top-0 left-0 bottom-0 w-[260px] bg-portal-surface border-r border-portal-border flex flex-col z-40 transition-transform duration-300 ease-in-out",
+          mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
+        )}
+      >
+        <div className="px-4 pt-6 pb-5 relative">
+          {/* Mobile close button */}
+          <button
+            className="lg:hidden absolute top-4 right-4 p-1.5 rounded-lg text-portal-muted hover:bg-portal-bg transition-colors"
+            onClick={() => setMobileOpen(false)}
+            aria-label="Close menu"
+          >
+            <X className="w-4 h-4" />
+          </button>
+
+          {/* Logo */}
+          <div className="flex items-center gap-2.5 pb-5 border-b border-portal-border mb-5">
+            <Image
+              src="/logo.png"
+              alt="Logo"
+              width={36}
+              height={36}
+              className="rounded-[10px] flex-shrink-0"
+            />
+            <div>
+              <div className="font-heading text-sm font-bold leading-tight text-portal-text">
+                CU Student Council
+              </div>
+              <div className="text-[11px] text-portal-muted">Student Portal</div>
             </div>
           </div>
-          <form action={signOutUser}>
-            <button
-              type="submit"
-              title="Logout"
-              className="p-1.5 rounded-lg text-portal-muted hover:text-red-500 hover:bg-red-50 transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </form>
+
+          {/* Navigation */}
+          <nav className="flex-1 overflow-y-auto">
+            <NavGroup label="Menu" items={mainNav} pathname={pathname} />
+            <NavGroup label="Services" items={servicesNav} pathname={pathname} />
+            <NavGroup label="Account" items={accountNav} pathname={pathname} />
+          </nav>
         </div>
-      </div>
-    </aside>
+
+        {/* User pill */}
+        <div className="mt-auto border-t border-portal-border px-4 py-4">
+          <div className="flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl bg-portal-bg hover:bg-portal-bg2 transition-colors">
+            <div className="min-w-0 flex-1">
+              <div className="text-[13px] font-semibold text-portal-text truncate">
+                {user?.name ?? "Student"}
+              </div>
+              <div className="text-[11px] text-portal-muted truncate">
+                {user ? `${user.matricNumber} · ${user.level}L` : ""}
+              </div>
+            </div>
+            <form action={signOutUser}>
+              <button
+                type="submit"
+                title="Logout"
+                className="p-1.5 rounded-lg text-portal-muted hover:text-red-500 hover:bg-red-50 transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </form>
+          </div>
+        </div>
+      </aside>
+    </>
   );
 }

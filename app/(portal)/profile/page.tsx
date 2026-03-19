@@ -22,7 +22,7 @@ export default async function ProfilePage() {
     <>
       <ProfileHeader />
 
-      <div className="grid grid-cols-[1.2fr_1fr] gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-5">
         <div className="space-y-5">
           <ProfileDetails
             user={{
