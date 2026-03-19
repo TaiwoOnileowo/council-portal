@@ -10,7 +10,12 @@ type Props = {
   image: string | null;
 };
 
-export default function VendorDashboardHeader({ firstName, lastName, transportName, image }: Props) {
+export default function VendorDashboardHeader({
+  firstName,
+  lastName,
+  transportName,
+  image,
+}: Props) {
   const initials = `${firstName[0]}${lastName[0]}`.toUpperCase();
 
   return (
@@ -27,7 +32,11 @@ export default function VendorDashboardHeader({ firstName, lastName, transportNa
               alt={transportName}
               width={44}
               height={44}
-              className="rounded-xl object-cover flex-shrink-0"
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: "50%",
+              }}
             />
           ) : (
             <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-[15px] font-extrabold text-blue-700 flex-shrink-0">

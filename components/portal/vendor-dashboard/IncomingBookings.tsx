@@ -54,13 +54,13 @@ export default function IncomingBookings() {
         {/* Header */}
         <div className="flex items-center justify-between mb-3.5">
           <h2 className="font-heading text-[17px] font-bold">Bookings</h2>
-          <button
+          {/* <button
             onClick={handlePrint}
             className="inline-flex items-center gap-1.5 text-[12px] font-medium text-portal-muted hover:text-portal-text transition-colors print:hidden"
           >
             <Download className="w-3.5 h-3.5" />
             Download PDF
-          </button>
+          </button> */}
         </div>
 
         {/* Tabs */}
