@@ -614,7 +614,7 @@ export default function RouteManagement() {
         direction="right"
       >
         <DrawerContent
-          style={{ width: "min(560px, 100vw)" }}
+          style={{ width: "min(760px, 100vw)" }}
           className="bg-portal-surface flex flex-col overflow-hidden p-0 !h-[100dvh]"
         >
           <DrawerTitle className="sr-only">
@@ -650,7 +650,7 @@ export default function RouteManagement() {
           <div className="flex-1 overflow-y-auto" data-vaul-no-drag>
             {/* Routes table */}
             <div className="border-b border-portal-border">
-              <div className="hidden sm:grid grid-cols-[1fr_90px_160px_36px_32px] gap-2 px-5 py-2.5 bg-portal-bg border-b border-portal-border">
+              <div className="hidden sm:grid grid-cols-[1fr_120px_200px_36px_32px] gap-2 px-5 py-2.5 bg-portal-bg border-b border-portal-border">
                 {["Route", "Price (₦)", "Capacity", "", ""].map((h, i) => (
                   <span
                     key={i}
@@ -670,7 +670,7 @@ export default function RouteManagement() {
               {routeFields.map((field, index) => (
                 <div
                   key={field.id}
-                  className="grid grid-cols-1 sm:grid-cols-[1fr_90px_160px_36px_32px] gap-2 px-5 py-3 items-center border-b border-portal-border last:border-b-0"
+                  className="grid grid-cols-1 sm:grid-cols-[1fr_120px_200px_36px_32px] gap-2 px-5 py-3 items-center border-b border-portal-border last:border-b-0"
                 >
                   {/* Route name — always full width on its own row */}
                   <input
