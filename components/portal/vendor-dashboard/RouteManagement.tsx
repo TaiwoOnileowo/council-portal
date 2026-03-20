@@ -614,7 +614,7 @@ export default function RouteManagement() {
         direction="right"
       >
         <DrawerContent
-          style={{ width: "min(760px, 100vw)" }}
+          style={{ width: "min(760px, 100vw)", maxWidth: "min(760px, 100vw)" }}
           className="bg-portal-surface flex flex-col overflow-hidden p-0 !h-[100dvh]"
         >
           <DrawerTitle className="sr-only">
