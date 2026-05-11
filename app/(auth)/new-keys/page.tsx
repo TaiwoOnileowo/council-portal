@@ -1,8 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { verifyResetToken } from "@/lib/actions/password.action";
-import NewPasswordForm from "@/components/portal/gate/NewPasswordForm";
-import AuthTabs from "@/components/portal/gate/AuthTabs";
+import NewPasswordForm from "@/modules/auth/components/NewPasswordForm";
+import AuthTabs from "@/modules/auth/components/AuthTabs";
 
 interface NewKeysPageProps {
   searchParams: Promise<{ token?: string; email?: string }>;

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import VendorSidebar from "@/components/portal/VendorSidebar";
+import VendorSidebar from "@/components/VendorSidebar";
 
 export default async function VendorLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();

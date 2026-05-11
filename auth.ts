@@ -1,8 +1,8 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { ZodError } from "zod";
-import { signInSchema } from "@/lib/validations/auth";
-import { vendorSignInSchema } from "@/lib/validations/vendor";
+import { signInSchema } from "@/modules/auth/auth.types";
+import { vendorSignInSchema } from "@/modules/vendor/vendor.types";
 import { db } from "@/lib/db";
 import { verifyPassword } from "@/lib/password";
 

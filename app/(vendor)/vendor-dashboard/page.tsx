@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import AvailabilityToggle from "@/components/portal/vendor-dashboard/AvailabilityToggle";
-import IncomingBookings from "@/components/portal/vendor-dashboard/IncomingBookings";
-import RouteManagement from "@/components/portal/vendor-dashboard/RouteManagement";
-import VendorDashboardHeader from "@/components/portal/vendor-dashboard/VendorDashboardHeader";
+import AvailabilityToggle from "@/modules/vendor/components/AvailabilityToggle";
+import IncomingBookings from "@/modules/vendor/components/IncomingBookings";
+import RouteManagement from "@/modules/vendor/components/RouteManagement";
+import VendorDashboardHeader from "@/modules/vendor/components/VendorDashboardHeader";
 
 export default async function VendorDashboardPage() {
   const session = await auth();

@@ -1,8 +1,8 @@
 import { auth } from "@/auth";
-import ChangePassword from "@/components/portal/profile/ChangePassword";
-import VendorBankDetails from "@/components/portal/vendor/profile/VendorBankDetails";
-import VendorProfileDetails from "@/components/portal/vendor/profile/VendorProfileDetails";
-import VendorTransportProfile from "@/components/portal/vendor/profile/VendorTransportProfile";
+import ChangePassword from "@/modules/profile/components/ChangePassword";
+import VendorBankDetails from "@/modules/vendor/components/VendorBankDetails";
+import VendorProfileDetails from "@/modules/vendor/components/VendorProfileDetails";
+import VendorTransportProfile from "@/modules/vendor/components/VendorTransportProfile";
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 

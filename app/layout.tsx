@@ -3,7 +3,7 @@ import { Bricolage_Grotesque, Instrument_Sans } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/sonner";
-import QueryProvider from "@/components/providers/QueryProvider";
+import Providers from "@/components/Providers";
 import { SessionProvider } from "next-auth/react";
 
 const bricolage = Bricolage_Grotesque({
@@ -37,9 +37,9 @@ export default function RootLayout({
           "font-sans antialiased",
         )}
       >
-        <QueryProvider>
+        <Providers>
           <SessionProvider>{children}</SessionProvider>
-        </QueryProvider>
+        </Providers>
         <Toaster />
       </body>
     </html>

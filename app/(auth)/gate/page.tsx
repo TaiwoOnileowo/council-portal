@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import LoginForm from "@/components/portal/gate/LoginForm";
-import SignUpForm from "@/components/portal/gate/SignUpForm";
-import ForgotPasswordForm from "@/components/portal/gate/ForgotPasswordForm";
-import AuthTabs from "@/components/portal/gate/AuthTabs";
+import LoginForm from "@/modules/auth/components/LoginForm";
+import SignUpForm from "@/modules/auth/components/SignUpForm";
+import ForgotPasswordForm from "@/modules/auth/components/ForgotPasswordForm";
+import AuthTabs from "@/modules/auth/components/AuthTabs";
 
 type View = "login" | "create" | "forgot";
 
@@ -36,8 +36,16 @@ export default function GatePage() {
       {view !== "forgot" ? (
         <AuthTabs
           tabs={[
-            { label: "Log in", active: view === "login", onClick: () => setView("login") },
-            { label: "Create account", active: view === "create", onClick: () => setView("create") },
+            {
+              label: "Log in",
+              active: view === "login",
+              onClick: () => setView("login"),
+            },
+            {
+              label: "Create account",
+              active: view === "create",
+              onClick: () => setView("create"),
+            },
           ]}
         />
       ) : (

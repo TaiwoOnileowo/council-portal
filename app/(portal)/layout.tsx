@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import Sidebar from "@/components/portal/Sidebar";
+import Sidebar from "@/components/Sidebar";
 import { redirect } from "next/navigation";
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {

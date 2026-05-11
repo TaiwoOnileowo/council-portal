@@ -1,16 +1,32 @@
 "use server";
 
-import { signIn } from "@/auth";
+import { auth, signIn } from "@/auth";
 import { db } from "@/lib/db";
 import { hashPassword, verifyPassword } from "@/lib/password";
-import { isApprovedVendor } from "@/lib/vendorData";
+import { isApprovedVendor } from "@/modules/vendor/vendor.constants";
 import {
   vendorSignUpSchema,
   vendorSignInSchema,
   updateVendorProfileSchema,
   changeVendorPasswordSchema,
   vendorBankSchema,
-} from "@/lib/validations/vendor";
+  priceListBodySchema,
+} from "@/modules/vendor/vendor.types";
+import type {
+  PriceList,
+  PriceListRoute,
+  PriceListAvailability,
+  DepartureTime,
+  VendorBooking,
+  VendorBookingsResponse,
+  BookingsFilters,
+} from "@/modules/vendor/vendor.types";
+import type {
+  PriceList as DbPriceList,
+  PriceListRoute as DbRoute,
+  DepartureTime as DbDepartureTime,
+  BookingStatus,
+} from "@/generated/prisma/client";
 import { CallbackRouteError } from "@auth/core/errors";
 
 export async function checkVendorEmail(email: string): Promise<{ approved: boolean }> {
@@ -380,4 +396,243 @@ export async function changeVendorPassword({
   await db.vendor.update({ where: { id: vendorId }, data: { passwordHash } });
 
   return { success: true };
+}
+
+// ─── Vendor dashboard actions ─────────────────────────────────────────────────
+
+type DbPriceListFull = DbPriceList & { routes: DbRoute[]; departureTimes: DbDepartureTime[] };
+
+function mapPriceListToFrontend(pl: DbPriceListFull): PriceList {
+  const routes: PriceListRoute[] = pl.routes.map((r) => ({
+    id: r.id,
+    name: r.name,
+    price: r.price,
+    capacity: r.capacity === null ? "unlimited" : r.capacity,
+    active: r.active,
+  }));
+
+  const departureTimes: DepartureTime[] = pl.departureTimes.map((d) => ({
+    id: d.id,
+    day: d.day,
+    time: d.time,
+  }));
+
+  let availability: PriceListAvailability;
+  if (pl.availType === "SCHEDULED" && pl.schedStart && pl.schedEnd) {
+    availability = {
+      type: "scheduled",
+      startDate: pl.schedStart.toISOString().split("T")[0],
+      endDate: pl.schedEnd.toISOString().split("T")[0],
+    };
+  } else if (pl.availType === "INACTIVE") {
+    availability = { type: "inactive" };
+  } else {
+    availability = { type: "active" };
+  }
+
+  return {
+    id: pl.id,
+    name: pl.name,
+    direction: pl.direction === "LEAVING" ? "leaving" : "returning",
+    routes,
+    departureTimes,
+    luggagePolicy: pl.luggagePolicy,
+    notes: pl.notes,
+    availability,
+  };
+}
+
+export async function getVendorBookings(
+  filters: BookingsFilters,
+): Promise<{ ok: true; data: VendorBookingsResponse } | { ok: false; error: string }> {
+  const session = await auth();
+  if (!session?.user?.isVendor) return { ok: false, error: "Unauthorized" };
+
+  const statusFilter: BookingStatus[] =
+    filters.tab === "upcoming" ? ["CONFIRMED"] : ["CANCELLED", "FAILED"];
+
+  const dateRange: { gte?: Date; lte?: Date } = {};
+  if (filters.dateFrom) dateRange.gte = new Date(filters.dateFrom);
+  if (filters.dateTo) {
+    const to = new Date(filters.dateTo);
+    to.setHours(23, 59, 59, 999);
+    dateRange.lte = to;
+  }
+
+  const [bookings, routeNames] = await Promise.all([
+    db.booking.findMany({
+      where: {
+        vendorId: session.user.id,
+        status: { in: statusFilter },
+        ...(filters.route !== "all" ? { routeName: filters.route } : {}),
+        ...(Object.keys(dateRange).length > 0 ? { createdAt: dateRange } : {}),
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        reference: true,
+        passengerName: true,
+        passengerPhone: true,
+        parentsPhone: true,
+        hall: true,
+        roomNumber: true,
+        routeName: true,
+        direction: true,
+        fare: true,
+        studentNotes: true,
+        status: true,
+        createdAt: true,
+      },
+    }),
+    db.booking.findMany({
+      where: { vendorId: session.user.id },
+      select: { routeName: true },
+      distinct: ["routeName"],
+      orderBy: { routeName: "asc" },
+    }),
+  ]);
+
+  return {
+    ok: true,
+    data: {
+      bookings: bookings.map((b) => ({
+        ...b,
+        createdAt: b.createdAt.toISOString(),
+        status: b.status as VendorBooking["status"],
+        direction: b.direction as VendorBooking["direction"],
+      })),
+      routes: routeNames.map((r) => r.routeName),
+    },
+  };
+}
+
+export async function getVendorPriceLists(): Promise<
+  { ok: true; data: PriceList[] } | { ok: false; error: string }
+> {
+  const session = await auth();
+  if (!session?.user?.isVendor) return { ok: false, error: "Unauthorized" };
+
+  const rows = await db.priceList.findMany({
+    where: { vendorId: session.user.id },
+    include: { routes: true, departureTimes: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return { ok: true, data: rows.map(mapPriceListToFrontend) };
+}
+
+export async function createPriceList(
+  body: unknown,
+): Promise<{ ok: true; data: PriceList } | { ok: false; error: string }> {
+  const session = await auth();
+  if (!session?.user?.isVendor) return { ok: false, error: "Unauthorized" };
+
+  const parsed = priceListBodySchema.safeParse(body);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+
+  const data = parsed.data;
+  const availType =
+    data.availability.type === "active"
+      ? "ACTIVE"
+      : data.availability.type === "inactive"
+        ? "INACTIVE"
+        : "SCHEDULED";
+  const schedStart =
+    data.availability.type === "scheduled" ? new Date(data.availability.startDate) : null;
+  const schedEnd =
+    data.availability.type === "scheduled" ? new Date(data.availability.endDate) : null;
+
+  const existing = await db.priceList.findUnique({
+    where: {
+      vendorId_direction: {
+        vendorId: session.user.id,
+        direction: data.direction === "leaving" ? "LEAVING" : "RETURNING",
+      },
+    },
+  });
+  if (existing) {
+    return { ok: false, error: "A price list for this direction already exists" };
+  }
+
+  const created = await db.priceList.create({
+    data: {
+      vendorId: session.user.id,
+      name: data.name,
+      direction: data.direction === "leaving" ? "LEAVING" : "RETURNING",
+      luggagePolicy: data.luggagePolicy ?? "",
+      notes: data.notes ?? "",
+      availType: availType as "ACTIVE" | "INACTIVE" | "SCHEDULED",
+      schedStart,
+      schedEnd,
+      routes: { create: data.routes.map((r) => ({ name: r.name, price: r.price, capacity: r.capacity, active: r.active })) },
+      departureTimes: { create: data.departureTimes.map((d) => ({ day: d.day, time: d.time })) },
+    },
+    include: { routes: true, departureTimes: true },
+  });
+
+  return { ok: true, data: mapPriceListToFrontend(created) };
+}
+
+export async function updatePriceList(
+  id: string,
+  body: unknown,
+): Promise<{ ok: true; data: PriceList } | { ok: false; error: string }> {
+  const session = await auth();
+  if (!session?.user?.isVendor) return { ok: false, error: "Unauthorized" };
+
+  const existing = await db.priceList.findUnique({ where: { id } });
+  if (!existing) return { ok: false, error: "Price list not found" };
+  if (existing.vendorId !== session.user.id) return { ok: false, error: "Forbidden" };
+
+  const parsed = priceListBodySchema.safeParse(body);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+
+  const data = parsed.data;
+  const availType =
+    data.availability.type === "active"
+      ? "ACTIVE"
+      : data.availability.type === "inactive"
+        ? "INACTIVE"
+        : "SCHEDULED";
+  const schedStart =
+    data.availability.type === "scheduled" ? new Date(data.availability.startDate) : null;
+  const schedEnd =
+    data.availability.type === "scheduled" ? new Date(data.availability.endDate) : null;
+
+  const updated = await db.$transaction(async (tx) => {
+    await tx.priceListRoute.deleteMany({ where: { priceListId: id } });
+    await tx.departureTime.deleteMany({ where: { priceListId: id } });
+    return tx.priceList.update({
+      where: { id },
+      data: {
+        name: data.name,
+        direction: data.direction === "leaving" ? "LEAVING" : "RETURNING",
+        luggagePolicy: data.luggagePolicy ?? "",
+        notes: data.notes ?? "",
+        availType: availType as "ACTIVE" | "INACTIVE" | "SCHEDULED",
+        schedStart,
+        schedEnd,
+        routes: { create: data.routes.map((r) => ({ name: r.name, price: r.price, capacity: r.capacity, active: r.active })) },
+        departureTimes: { create: data.departureTimes.map((d) => ({ day: d.day, time: d.time })) },
+      },
+      include: { routes: true, departureTimes: true },
+    });
+  });
+
+  return { ok: true, data: mapPriceListToFrontend(updated) };
+}
+
+export async function updateVendorAvailability(
+  isActive: boolean,
+): Promise<{ ok: true; data: { isActive: boolean } } | { ok: false; error: string }> {
+  const session = await auth();
+  if (!session?.user?.isVendor) return { ok: false, error: "Unauthorized" };
+
+  const updated = await db.vendor.update({
+    where: { id: session.user.id },
+    data: { isActive },
+    select: { isActive: true },
+  });
+
+  return { ok: true, data: { isActive: updated.isActive } };
 }

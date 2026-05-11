@@ -3,6 +3,55 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { sendBookingConfirmationEmail } from "@/lib/sendpulse";
+import type { StudentBooking } from "@/modules/transport/transport.types";
+
+export async function getBookings(): Promise<
+  { ok: true; data: StudentBooking[] } | { ok: false; error: string }
+> {
+  const session = await auth();
+  if (!session?.user?.id) return { ok: false, error: "Unauthorized" };
+
+  const bookings = await db.booking.findMany({
+    where: { userId: session.user.id },
+    select: {
+      id: true,
+      reference: true,
+      status: true,
+      passengerName: true,
+      passengerPhone: true,
+      parentsPhone: true,
+      hall: true,
+      roomNumber: true,
+      direction: true,
+      routeName: true,
+      fare: true,
+      serviceFee: true,
+      studentNotes: true,
+      createdAt: true,
+      vendor: {
+        select: { transportName: true, phone: true, image: true },
+      },
+      route: {
+        select: {
+          priceList: {
+            select: { luggagePolicy: true, notes: true },
+          },
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return {
+    ok: true,
+    data: bookings.map((b) => ({
+      ...b,
+      createdAt: b.createdAt.toISOString(),
+      status: b.status as StudentBooking["status"],
+      direction: b.direction as StudentBooking["direction"],
+    })),
+  };
+}
 
 export async function payBookingFromWallet({
   vendorId,

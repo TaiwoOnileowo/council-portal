@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import ChangePassword from "@/components/portal/profile/ChangePassword";
-import MyReviews from "@/components/portal/profile/MyReviews";
-import ProfileDetails from "@/components/portal/profile/ProfileDetails";
-import ProfileHeader from "@/components/portal/profile/ProfileHeader";
+import ChangePassword from "@/modules/profile/components/ChangePassword";
+import MyReviews from "@/modules/profile/components/MyReviews";
+import ProfileDetails from "@/modules/profile/components/ProfileDetails";
+import ProfileHeader from "@/modules/profile/components/ProfileHeader";
 
 export default async function ProfilePage() {
   const session = await auth();

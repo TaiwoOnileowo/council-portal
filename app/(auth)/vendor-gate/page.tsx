@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import AuthTabs from "@/components/portal/gate/AuthTabs";
-import VendorLoginForm from "@/components/portal/vendor-gate/VendorLoginForm";
-import VendorSignUpForm from "@/components/portal/vendor-gate/VendorSignUpForm";
+import AuthTabs from "@/modules/auth/components/AuthTabs";
+import VendorLoginForm from "@/modules/auth/components/VendorLoginForm";
+import VendorSignUpForm from "@/modules/auth/components/VendorSignUpForm";
 
 type View = "login" | "signup";
 

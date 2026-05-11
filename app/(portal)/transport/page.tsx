@@ -1,6 +1,6 @@
-import BookingsList from "@/components/portal/BookingsList";
-import TransportHeader from "@/components/portal/transport/TransportHeader";
-import VendorCards from "@/components/portal/transport/VendorCards";
+import BookingsList from "@/modules/dashboard/components/BookingsList";
+import TransportHeader from "@/modules/transport/components/TransportHeader";
+import VendorCards from "@/modules/transport/components/VendorCards";
 
 export default function TransportPage() {
   return (

@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
-import AnnouncementBanner from "@/components/portal/AnnouncementBanner";
-import { StatsRow } from "@/components/portal/StatsRow";
-import TopBar from "@/components/portal/TopBar";
+import AnnouncementBanner from "@/modules/dashboard/components/AnnouncementBanner";
+import { StatsRow } from "@/modules/dashboard/components/StatsRow";
+import TopBar from "@/components/TopBar";
 import { db } from "@/lib/db";
 
 export default async function Home() {

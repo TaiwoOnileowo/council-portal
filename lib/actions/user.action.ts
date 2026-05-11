@@ -8,7 +8,7 @@ import {
   signInSchema,
   signUpSchema,
   updateProfileSchema,
-} from "@/lib/validations/auth";
+} from "@/modules/auth/auth.types";
 import { CallbackRouteError } from "@auth/core/errors";
 export async function getUserFromDb(email: string) {
   return db.user.findUnique({ where: { email } });
