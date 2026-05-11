@@ -19,8 +19,8 @@ const instrumentSans = Instrument_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "CU Student Council Portal",
-  description: "Covenant University Student Council Portal",
+  title: "Student Council Portal",
+  description: "Student Council Portal, Covenant University",
 };
 
 export default function RootLayout({

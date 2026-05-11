@@ -11,7 +11,7 @@ const otpKey = (email: string) => `otp:${email}:code`;
 const rateKey = (email: string) => `otp:${email}:sends`;
 
 function generateCode() {
-  return String(Math.floor(100000 + Math.random() * 900000));
+return String(Math.floor(100000 + Math.random() * 900000));
 }
 
 export async function POST(req: NextRequest) {
