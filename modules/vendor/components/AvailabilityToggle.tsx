@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion } from "motion/react";
 import { Power } from "lucide-react";
 import { toast } from "sonner";
+import { updateVendorAvailability } from "@/lib/actions/vendor.action";
 
 type Props = {
   initialIsActive: boolean;
@@ -15,19 +16,14 @@ export default function AvailabilityToggle({ initialIsActive }: Props) {
 
   async function handleToggle() {
     const next = !available;
-    setAvailable(next); // optimistic
+    setAvailable(next);
     setIsPending(true);
 
     try {
-      const res = await fetch("/api/vendor/availability", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: next }),
-      });
-
-      if (!res.ok) throw new Error();
+      const result = await updateVendorAvailability(next);
+      if (!result.ok) throw new Error(result.error);
     } catch {
-      setAvailable(!next); // revert
+      setAvailable(!next);
       toast.error("Failed to update availability. Please try again.");
     } finally {
       setIsPending(false);

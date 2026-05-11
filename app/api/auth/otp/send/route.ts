@@ -1,17 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { redis } from "@/lib/redis";
+import { db } from "@/lib/db";
 import { sendVerificationEmail } from "@/lib/sendpulse";
+import { cacheGet, cacheSet, cacheIncr } from "@/lib/cache";
 
-const OTP_TTL = 600; // 10 minutes
+const OTP_TTL = 600;
 const RATE_WINDOW = 300;
 const MAX_SENDS = 5;
 
-function otpKey(email: string) {
-  return `otp:${email}:code`;
-}
-function rateKey(email: string) {
-  return `otp:${email}:sends`;
-}
+const otpKey = (email: string) => `otp:${email}:code`;
+const rateKey = (email: string) => `otp:${email}:sends`;
 
 function generateCode() {
   return String(Math.floor(100000 + Math.random() * 900000));
@@ -29,7 +26,18 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const sends = await redis.get<number>(rateKey(email));
+  const existing = await db.user.findUnique({
+    where: { email },
+    select: { id: true },
+  });
+  if (existing) {
+    return NextResponse.json(
+      { error: "An account with this email already exists." },
+      { status: 409 },
+    );
+  }
+
+  const sends = await cacheGet<number>(rateKey(email));
   if (sends !== null && sends >= MAX_SENDS) {
     return NextResponse.json(
       {
@@ -41,15 +49,8 @@ export async function POST(req: NextRequest) {
   }
 
   const code = generateCode();
-
-  await redis.setex(otpKey(email), OTP_TTL, code);
-
-  // Increment send counter (set TTL only on first send)
-  if (sends === null) {
-    await redis.setex(rateKey(email), RATE_WINDOW, 1);
-  } else {
-    await redis.incr(rateKey(email));
-  }
+  await cacheSet(otpKey(email), code, OTP_TTL);
+  await cacheIncr(rateKey(email), RATE_WINDOW);
 
   try {
     await sendVerificationEmail(email, firstName, code);
@@ -61,10 +62,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const remaining = MAX_SENDS - ((sends ?? 0) + 1);
   return NextResponse.json({
     success: true,
-    remainingSends: remaining,
+    remainingSends: MAX_SENDS - ((sends ?? 0) + 1),
     fromEmail: process.env.SENDPULSE_FROM_EMAIL ?? "",
   });
 }

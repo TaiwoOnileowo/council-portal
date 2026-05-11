@@ -1,36 +1,37 @@
 "use server";
 
 import crypto from "crypto";
-import { redis } from "@/lib/redis";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
 import { sendPasswordResetEmail } from "@/lib/sendpulse";
+import { cacheGet, cacheSet, cacheDel } from "@/lib/cache";
 
-const TOKEN_TTL = 3600; // 1 hour
+const TOKEN_TTL = 3600;
 const RESET_PREFIX = "pwreset:";
 
 export async function requestPasswordReset(email: string) {
   if (!email || !email.includes("@")) return { success: true };
 
   const user = await db.user.findUnique({ where: { email } });
-  const vendor = !user ? await db.vendor.findUnique({ where: { email } }) : null;
+  const vendor = !user
+    ? await db.vendor.findUnique({ where: { email } })
+    : null;
 
   if (!user && !vendor) return { success: true };
 
   const token = crypto.randomBytes(32).toString("hex");
-  await redis.setex(`${RESET_PREFIX}${token}`, TOKEN_TTL, email);
+  await cacheSet(`${RESET_PREFIX}${token}`, email, TOKEN_TTL);
 
   const firstName = user
-    ? user.name.trim().split(/\s+/)[0] ?? "Student"
+    ? (user.name.trim().split(/\s+/)[0] ?? "Student")
     : vendor!.firstName;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://cuscportal.com.ng";
   const resetUrl = `${appUrl}/new-keys?email=${encodeURIComponent(email)}&token=${token}`;
 
   try {
     await sendPasswordResetEmail(email, firstName, resetUrl);
   } catch (err) {
     console.error("Failed to send password reset email:", err);
-    // Silently fail — don't leak error to client
   }
 
   return { success: true };
@@ -39,7 +40,7 @@ export async function requestPasswordReset(email: string) {
 export async function verifyResetToken(token: string) {
   if (!token) return { error: "Invalid link." };
 
-  const email = await redis.get<string>(`${RESET_PREFIX}${token}`);
+  const email = await cacheGet<string>(`${RESET_PREFIX}${token}`);
   if (!email) return { error: "This link is invalid or has expired." };
 
   return { email };
@@ -48,11 +49,13 @@ export async function verifyResetToken(token: string) {
 export async function resetPassword(token: string, newPassword: string) {
   if (!token || !newPassword) return { error: "Missing required fields." };
 
-  const email = await redis.get<string>(`${RESET_PREFIX}${token}`);
+  const email = await cacheGet<string>(`${RESET_PREFIX}${token}`);
   if (!email) return { error: "This link is invalid or has expired." };
 
   const user = await db.user.findUnique({ where: { email } });
-  const vendor = !user ? await db.vendor.findUnique({ where: { email } }) : null;
+  const vendor = !user
+    ? await db.vendor.findUnique({ where: { email } })
+    : null;
 
   if (!user && !vendor) return { error: "Account not found." };
 
@@ -64,8 +67,7 @@ export async function resetPassword(token: string, newPassword: string) {
     await db.vendor.update({ where: { email }, data: { passwordHash } });
   }
 
-  // Delete token immediately — single-use
-  await redis.del(`${RESET_PREFIX}${token}`);
+  await cacheDel(`${RESET_PREFIX}${token}`);
 
   return { success: true, email };
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
@@ -9,16 +9,19 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { signUpUser } from "@/lib/actions/user.action";
 import { signUpSchema, LEVELS } from "@/modules/auth/auth.types";
 import type { SignUpInput } from "@/modules/auth/auth.types";
+import StepIndicator from "./StepIndicator";
+import OtpInput from "./OtpInput";
 
-const step1Fields = [
+const STEP_1_FIELDS = [
   "firstName",
   "lastName",
   "email",
   "password",
   "confirmPassword",
 ] as const;
+
 const RESEND_COOLDOWN = 60;
-const EMAIL_VERIFICATION_DEFAULT = true; // set to true to enable by default
+const EMAIL_VERIFICATION_DEFAULT = true;
 
 const inputClass = (err?: string) =>
   `w-full rounded-lg border ${
@@ -27,139 +30,11 @@ const inputClass = (err?: string) =>
       : "border-portal-border focus:border-portal-accent focus:ring-portal-accent"
   } bg-white px-4 py-3 text-[15px] text-portal-text placeholder:text-portal-muted outline-none focus:ring-1 transition`;
 
-function StepIndicator({
-  step,
-  emailVerification,
-}: {
-  step: 1 | 2 | 3;
-  emailVerification: boolean;
-}) {
-  const totalSteps = emailVerification ? 3 : 2;
-  // When verification is off, step 3 displays as step 2
-  const displayStep = emailVerification ? step : step === 3 ? 2 : step;
-
-  return (
-    <div className="flex items-center gap-2">
-      <div className="flex items-center gap-1.5">
-        {Array.from({ length: totalSteps }, (_, i) => i + 1).map((s, i) => (
-          <div key={s} className="flex items-center gap-1.5">
-            <div
-              className={`h-2 w-2 rounded-full transition-colors ${
-                displayStep >= s ? "bg-portal-accent" : "bg-portal-border"
-              }`}
-            />
-            {i < totalSteps - 1 && (
-              <div
-                className={`h-0.5 w-8 transition-colors ${
-                  displayStep > s ? "bg-portal-accent" : "bg-portal-border"
-                }`}
-              />
-            )}
-          </div>
-        ))}
-      </div>
-      <span className="text-xs text-portal-muted ml-1">
-        Step {displayStep} of {totalSteps}
-      </span>
-    </div>
-  );
-}
-
-function OtpInput({
-  value,
-  onChange,
-  disabled,
-  error,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  disabled?: boolean;
-  error?: string;
-}) {
-  const inputs = useRef<(HTMLInputElement | null)[]>([]);
-
-  const digits = Array.from({ length: 6 }, (_, i) => value[i] ?? "");
-
-  function handleKey(i: number, e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Backspace") {
-      e.preventDefault();
-      if (digits[i]) {
-        const next = digits
-          .map((d, idx) => (idx === i ? "" : d))
-          .join("")
-          .trimEnd();
-        onChange(next.padEnd(i, digits.slice(0, i).join("")));
-        // re-derive: replace index i with empty
-        const arr = [...digits];
-        arr[i] = "";
-        onChange(arr.join("").trimEnd());
-      } else if (i > 0) {
-        const arr = [...digits];
-        arr[i - 1] = "";
-        onChange(arr.join("").trimEnd());
-        inputs.current[i - 1]?.focus();
-      }
-    }
-  }
-
-  function handleInput(i: number, raw: string) {
-    const digit = raw.replace(/\D/g, "").slice(-1);
-    if (!digit) return;
-    const arr = [...digits];
-    arr[i] = digit;
-    onChange(arr.join("").trimEnd());
-    if (i < 5) inputs.current[i + 1]?.focus();
-  }
-
-  function handlePaste(e: React.ClipboardEvent) {
-    e.preventDefault();
-    const pasted = e.clipboardData
-      .getData("text")
-      .replace(/\D/g, "")
-      .slice(0, 6);
-    onChange(pasted);
-    const focusIdx = Math.min(pasted.length, 5);
-    inputs.current[focusIdx]?.focus();
-  }
-
-  return (
-    <div>
-      <div className="flex gap-2 justify-center">
-        {digits.map((d, i) => (
-          <input
-            key={i}
-            ref={(el) => {
-              inputs.current[i] = el;
-            }}
-            type="text"
-            inputMode="numeric"
-            maxLength={1}
-            value={d}
-            disabled={disabled}
-            onPaste={handlePaste}
-            onChange={(e) => handleInput(i, e.target.value)}
-            onKeyDown={(e) => handleKey(i, e)}
-            className={`w-11 h-13 text-center rounded-lg border text-xl font-semibold text-portal-text outline-none transition
-              ${error ? "border-red-400 focus:border-red-400 focus:ring-1 focus:ring-red-400" : "border-portal-border focus:border-portal-accent focus:ring-1 focus:ring-portal-accent"}
-              ${disabled ? "bg-gray-50 text-portal-muted cursor-not-allowed" : "bg-white"}`}
-            style={{ height: "52px" }}
-          />
-        ))}
-      </div>
-      {error && (
-        <p className="mt-2 text-xs text-red-500 text-center">{error}</p>
-      )}
-    </div>
-  );
-}
-
 export default function SignUpForm() {
   const router = useRouter();
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [emailVerification, setEmailVerification] = useState(
-    EMAIL_VERIFICATION_DEFAULT,
-  );
+  const [emailVerification] = useState(EMAIL_VERIFICATION_DEFAULT);
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -194,41 +69,31 @@ export default function SignUpForm() {
   const sendOtp = useCallback(async (email: string, firstName: string) => {
     setSendingOtp(true);
     setOtpError(undefined);
-    try {
-      const res = await fetch("/api/auth/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, firstName }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setOtpError(data.error ?? "Failed to send code.");
-        toast.error(data.error ?? "Failed to send code.");
-        return false;
-      }
-      setCooldown(RESEND_COOLDOWN);
-      if (data.fromEmail) setFromEmail(data.fromEmail);
-      return true;
-    } catch {
-      toast.error("Network error. Please try again.");
+    const res = await fetch("/api/auth/otp/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, firstName }),
+    });
+    const data = await res.json();
+    setSendingOtp(false);
+
+    if (!res.ok) {
+      setOtpError(data.error);
+      toast.error(data.error);
       return false;
-    } finally {
-      setSendingOtp(false);
     }
+
+    setCooldown(RESEND_COOLDOWN);
+    if (data.fromEmail) setFromEmail(data.fromEmail);
+    return true;
   }, []);
 
   async function handleNext(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
-
-    const valid = await trigger(step1Fields);
+    const valid = await trigger(STEP_1_FIELDS);
     if (!valid) return;
 
-    if (!emailVerification) {
-      setStep(3);
-      return;
-    }
-
-    if (getValues("email") === verifiedEmail) {
+    if (!emailVerification || getValues("email") === verifiedEmail) {
       setStep(3);
       return;
     }
@@ -255,27 +120,21 @@ export default function SignUpForm() {
     }
     setVerifying(true);
     setOtpError(undefined);
-    try {
-      const res = await fetch("/api/auth/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: getValues("email"), code: otp }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setOtpError(data.error);
-        if (data.invalidated) {
-          setOtp("");
-        }
-        return;
-      }
-      setVerifiedEmail(getValues("email"));
-      setStep(3);
-    } catch {
-      toast.error("Network error. Please try again.");
-    } finally {
-      setVerifying(false);
+    const res = await fetch("/api/auth/otp/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: getValues("email"), code: otp }),
+    });
+    const data = await res.json();
+    setVerifying(false);
+
+    if (!res.ok) {
+      setOtpError(data.error);
+      return;
     }
+
+    setVerifiedEmail(getValues("email"));
+    setStep(3);
   }
 
   const onSubmit = handleSubmit(async (data) => {
@@ -293,9 +152,12 @@ export default function SignUpForm() {
     router.refresh();
   });
 
+  const totalSteps = emailVerification ? 3 : 2;
+  const displayStep = emailVerification ? step : step === 3 ? 2 : step;
+
   return (
     <div className="space-y-5">
-      <StepIndicator step={step} emailVerification={emailVerification} />
+      <StepIndicator step={displayStep} totalSteps={totalSteps} />
 
       {step === 1 && (
         <form onSubmit={handleNext} className="space-y-5">
@@ -311,9 +173,7 @@ export default function SignUpForm() {
                 className={inputClass(errors.firstName?.message)}
               />
               {errors.firstName && (
-                <p className="mt-1 text-xs text-red-500">
-                  {errors.firstName.message}
-                </p>
+                <p className="mt-1 text-xs text-red-500">{errors.firstName.message}</p>
               )}
             </div>
             <div className="flex-1">
@@ -327,9 +187,7 @@ export default function SignUpForm() {
                 className={inputClass(errors.lastName?.message)}
               />
               {errors.lastName && (
-                <p className="mt-1 text-xs text-red-500">
-                  {errors.lastName.message}
-                </p>
+                <p className="mt-1 text-xs text-red-500">{errors.lastName.message}</p>
               )}
             </div>
           </div>
@@ -345,9 +203,7 @@ export default function SignUpForm() {
               className={inputClass(errors.email?.message)}
             />
             {errors.email && (
-              <p className="mt-1 text-xs text-red-500">
-                {errors.email.message}
-              </p>
+              <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>
             )}
           </div>
 
@@ -365,16 +221,14 @@ export default function SignUpForm() {
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-portal-muted hover:text-portal-text transition"
                 tabIndex={-1}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-portal-muted hover:text-portal-text transition"
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
             {errors.password && (
-              <p className="mt-1 text-xs text-red-500">
-                {errors.password.message}
-              </p>
+              <p className="mt-1 text-xs text-red-500">{errors.password.message}</p>
             )}
           </div>
 
@@ -392,16 +246,14 @@ export default function SignUpForm() {
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-portal-muted hover:text-portal-text transition"
                 tabIndex={-1}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-portal-muted hover:text-portal-text transition"
               >
                 {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
             {errors.confirmPassword && (
-              <p className="mt-1 text-xs text-red-500">
-                {errors.confirmPassword.message}
-              </p>
+              <p className="mt-1 text-xs text-red-500">{errors.confirmPassword.message}</p>
             )}
           </div>
 
@@ -418,12 +270,8 @@ export default function SignUpForm() {
       {step === 2 && (
         <form onSubmit={handleVerify} className="space-y-5">
           <div className="text-center space-y-1">
-            <p className="text-sm text-portal-text">
-              We sent a 6-digit code to
-            </p>
-            <p className="font-medium text-portal-accent break-all">
-              {getValues("email")}
-            </p>
+            <p className="text-sm text-portal-text">We sent a 6-digit code to</p>
+            <p className="font-medium text-portal-accent break-all">{getValues("email")}</p>
             <p className="text-xs text-portal-muted pt-1">
               Can&apos;t find it? Check your spam folder.{" "}
               {fromEmail && (
@@ -439,12 +287,7 @@ export default function SignUpForm() {
             </p>
           </div>
 
-          <OtpInput
-            value={otp}
-            onChange={setOtp}
-            disabled={verifying}
-            error={otpError}
-          />
+          <OtpInput value={otp} onChange={setOtp} disabled={verifying} error={otpError} />
 
           <button
             type="submit"
@@ -463,18 +306,13 @@ export default function SignUpForm() {
               <ChevronLeft size={15} />
               Change email
             </button>
-
             <button
               type="button"
               onClick={handleResend}
               disabled={cooldown > 0 || sendingOtp}
               className="text-portal-accent hover:underline disabled:text-portal-muted disabled:no-underline disabled:cursor-not-allowed transition-colors"
             >
-              {sendingOtp
-                ? "Sending…"
-                : cooldown > 0
-                  ? `Resend in ${cooldown}s`
-                  : "Resend code"}
+              {sendingOtp ? "Sending…" : cooldown > 0 ? `Resend in ${cooldown}s` : "Resend code"}
             </button>
           </div>
         </form>
@@ -493,9 +331,7 @@ export default function SignUpForm() {
               className={inputClass(errors.matricNumber?.message)}
             />
             {errors.matricNumber && (
-              <p className="mt-1 text-xs text-red-500">
-                {errors.matricNumber.message}
-              </p>
+              <p className="mt-1 text-xs text-red-500">{errors.matricNumber.message}</p>
             )}
           </div>
 
@@ -510,11 +346,7 @@ export default function SignUpForm() {
                 <input
                   {...field}
                   type="tel"
-                  onChange={(e) =>
-                    field.onChange(
-                      e.target.value.replace(/\D/g, "").slice(0, 11),
-                    )
-                  }
+                  onChange={(e) => field.onChange(e.target.value.replace(/\D/g, "").slice(0, 11))}
                   inputMode="numeric"
                   maxLength={11}
                   placeholder="08012345678"
@@ -523,9 +355,7 @@ export default function SignUpForm() {
               )}
             />
             {errors.phone && (
-              <p className="mt-1 text-xs text-red-500">
-                {errors.phone.message}
-              </p>
+              <p className="mt-1 text-xs text-red-500">{errors.phone.message}</p>
             )}
           </div>
 
@@ -540,9 +370,7 @@ export default function SignUpForm() {
               className={inputClass(errors.department?.message)}
             />
             {errors.department && (
-              <p className="mt-1 text-xs text-red-500">
-                {errors.department.message}
-              </p>
+              <p className="mt-1 text-xs text-red-500">{errors.department.message}</p>
             )}
           </div>
 
@@ -550,23 +378,14 @@ export default function SignUpForm() {
             <label className="block text-sm font-medium text-portal-text mb-1.5">
               Level<span className="text-portal-accent">*</span>
             </label>
-            <select
-              {...register("level")}
-              className={inputClass(errors.level?.message)}
-            >
-              <option value="" disabled>
-                Select your level
-              </option>
+            <select {...register("level")} className={inputClass(errors.level?.message)}>
+              <option value="" disabled>Select your level</option>
               {LEVELS.map((l) => (
-                <option key={l} value={l}>
-                  {l} Level
-                </option>
+                <option key={l} value={l}>{l} Level</option>
               ))}
             </select>
             {errors.level && (
-              <p className="mt-1 text-xs text-red-500">
-                {errors.level.message}
-              </p>
+              <p className="mt-1 text-xs text-red-500">{errors.level.message}</p>
             )}
           </div>
 

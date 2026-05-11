@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { redis } from "@/lib/redis";
+import { cacheGet, cacheDel } from "@/lib/cache";
 
-function otpKey(email: string) {
-  return `otp:${email}:code`;
-}
+const otpKey = (email: string) => `otp:${email}:code`;
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
@@ -11,18 +9,15 @@ export async function POST(req: NextRequest) {
   const code: string = body?.code?.trim() ?? "";
 
   if (!email || !code) {
-    return NextResponse.json(
-      { error: "email and code are required" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "email and code are required" }, { status: 400 });
   }
 
-  const stored = await redis.get<string>(otpKey(email));
+  const stored = await cacheGet<string>(otpKey(email));
 
   if (!stored || code !== String(stored)) {
     return NextResponse.json({ error: "Incorrect code." }, { status: 400 });
   }
 
-  await redis.del(otpKey(email));
+  await cacheDel(otpKey(email));
   return NextResponse.json({ success: true });
 }

@@ -1,415 +1,40 @@
 "use client";
 
 import { useState } from "react";
-import { format } from "date-fns";
 import { motion } from "motion/react";
-import {
-  CalendarIcon,
-  House,
-  Loader2,
-  Plus,
-  RefreshCw,
-  Rocket,
-  Trash2,
-  X,
-} from "lucide-react";
+import { House, Loader2, Plus, RefreshCw, Rocket, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { useForm, useFieldArray, useWatch, Controller } from "react-hook-form";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerClose,
-  DrawerTitle,
-} from "@/components/ui/drawer";
+import { Drawer, DrawerContent, DrawerClose, DrawerTitle } from "@/components/ui/drawer";
 import {
   Dialog,
   DialogContent,
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  type PriceList,
-  type PriceListAvailability,
-  type PriceListRoute,
-  type DepartureTime,
-} from "@/modules/vendor/vendor.types";
+import type { PriceList } from "@/modules/vendor/vendor.types";
 import {
   useVendorPriceLists,
   useCreatePriceList,
   useUpdatePriceList,
 } from "@/modules/vendor/hooks/useVendorPriceLists";
-import type { PriceListBody } from "@/modules/vendor/vendor.types";
+import {
+  type DrawerFormValues,
+  buildBody,
+  formValuesFromPriceList,
+  emptyFormValues,
+} from "@/modules/vendor/vendor.utils";
+import { formatWithCommas } from "@/lib/format";
+import TimeInput from "./TimeInput";
+import Toggle from "./Toggle";
+import DatePickerField from "./DatePickerField";
+import PriceListCard from "./PriceListCard";
+import AddCard from "./AddCard";
 
-const DAYS = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
-];
-
-// --- Formatting helpers ---
-
-function formatWithCommas(value: string) {
-  const digits = value.replace(/\D/g, "");
-  if (!digits) return "";
-  return Number(digits).toLocaleString("en-NG");
-}
-
-function parseAmount(value: string) {
-  return parseInt(value.replace(/,/g, ""), 10) || 0;
-}
-
-// --- RHF form type ---
-
-type DrawerFormValues = {
-  name: string;
-  direction: "leaving" | "returning";
-  routes: Array<{
-    name: string;
-    price: string; // formatted with commas
-    capacityType: "number" | "unlimited";
-    capacityValue: string;
-    active: boolean;
-  }>;
-  departureTimes: Array<{
-    day: string;
-    time: string;
-  }>;
-  luggagePolicy: string;
-  notes: string;
-  availType: "active" | "inactive" | "scheduled";
-  schedStart: string;
-  schedEnd: string;
-};
-
-// --- Conversion helpers ---
-
-function draftFromRoute(r: PriceListRoute) {
-  return {
-    name: r.name,
-    price: r.price > 0 ? r.price.toLocaleString("en-NG") : "",
-    capacityType: (r.capacity === "unlimited" ? "unlimited" : "number") as
-      | "number"
-      | "unlimited",
-    capacityValue: r.capacity === "unlimited" ? "" : String(r.capacity),
-    active: r.active,
-  };
-}
-
-function formValuesFromPriceList(pl: PriceList): DrawerFormValues {
-  return {
-    name: pl.name,
-    direction: pl.direction,
-    routes: pl.routes.map(draftFromRoute),
-    departureTimes: pl.departureTimes.map((dt: DepartureTime) => ({
-      day: dt.day,
-      time: dt.time,
-    })),
-    luggagePolicy: pl.luggagePolicy,
-    notes: pl.notes,
-    availType: pl.availability.type,
-    schedStart:
-      pl.availability.type === "scheduled" ? pl.availability.startDate : "",
-    schedEnd:
-      pl.availability.type === "scheduled" ? pl.availability.endDate : "",
-  };
-}
-
-function buildBody(form: DrawerFormValues): PriceListBody {
-  const routes = form.routes.map((r) => ({
-    name: r.name.trim(),
-    price: parseAmount(r.price),
-    capacity:
-      r.capacityType === "unlimited"
-        ? null
-        : Math.max(1, parseInt(r.capacityValue, 10) || 1),
-    active: r.active,
-  }));
-
-  const departureTimes = form.departureTimes.map((d) => ({
-    day: d.day,
-    time: d.time,
-  }));
-
-  const availability: PriceListBody["availability"] =
-    form.availType === "scheduled"
-      ? {
-          type: "scheduled",
-          startDate: form.schedStart,
-          endDate: form.schedEnd,
-        }
-      : form.availType === "inactive"
-        ? { type: "inactive" }
-        : { type: "active" };
-
-  return {
-    name: form.name.trim(),
-    direction: form.direction,
-    routes,
-    departureTimes,
-    luggagePolicy: form.luggagePolicy,
-    notes: form.notes,
-    availability,
-  };
-}
-
-function emptyFormValues(direction: "leaving" | "returning"): DrawerFormValues {
-  return {
-    name: "",
-    direction,
-    routes: [],
-    departureTimes: [],
-    luggagePolicy: "",
-    notes: "",
-    availType: "active",
-    schedStart: "",
-    schedEnd: "",
-  };
-}
-
-// --- Small reusable pieces ---
-
-function parse24(time: string) {
-  const [h, m] = time.split(":").map(Number);
-  const isPM = h >= 12;
-  const hours12 = h % 12 || 12;
-  return { hours12, minutes: m ?? 0, isPM };
-}
-
-function to24(hours12: number, minutes: number, isPM: boolean) {
-  const h = isPM ? (hours12 % 12) + 12 : hours12 % 12;
-  return `${String(h).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
-}
-
-function TimeInput({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  const { hours12, minutes, isPM } = parse24(value);
-  return (
-    <div className="flex items-center gap-1 flex-shrink-0">
-      <select
-        value={hours12}
-        onChange={(e) => onChange(to24(Number(e.target.value), minutes, isPM))}
-        className="w-12 px-1 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
-      >
-        {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
-          <option key={h} value={h}>
-            {h}
-          </option>
-        ))}
-      </select>
-      <span className="text-portal-muted text-[13px]">:</span>
-      <select
-        value={minutes}
-        onChange={(e) => onChange(to24(hours12, Number(e.target.value), isPM))}
-        className="w-14 px-1 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
-      >
-        {[0, 15, 30, 45].map((m) => (
-          <option key={m} value={m}>
-            {String(m).padStart(2, "0")}
-          </option>
-        ))}
-      </select>
-      <div className="flex rounded-md border border-portal-border overflow-hidden">
-        <button
-          type="button"
-          onClick={() => onChange(to24(hours12, minutes, false))}
-          className={`px-2 py-1.5 text-[12px] font-semibold transition-colors ${
-            !isPM
-              ? "bg-portal-accent text-white"
-              : "bg-portal-bg text-portal-muted hover:bg-portal-bg2"
-          }`}
-        >
-          AM
-        </button>
-        <button
-          type="button"
-          onClick={() => onChange(to24(hours12, minutes, true))}
-          className={`px-2 py-1.5 text-[12px] font-semibold transition-colors ${
-            isPM
-              ? "bg-portal-accent text-white"
-              : "bg-portal-bg text-portal-muted hover:bg-portal-bg2"
-          }`}
-        >
-          PM
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function Toggle({
-  on,
-  onChange,
-}: {
-  on: boolean;
-  onChange: (v: boolean) => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={() => onChange(!on)}
-      className={`relative w-9 h-5 rounded-full transition-colors flex-shrink-0 ${
-        on ? "bg-portal-accent" : "bg-portal-border"
-      }`}
-    >
-      <span
-        className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${
-          on ? "translate-x-4" : ""
-        }`}
-      />
-    </button>
-  );
-}
-
-function DatePickerField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  const selected = value ? new Date(value + "T00:00:00") : undefined;
-
-  return (
-    <div>
-      <label className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-portal-muted mb-1.5">
-        {label}
-      </label>
-      <Popover>
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            className="w-full flex items-center gap-2 px-3 py-2 text-[13px] border border-portal-border rounded-lg bg-portal-bg text-left focus:outline-none hover:border-portal-accent transition-colors"
-          >
-            <CalendarIcon className="w-3.5 h-3.5 text-portal-muted flex-shrink-0" />
-            <span
-              className={selected ? "text-portal-text" : "text-portal-muted/50"}
-            >
-              {selected ? format(selected, "dd MMM yyyy") : "Pick a date"}
-            </span>
-          </button>
-        </PopoverTrigger>
-        <PopoverContent
-          className="w-auto p-0 rounded-xl border-portal-border"
-          align="start"
-        >
-          <Calendar
-            mode="single"
-            selected={selected}
-            onSelect={(date) => {
-              if (date) {
-                const y = date.getFullYear();
-                const m = String(date.getMonth() + 1).padStart(2, "0");
-                const d = String(date.getDate()).padStart(2, "0");
-                onChange(`${y}-${m}-${d}`);
-              } else {
-                onChange("");
-              }
-            }}
-          />
-        </PopoverContent>
-      </Popover>
-    </div>
-  );
-}
-
-function StatusPill({ availability }: { availability: PriceListAvailability }) {
-  if (availability.type === "active") {
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-portal-green-bg text-portal-green whitespace-nowrap flex-shrink-0">
-        <span className="w-1.5 h-1.5 rounded-full bg-portal-green" />
-        Active
-      </span>
-    );
-  }
-  if (availability.type === "inactive") {
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-portal-bg text-portal-muted whitespace-nowrap flex-shrink-0">
-        <span className="w-1.5 h-1.5 rounded-full bg-portal-muted" />
-        Inactive
-      </span>
-    );
-  }
-  const fmt = (d: string) =>
-    new Date(d + "T00:00:00").toLocaleDateString("en-GB", {
-      day: "numeric",
-      month: "short",
-    });
-  return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 whitespace-nowrap flex-shrink-0">
-      <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-      {fmt(availability.startDate)} – {fmt(availability.endDate)}
-    </span>
-  );
-}
-
-function PriceListCard({ pl, onEdit }: { pl: PriceList; onEdit: () => void }) {
-  return (
-    <button
-      onClick={onEdit}
-      className="text-left w-full bg-portal-surface border border-portal-border rounded-xl p-4 hover:border-portal-accent/40 hover:shadow-sm transition-all group"
-    >
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <p className="text-[14px] font-semibold text-portal-text group-hover:text-portal-accent transition-colors leading-snug">
-          {pl.name}
-        </p>
-        <StatusPill availability={pl.availability} />
-      </div>
-      <p className="text-[12px] text-portal-muted">
-        {pl.routes.length} route{pl.routes.length !== 1 ? "s" : ""}
-      </p>
-    </button>
-  );
-}
-
-function AddCard({ onAdd }: { onAdd: () => void }) {
-  return (
-    <button
-      onClick={onAdd}
-      className="text-left w-full border border-dashed border-portal-border rounded-xl p-4 hover:border-portal-accent/50 hover:bg-portal-accent/[0.02] transition-colors"
-    >
-      <div className="flex items-center gap-2">
-        <div className="w-7 h-7 rounded-full bg-portal-accent/10 flex items-center justify-center flex-shrink-0">
-          <Plus className="w-3.5 h-3.5 text-portal-accent" />
-        </div>
-        <div>
-          <p className="text-[13px] font-medium text-portal-text">
-            Add price list
-          </p>
-          <p className="text-[11px] text-portal-muted mt-0.5">
-            Set routes, prices & departure times
-          </p>
-        </div>
-      </div>
-    </button>
-  );
-}
-
-// --- Main component ---
+const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 export default function RouteManagement() {
-  const {
-    data: priceLists,
-    isLoading,
-    isError,
-    refetch,
-  } = useVendorPriceLists();
+  const { data: priceLists, isLoading, isError, refetch } = useVendorPriceLists();
   const createMutation = useCreatePriceList();
   const updateMutation = useUpdatePriceList();
 
@@ -448,10 +73,8 @@ export default function RouteManagement() {
   const watchedSchedStart = useWatch({ control, name: "schedStart" });
   const watchedSchedEnd = useWatch({ control, name: "schedEnd" });
 
-  const leaving =
-    (priceLists ?? []).find((p) => p.direction === "leaving") ?? null;
-  const returning =
-    (priceLists ?? []).find((p) => p.direction === "returning") ?? null;
+  const leaving = (priceLists ?? []).find((p) => p.direction === "leaving") ?? null;
+  const returning = (priceLists ?? []).find((p) => p.direction === "returning") ?? null;
 
   function openNew(direction: "leaving" | "returning") {
     reset(emptyFormValues(direction));
@@ -479,13 +102,7 @@ export default function RouteManagement() {
   }
 
   function addRoute() {
-    appendRoute({
-      name: "",
-      price: "",
-      capacityType: "number",
-      capacityValue: "",
-      active: true,
-    });
+    appendRoute({ name: "", price: "", capacityType: "number", capacityValue: "", active: true });
   }
 
   function addDeparture() {
@@ -497,16 +114,13 @@ export default function RouteManagement() {
     watchedName.trim().length > 0 &&
     watchedRoutes.length >= 1 &&
     watchedDepartureTimes.length >= 1 &&
-    (watchedAvailType !== "scheduled" ||
-      (!!watchedSchedStart && !!watchedSchedEnd));
+    (watchedAvailType !== "scheduled" || (!!watchedSchedStart && !!watchedSchedEnd));
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
   async function save() {
     if (!canSave || isSaving) return;
-    const values = getValues();
-    const body = buildBody(values);
-
+    const body = buildBody(getValues());
     try {
       if (editingId) {
         await updateMutation.mutateAsync({ id: editingId, ...body });
@@ -528,9 +142,7 @@ export default function RouteManagement() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.28, ease: "easeOut" }}
       >
-        <h2 className="font-heading text-[17px] font-bold mb-5">
-          Routes & Pricing
-        </h2>
+        <h2 className="font-heading text-[17px] font-bold mb-5">Routes & Pricing</h2>
 
         {isLoading ? (
           <div className="flex items-center justify-center py-16 text-portal-muted">
@@ -552,7 +164,6 @@ export default function RouteManagement() {
           </div>
         ) : (
           <>
-            {/* Leaving School */}
             <div className="mb-7">
               <h3 className="text-[14px] font-semibold text-portal-text flex items-center gap-1.5 mb-3">
                 <Rocket className="text-primary" size={18} />
@@ -565,17 +176,13 @@ export default function RouteManagement() {
               )}
             </div>
 
-            {/* Returning to School */}
             <div>
               <h3 className="text-[14px] font-semibold text-portal-text flex items-center gap-1.5 mb-3">
                 <House className="text-primary" size={18} />
                 Returning to School
               </h3>
               {returning ? (
-                <PriceListCard
-                  pl={returning}
-                  onEdit={() => openEdit(returning)}
-                />
+                <PriceListCard pl={returning} onEdit={() => openEdit(returning)} />
               ) : (
                 <AddCard onAdd={() => openNew("returning")} />
               )}
@@ -584,7 +191,6 @@ export default function RouteManagement() {
         )}
       </motion.div>
 
-      {/* Discard confirmation dialog — outside Drawer to avoid focus-trap conflict */}
       <Dialog open={discardOpen} onOpenChange={setDiscardOpen}>
         <DialogContent className="max-w-sm">
           <DialogTitle>Discard changes?</DialogTitle>
@@ -608,12 +214,7 @@ export default function RouteManagement() {
         </DialogContent>
       </Dialog>
 
-      {/* Drawer */}
-      <Drawer
-        open={drawerOpen}
-        onOpenChange={handleDrawerOpenChange}
-        direction="right"
-      >
+      <Drawer open={drawerOpen} onOpenChange={handleDrawerOpenChange} direction="right">
         <DrawerContent
           style={{ width: "min(760px, 100vw)", maxWidth: "min(760px, 100vw)" }}
           className="bg-portal-surface flex flex-col overflow-hidden p-0 !h-[100dvh]"
@@ -622,7 +223,6 @@ export default function RouteManagement() {
             {editingId ? "Edit Price List" : "New Price List"}
           </DrawerTitle>
 
-          {/* Header */}
           <div className="flex items-start gap-3 px-5 py-4 border-b border-portal-border flex-shrink-0">
             <div className="flex-1 min-w-0">
               <label className="block text-[10px] font-semibold uppercase tracking-[0.08em] text-portal-muted mb-1">
@@ -646,10 +246,8 @@ export default function RouteManagement() {
             </DrawerClose>
           </div>
 
-          {/* Scrollable body — data-vaul-no-drag prevents vaul from treating
-              keyboard viewport changes as a drag/dismiss gesture on mobile */}
+          {/* data-vaul-no-drag prevents vaul from treating keyboard viewport changes as a dismiss gesture on mobile */}
           <div className="flex-1 overflow-y-auto" data-vaul-no-drag>
-            {/* Routes table */}
             <div className="border-b border-portal-border">
               <div className="hidden sm:grid grid-cols-[1fr_120px_200px_36px_32px] gap-2 px-5 py-2.5 bg-portal-bg border-b border-portal-border">
                 {["Route", "Price (₦)", "Capacity", "", ""].map((h, i) => (
@@ -673,7 +271,6 @@ export default function RouteManagement() {
                   key={field.id}
                   className="grid grid-cols-1 sm:grid-cols-[1fr_120px_200px_36px_32px] gap-2 px-5 py-3 items-center border-b border-portal-border last:border-b-0"
                 >
-                  {/* Route name — always full width on its own row */}
                   <input
                     {...register(`routes.${index}.name`)}
                     type="text"
@@ -681,8 +278,6 @@ export default function RouteManagement() {
                     className="w-full px-2 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
                   />
 
-                  {/* On mobile: flex row for the remaining controls.
-                      On sm+: sm:contents makes children flow into grid cols 2–5. */}
                   <div className="flex items-center gap-2 sm:contents">
                     <Controller
                       name={`routes.${index}.price`}
@@ -693,9 +288,7 @@ export default function RouteManagement() {
                           inputMode="numeric"
                           value={priceField.value}
                           onChange={(e) =>
-                            priceField.onChange(
-                              formatWithCommas(e.target.value),
-                            )
+                            priceField.onChange(formatWithCommas(e.target.value))
                           }
                           placeholder="₦ 0"
                           className="w-24 sm:w-full px-2 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
@@ -726,10 +319,7 @@ export default function RouteManagement() {
                       name={`routes.${index}.active`}
                       control={control}
                       render={({ field: activeField }) => (
-                        <Toggle
-                          on={activeField.value}
-                          onChange={activeField.onChange}
-                        />
+                        <Toggle on={activeField.value} onChange={activeField.onChange} />
                       )}
                     />
 
@@ -754,7 +344,6 @@ export default function RouteManagement() {
               </button>
             </div>
 
-            {/* Departure Times */}
             <div className="border-b border-portal-border">
               <div className="px-5 pt-5 pb-3">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-portal-muted mb-3">
@@ -786,10 +375,7 @@ export default function RouteManagement() {
                           name={`departureTimes.${index}.time`}
                           control={control}
                           render={({ field: timeField }) => (
-                            <TimeInput
-                              value={timeField.value}
-                              onChange={timeField.onChange}
-                            />
+                            <TimeInput value={timeField.value} onChange={timeField.onChange} />
                           )}
                         />
                         <button
@@ -814,14 +400,11 @@ export default function RouteManagement() {
               </div>
             </div>
 
-            {/* Luggage Policy & Notes */}
             <div className="border-b border-portal-border px-5 py-5 space-y-4">
               <div>
                 <label className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-portal-muted mb-1.5">
                   Luggage Policy{" "}
-                  <span className="normal-case font-normal text-portal-muted/60">
-                    (optional)
-                  </span>
+                  <span className="normal-case font-normal text-portal-muted/60">(optional)</span>
                 </label>
                 <textarea
                   {...register("luggagePolicy")}
@@ -833,9 +416,7 @@ export default function RouteManagement() {
               <div>
                 <label className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-portal-muted mb-1.5">
                   Notes{" "}
-                  <span className="normal-case font-normal text-portal-muted/60">
-                    (optional)
-                  </span>
+                  <span className="normal-case font-normal text-portal-muted/60">(optional)</span>
                 </label>
                 <textarea
                   {...register("notes")}
@@ -846,7 +427,6 @@ export default function RouteManagement() {
               </div>
             </div>
 
-            {/* Availability section */}
             <div className="px-5 py-5">
               <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-portal-muted mb-3">
                 Availability
@@ -863,9 +443,7 @@ export default function RouteManagement() {
                   <button
                     key={value}
                     type="button"
-                    onClick={() =>
-                      setValue("availType", value, { shouldDirty: true })
-                    }
+                    onClick={() => setValue("availType", value, { shouldDirty: true })}
                     className={`px-3 py-1.5 text-[12px] font-medium rounded-lg border transition-colors ${
                       watchedAvailType === value
                         ? "border-portal-accent text-portal-accent bg-portal-accent/5"
@@ -883,22 +461,14 @@ export default function RouteManagement() {
                     name="schedStart"
                     control={control}
                     render={({ field }) => (
-                      <DatePickerField
-                        label="Start Date"
-                        value={field.value}
-                        onChange={field.onChange}
-                      />
+                      <DatePickerField label="Start Date" value={field.value} onChange={field.onChange} />
                     )}
                   />
                   <Controller
                     name="schedEnd"
                     control={control}
                     render={({ field }) => (
-                      <DatePickerField
-                        label="End Date"
-                        value={field.value}
-                        onChange={field.onChange}
-                      />
+                      <DatePickerField label="End Date" value={field.value} onChange={field.onChange} />
                     )}
                   />
                 </div>
@@ -906,7 +476,6 @@ export default function RouteManagement() {
             </div>
           </div>
 
-          {/* Footer */}
           <div className="px-5 pt-4 pb-[max(16px,env(safe-area-inset-bottom))] border-t border-portal-border flex-shrink-0">
             <button
               onClick={save}
