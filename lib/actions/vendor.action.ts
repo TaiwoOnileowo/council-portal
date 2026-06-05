@@ -85,6 +85,7 @@ export async function signUpVendor(input: {
       },
     });
   } catch (error: unknown) {
+    console.log("Error creating vendor account:", error);
     const msg = error instanceof Error ? error.message : "";
     if (msg.includes("Unique constraint")) {
       return { error: "An account with this email already exists." };

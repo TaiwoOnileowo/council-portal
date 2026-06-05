@@ -19,7 +19,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { signUpVendor, checkVendorApproval } from "@/lib/actions/vendor.action";
 import { getBanks, verifyBankAccount } from "@/lib/actions/bank.action";
 import type { Bank } from "@/lib/actions/bank.action";
-import { vendorSignUpSchema, vendorBankSchema } from "@/modules/vendor/vendor.types";
+import {
+  vendorSignUpSchema,
+  vendorBankSchema,
+} from "@/modules/vendor/vendor.types";
 import type { VendorSignUpInput } from "@/modules/vendor/vendor.types";
 import { uploadFiles } from "@/lib/uploadthing";
 
@@ -150,8 +153,6 @@ function ImageUpload({
   );
 }
 
-// ─── Bank Selector ────────────────────────────────────────────────────────────
-
 function BankSelector({
   banks,
   value,
@@ -244,8 +245,6 @@ function BankSelector({
     </div>
   );
 }
-
-// ─── Bank Step ────────────────────────────────────────────────────────────────
 
 function BankStep({
   value,
@@ -363,7 +362,6 @@ function BankStep({
         )}
       </div>
 
-      {/* Account Number + Verify */}
       <div>
         <label className="block text-sm font-medium text-portal-text mb-1.5">
           Account Number<span className="text-portal-accent">*</span>
@@ -401,7 +399,6 @@ function BankStep({
         )}
       </div>
 
-      {/* Verified Account Name */}
       {value.accountName ? (
         <div className="flex items-center gap-3 rounded-xl bg-green-50 border border-green-200 px-4 py-3">
           <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
@@ -450,7 +447,6 @@ function BankStep({
   );
 }
 
-// ─── Unapproved screen ────────────────────────────────────────────────────────
 
 function UnapprovedScreen({
   email,
@@ -487,7 +483,6 @@ function UnapprovedScreen({
   );
 }
 
-// ─── Commission screen ────────────────────────────────────────────────────────
 
 function CommissionStep({
   onBack,
@@ -543,7 +538,6 @@ function CommissionStep({
   );
 }
 
-// ─── Main component ────────────────────────────────────────────────────────────
 
 const step1Fields = [
   "firstName",
