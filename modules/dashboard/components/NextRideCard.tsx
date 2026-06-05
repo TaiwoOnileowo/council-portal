@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { motion } from "motion/react";
 import { ArrowRight, Bus, MapPin } from "lucide-react";
-import { useBookings } from "@/modules/transport/hooks/useBookings";
+import { useNextBooking } from "@/modules/transport/hooks/useNextBooking";
 import { BorderBeam } from "@/components/ui/border-beam";
 import { bookingStatusConfig } from "@/modules/dashboard/dashboard.constant";
 import {
@@ -13,17 +13,7 @@ import {
 import { formatAmount } from "@/lib/format";
 
 export default function NextRideCard() {
-  const { data, isLoading } = useBookings({
-    vendorId: "all",
-    search: "",
-    page: 0,
-  });
-
-  const bookings = data?.bookings ?? [];
-  const nextRide =
-    bookings.find((b) => b.status === "CONFIRMED") ??
-    bookings.find((b) => b.status === "PENDING") ??
-    null;
+  const { data: nextRide, isLoading } = useNextBooking();
 
   if (isLoading) {
     return (

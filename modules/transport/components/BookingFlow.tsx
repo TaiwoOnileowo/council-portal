@@ -16,6 +16,7 @@ import {
   ArrowRight,
   Bus,
   CalendarClock,
+  Check,
   CheckCircle2,
   ChevronDown,
   ChevronLeft,
@@ -27,7 +28,7 @@ import {
   X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -147,6 +148,13 @@ export default function BookingFlow({
     const q = search.toLowerCase();
     return priceList.routes.filter((r) => r.name.toLowerCase().includes(q));
   }, [search, priceList.routes]);
+
+  // With a single departure there's nothing to choose — preselect it.
+  useEffect(() => {
+    if (priceList.departureTimes.length === 1) {
+      setSelectedDeparture(priceList.departureTimes[0].departsAt);
+    }
+  }, [priceList.departureTimes]);
 
   function handleClose() {
     if (isProcessing) return;
@@ -399,14 +407,16 @@ export default function BookingFlow({
                     </div>
 
                     {priceList.departureTimes.length > 0 && (
-                      <div className="mb-4 bg-portal-bg border border-portal-border rounded-xl px-3.5 py-3">
+                      <div className="mb-4">
                         <div className="flex items-center gap-1.5 mb-2">
                           <CalendarClock className="w-3.5 h-3.5 text-portal-muted" />
-                          <p className="text-[11px] font-semibold text-portal-text2">
-                            Select your departure
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-portal-muted">
+                            {priceList.departureTimes.length === 1
+                              ? "Departure time"
+                              : "Choose your departure time"}
                           </p>
                         </div>
-                        <div className="flex flex-wrap gap-1.5">
+                        <div className="space-y-1.5">
                           {priceList.departureTimes.map((d, i) => {
                             const isSelected =
                               selectedDeparture === d.departsAt;
@@ -417,15 +427,37 @@ export default function BookingFlow({
                                 onClick={() =>
                                   setSelectedDeparture(d.departsAt)
                                 }
-                                className={`text-[12px] font-medium rounded-lg px-2.5 py-1 border transition-colors ${
+                                className={`w-full flex items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-left transition-colors ${
                                   isSelected
-                                    ? "bg-portal-accent text-white border-portal-accent"
-                                    : "bg-portal-surface text-portal-text border-portal-border hover:border-portal-accent"
+                                    ? "border-portal-accent bg-portal-accent/5"
+                                    : "border-portal-border bg-portal-bg hover:border-portal-accent/50"
                                 }`}
                               >
-                                {format(
-                                  new Date(d.departsAt),
-                                  "EEE d MMM · h:mm a",
+                                <span
+                                  className={`w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                                    isSelected
+                                      ? "border-portal-accent"
+                                      : "border-portal-border2"
+                                  }`}
+                                >
+                                  {isSelected && (
+                                    <span className="w-2 h-2 rounded-full bg-portal-accent" />
+                                  )}
+                                </span>
+                                <span
+                                  className={`text-[13px] font-medium ${
+                                    isSelected
+                                      ? "text-portal-text"
+                                      : "text-portal-text2"
+                                  }`}
+                                >
+                                  {format(
+                                    new Date(d.departsAt),
+                                    "EEE d MMM · h:mm a",
+                                  )}
+                                </span>
+                                {isSelected && (
+                                  <Check className="w-4 h-4 text-portal-accent ml-auto flex-shrink-0" />
                                 )}
                               </button>
                             );

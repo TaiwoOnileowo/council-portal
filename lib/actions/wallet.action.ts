@@ -3,6 +3,11 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
+import {
+  WALLET_TX_PAGE_SIZE,
+  type WalletTransactionsFilters,
+  type WalletTransactionsResponse,
+} from "@/modules/wallet/wallet.types";
 
 async function currentBalance(
   userId: string,
@@ -128,25 +133,44 @@ export async function verifyAndTopUpWallet({
   }
 }
 
-export async function getTransactionHistory() {
+export async function getTransactionHistory(
+  filters: WalletTransactionsFilters = { type: "all", page: 0 },
+): Promise<
+  { ok: true; data: WalletTransactionsResponse } | { ok: false; error: string }
+> {
   const session = await auth();
-  if (!session?.user?.id) return { error: "Unauthorized", transactions: [] };
+  if (!session?.user?.id) return { ok: false, error: "Unauthorized" };
 
-  const entries = await db.wallet.findMany({
-    where: { user_id: session.user.id },
-    orderBy: { created_at: "desc" },
-    take: 20,
-  });
+  const where: Prisma.walletWhereInput = {
+    user_id: session.user.id,
+    ...(filters.type !== "all" ? { type: filters.type } : {}),
+  };
 
-  const transactions = entries.map((t) => ({
-    id: t.id,
-    reason: t.reason,
-    type: t.type,
-    difference: t.difference,
-    balance: t.balance,
-    reference: t.reference,
-    createdAt: t.created_at.toISOString(),
-  }));
+  const safePage = Math.max(0, filters.page);
 
-  return { transactions };
+  const [entries, total] = await Promise.all([
+    db.wallet.findMany({
+      where,
+      orderBy: { created_at: "desc" },
+      skip: safePage * WALLET_TX_PAGE_SIZE,
+      take: WALLET_TX_PAGE_SIZE,
+    }),
+    db.wallet.count({ where }),
+  ]);
+
+  return {
+    ok: true,
+    data: {
+      total,
+      transactions: entries.map((t) => ({
+        id: t.id,
+        reason: t.reason,
+        type: t.type,
+        difference: t.difference,
+        balance: t.balance,
+        reference: t.reference,
+        createdAt: t.created_at.toISOString(),
+      })),
+    },
+  };
 }

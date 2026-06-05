@@ -5,6 +5,7 @@ export const queryKeys = {
       filters
         ? (["bookings", userId, filters] as const)
         : (["bookings", userId] as const),
+    next: (userId: string) => ["bookings", userId, "next"] as const,
   },
   vendors: {
     all: () => ["vendors"] as const,
@@ -12,6 +13,10 @@ export const queryKeys = {
   },
   wallet: {
     all: (userId: string) => ["wallet", userId] as const,
+    transactions: (userId: string, filters?: object) =>
+      filters
+        ? (["wallet", userId, "transactions", filters] as const)
+        : (["wallet", userId, "transactions"] as const),
   },
   banks: {
     all: () => ["banks", "NG"] as const,
