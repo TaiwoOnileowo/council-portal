@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { verifyBankAccount } from "@/lib/actions/bank.action";
 import { vendorBankSchema } from "@/modules/vendor/vendor.types";
 import BankSelector from "@/components/ui/BankSelector";
-import { inputClass } from "./shared";
+import { inputClass } from "@/lib/utils";
 
 export type BankFields = {
   bankCode: string;

@@ -11,29 +11,16 @@ import {
   type VendorSignUpInput,
 } from "@/modules/vendor/vendor.types";
 import { useBanks } from "@/modules/vendor/hooks/useBanks";
+import {
+  VENDOR_SIGNUP_STEP_1_FIELDS,
+  VENDOR_SIGNUP_STEP_2_FIELDS,
+} from "@/modules/auth/auth.constant";
 import StepIndicator from "./StepIndicator";
 import CredentialsStep from "./vendor-signup/CredentialsStep";
 import ProfileInfoStep from "./vendor-signup/ProfileInfoStep";
 import BankStep, { type BankFields } from "./vendor-signup/BankStep";
 import CommissionStep from "./vendor-signup/CommissionStep";
 import UnapprovedScreen from "./vendor-signup/UnapprovedScreen";
-
-const step1Fields = [
-  "firstName",
-  "lastName",
-  "email",
-  "phone",
-  "password",
-  "confirmPassword",
-] as const;
-
-const step2Fields = [
-  "transportName",
-  "tagline",
-  "description",
-  "tiktok",
-  "instagram",
-] as const;
 
 export default function VendorSignUpForm() {
   const router = useRouter();
@@ -60,7 +47,7 @@ export default function VendorSignUpForm() {
 
   async function handleStep1(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!(await methods.trigger(step1Fields))) return;
+    if (!(await methods.trigger(VENDOR_SIGNUP_STEP_1_FIELDS))) return;
 
     setChecking(true);
     try {
@@ -79,7 +66,7 @@ export default function VendorSignUpForm() {
 
   async function handleStep2(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (await methods.trigger(step2Fields)) setStep(3);
+    if (await methods.trigger(VENDOR_SIGNUP_STEP_2_FIELDS)) setStep(3);
   }
 
   async function handleFinalSubmit() {

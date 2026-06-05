@@ -3,8 +3,8 @@
 import { ChevronLeft } from "lucide-react";
 import { Controller, useFormContext } from "react-hook-form";
 import type { VendorSignUpInput } from "@/modules/vendor/vendor.types";
-import ImageUpload from "./ImageUpload";
-import { inputClass } from "./shared";
+import ImageUpload from "@/components/ui/ImageUpload";
+import { inputClass } from "@/lib/utils";
 
 type Props = {
   image: string;

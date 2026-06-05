@@ -3,14 +3,22 @@
 import { useRef, useState } from "react";
 import { Upload } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { uploadFiles } from "@/lib/uploadthing";
 
 type Props = {
   value: string;
   onChange: (url: string) => void;
+  size?: number;
+  hint?: string;
 };
 
-export default function ImageUpload({ value, onChange }: Props) {
+export default function ImageUpload({
+  value,
+  onChange,
+  size = 96,
+  hint = "Click to upload a display picture (max 4MB)",
+}: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
 
@@ -35,11 +43,14 @@ export default function ImageUpload({ value, onChange }: Props) {
   return (
     <div className="flex flex-col items-center gap-3">
       <div
-        className="relative w-24 h-24 rounded-full border-2 border-dashed border-portal-border bg-portal-bg flex items-center justify-center cursor-pointer hover:border-portal-accent transition-colors overflow-hidden"
+        style={{ width: size, height: size }}
         onClick={() => fileInputRef.current?.click()}
+        className={cn(
+          "relative border-2 border-dashed rounded-full border-portal-border bg-portal-bg flex items-center justify-center cursor-pointer hover:border-portal-accent transition-colors overflow-hidden",
+        )}
       >
         {value ? (
-          <img src={value} alt="Profile" className="w-full h-full object-cover" />
+          <img src={value} alt="" className="w-full h-full object-cover" />
         ) : (
           <div className="flex flex-col items-center gap-1 text-portal-muted">
             <Upload className="w-6 h-6" />
@@ -69,9 +80,7 @@ export default function ImageUpload({ value, onChange }: Props) {
           Remove image
         </button>
       )}
-      <p className="text-xs text-portal-muted text-center">
-        Click to upload a display picture (max 4MB)
-      </p>
+      {hint && <p className="text-xs text-portal-muted text-center">{hint}</p>}
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { Controller, useFormContext } from "react-hook-form";
 import type { VendorSignUpInput } from "@/modules/vendor/vendor.types";
-import { inputClass } from "./shared";
+import { inputClass } from "@/lib/utils";
 
 type Props = {
   onSubmit: (e: React.SubmitEvent<HTMLFormElement>) => void;

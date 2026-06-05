@@ -1,16 +1,17 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "motion/react";
-import { Pencil, Check, X, Upload, Instagram, Link } from "lucide-react";
+import { Pencil, Check, X, Instagram, Link } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { updateVendorProfile } from "@/lib/actions/vendor.action";
 import { CURRENT_USER_KEY } from "@/modules/auth/hooks/useCurrentUser";
 import { vendorStep2Schema, VendorStep2Fields } from "@/modules/vendor/vendor.types";
-import { uploadFiles } from "@/lib/uploadthing";
+import ImageUpload from "@/components/ui/ImageUpload";
+import { inputClass } from "@/lib/utils";
 
 type TransportFields = {
   transportName: string;
@@ -30,90 +31,7 @@ type Props = {
   };
 };
 
-const inputCls = (err?: string) =>
-  `w-full text-[13.5px] text-portal-text bg-portal-bg border ${
-    err
-      ? "border-red-400 focus:ring-red-300"
-      : "border-portal-border focus:border-portal-accent focus:ring-portal-accent/30"
-  } rounded-lg px-3 py-2 focus:outline-none focus:ring-2 transition-all`;
-
-function ImageUpload({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (url: string) => void;
-}) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
-
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    try {
-      const res = await uploadFiles("vendorProfileImage", { files: [file] });
-      if (res?.[0]?.ufsUrl) {
-        onChange(res[0].ufsUrl);
-        toast.success("Image uploaded!");
-      }
-    } catch {
-      toast.error("Failed to upload image. Please try again.");
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  return (
-    <div className="flex items-center gap-4">
-      <div
-        className="relative w-16 h-16 rounded-xl border-2 border-dashed border-portal-border bg-portal-bg flex items-center justify-center cursor-pointer hover:border-portal-accent transition-colors overflow-hidden flex-shrink-0"
-        onClick={() => fileInputRef.current?.click()}
-      >
-        {value ? (
-          <img
-            src={value}
-            alt="Transport logo"
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <Upload className="w-5 h-5 text-portal-muted" />
-        )}
-        {uploading && (
-          <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
-            <div className="w-4 h-4 border-2 border-portal-accent border-t-transparent rounded-full animate-spin" />
-          </div>
-        )}
-      </div>
-      <div className="space-y-1">
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
-          className="text-[12px] font-medium text-portal-accent hover:underline disabled:opacity-50"
-        >
-          {uploading ? "Uploading..." : value ? "Change image" : "Upload logo"}
-        </button>
-        {value && (
-          <div>
-            <button type="button" onClick={() => onChange("")} className="text-[12px] text-red-500 hover:underline block">
-              Remove
-            </button>
-          </div>
-        )}
-        <p className="text-[11px] text-portal-muted">Max 4MB</p>
-      </div>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handleFileChange}
-        disabled={uploading}
-      />
-    </div>
-  );
-}
+const inputCls = (err?: string) => inputClass(err, "sm");
 
 export default function VendorBusinessProfile({ vendor }: Props) {
   const queryClient = useQueryClient();
@@ -234,7 +152,9 @@ export default function VendorBusinessProfile({ vendor }: Props) {
           {editing ? (
             <ImageUpload
               value={draftImage}
-              onChange={(url) => setDraftImage(url)}
+              onChange={setDraftImage}
+              size={64}
+              hint="Max 4MB"
             />
           ) : (
             <div className="flex items-center gap-3 py-1">

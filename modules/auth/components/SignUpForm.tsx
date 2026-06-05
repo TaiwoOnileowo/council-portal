@@ -9,26 +9,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { signUpUser } from "@/lib/actions/user.action";
 import { signUpSchema, LEVELS } from "@/modules/auth/auth.types";
 import type { SignUpInput } from "@/modules/auth/auth.types";
+import {
+  SIGNUP_STEP_1_FIELDS,
+  OTP_RESEND_COOLDOWN,
+  EMAIL_VERIFICATION_DEFAULT,
+} from "@/modules/auth/auth.constant";
+import { inputClass } from "@/lib/utils";
 import StepIndicator from "./StepIndicator";
 import OtpInput from "./OtpInput";
-
-const STEP_1_FIELDS = [
-  "firstName",
-  "lastName",
-  "email",
-  "password",
-  "confirmPassword",
-] as const;
-
-const RESEND_COOLDOWN = 60;
-const EMAIL_VERIFICATION_DEFAULT = true;
-
-const inputClass = (err?: string) =>
-  `w-full rounded-lg border ${
-    err
-      ? "border-red-400 focus:border-red-400 focus:ring-red-400"
-      : "border-portal-border focus:border-portal-accent focus:ring-portal-accent"
-  } bg-white px-4 py-3 text-[15px] text-portal-text placeholder:text-portal-muted outline-none focus:ring-1 transition`;
 
 export default function SignUpForm() {
   const router = useRouter();
@@ -83,14 +71,14 @@ export default function SignUpForm() {
       return false;
     }
 
-    setCooldown(RESEND_COOLDOWN);
+    setCooldown(OTP_RESEND_COOLDOWN);
     if (data.fromEmail) setFromEmail(data.fromEmail);
     return true;
   }, []);
 
   async function handleNext(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
-    const valid = await trigger(STEP_1_FIELDS);
+    const valid = await trigger(SIGNUP_STEP_1_FIELDS);
     if (!valid) return;
 
     if (!emailVerification || getValues("email") === verifiedEmail) {

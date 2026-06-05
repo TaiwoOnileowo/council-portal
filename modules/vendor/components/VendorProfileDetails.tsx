@@ -11,6 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { updateVendorProfile } from "@/lib/actions/vendor.action";
 import { CURRENT_USER_KEY } from "@/modules/auth/hooks/useCurrentUser";
 import { updateVendorPersonalInfoSchema } from "@/modules/vendor/vendor.types";
+import { inputClass } from "@/lib/utils";
 
 type ProfileFields = {
   firstName: string;
@@ -19,18 +20,15 @@ type ProfileFields = {
   phone: string;
 };
 
-type UpdateVendorPersonalInfoInput = z.infer<typeof updateVendorPersonalInfoSchema>;
+type UpdateVendorPersonalInfoInput = z.infer<
+  typeof updateVendorPersonalInfoSchema
+>;
 
 type Props = {
   vendor: ProfileFields & { id: string };
 };
 
-const inputCls = (err?: string) =>
-  `w-full text-[13.5px] text-portal-text bg-portal-bg border ${
-    err
-      ? "border-red-400 focus:ring-red-300"
-      : "border-portal-border focus:border-portal-accent focus:ring-portal-accent/30"
-  } rounded-lg px-3 py-2 focus:outline-none focus:ring-2 transition-all`;
+const inputCls = (err?: string) => inputClass(err, "sm");
 
 export default function VendorProfileDetails({ vendor }: Props) {
   const queryClient = useQueryClient();
@@ -123,7 +121,9 @@ export default function VendorProfileDetails({ vendor }: Props) {
 
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div>
-          <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">First Name</label>
+          <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">
+            First Name
+          </label>
           {editing ? (
             <>
               <input
@@ -131,14 +131,22 @@ export default function VendorProfileDetails({ vendor }: Props) {
                 {...register("firstName")}
                 className={inputCls(errors.firstName?.message)}
               />
-              {errors.firstName && <p className="mt-1 text-xs text-red-500">{errors.firstName.message}</p>}
+              {errors.firstName && (
+                <p className="mt-1 text-xs text-red-500">
+                  {errors.firstName.message}
+                </p>
+              )}
             </>
           ) : (
-            <p className="text-[13.5px] font-medium text-portal-text py-2">{profile.firstName}</p>
+            <p className="text-[13.5px] font-medium text-portal-text py-2">
+              {profile.firstName}
+            </p>
           )}
         </div>
         <div>
-          <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">Last Name</label>
+          <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">
+            Last Name
+          </label>
           {editing ? (
             <>
               <input
@@ -146,16 +154,24 @@ export default function VendorProfileDetails({ vendor }: Props) {
                 {...register("lastName")}
                 className={inputCls(errors.lastName?.message)}
               />
-              {errors.lastName && <p className="mt-1 text-xs text-red-500">{errors.lastName.message}</p>}
+              {errors.lastName && (
+                <p className="mt-1 text-xs text-red-500">
+                  {errors.lastName.message}
+                </p>
+              )}
             </>
           ) : (
-            <p className="text-[13.5px] font-medium text-portal-text py-2">{profile.lastName}</p>
+            <p className="text-[13.5px] font-medium text-portal-text py-2">
+              {profile.lastName}
+            </p>
           )}
         </div>
       </div>
 
       <div className="mb-4">
-        <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">Email Address</label>
+        <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">
+          Email Address
+        </label>
         {editing ? (
           <>
             <div className="flex items-center gap-2.5">
@@ -166,18 +182,26 @@ export default function VendorProfileDetails({ vendor }: Props) {
                 className={inputCls(errors.email?.message)}
               />
             </div>
-            {errors.email && <p className="mt-1 text-xs text-red-500 pl-6">{errors.email.message}</p>}
+            {errors.email && (
+              <p className="mt-1 text-xs text-red-500 pl-6">
+                {errors.email.message}
+              </p>
+            )}
           </>
         ) : (
           <div className="flex items-center gap-2.5 py-2">
             <Mail className="w-4 h-4 text-portal-muted flex-shrink-0" />
-            <p className="text-[13.5px] font-medium text-portal-text">{profile.email}</p>
+            <p className="text-[13.5px] font-medium text-portal-text">
+              {profile.email}
+            </p>
           </div>
         )}
       </div>
 
       <div>
-        <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">Phone Number</label>
+        <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">
+          Phone Number
+        </label>
         {editing ? (
           <>
             <div className="flex items-center gap-2.5">
@@ -189,7 +213,11 @@ export default function VendorProfileDetails({ vendor }: Props) {
                   <input
                     {...field}
                     type="tel"
-                    onChange={(e) => field.onChange(e.target.value.replace(/\D/g, "").slice(0, 11))}
+                    onChange={(e) =>
+                      field.onChange(
+                        e.target.value.replace(/\D/g, "").slice(0, 11),
+                      )
+                    }
                     inputMode="numeric"
                     maxLength={11}
                     placeholder="08012345678"
@@ -198,12 +226,18 @@ export default function VendorProfileDetails({ vendor }: Props) {
                 )}
               />
             </div>
-            {errors.phone && <p className="mt-1 text-xs text-red-500 pl-6">{errors.phone.message}</p>}
+            {errors.phone && (
+              <p className="mt-1 text-xs text-red-500 pl-6">
+                {errors.phone.message}
+              </p>
+            )}
           </>
         ) : (
           <div className="flex items-center gap-2.5 py-2">
             <Phone className="w-4 h-4 text-portal-muted flex-shrink-0" />
-            <p className="text-[13.5px] font-medium text-portal-text">{profile.phone || "—"}</p>
+            <p className="text-[13.5px] font-medium text-portal-text">
+              {profile.phone || "—"}
+            </p>
           </div>
         )}
       </div>

@@ -11,6 +11,7 @@ import { updateVendorProfile } from "@/lib/actions/vendor.action";
 import { vendorBankSchema } from "@/modules/vendor/vendor.types";
 import { useBanks } from "@/modules/vendor/hooks/useBanks";
 import BankSelector from "@/components/ui/BankSelector";
+import { inputClass } from "@/lib/utils";
 
 type BankFields = {
   bankCode: string;
@@ -23,12 +24,7 @@ type Props = {
   vendor: { id: string } & Partial<BankFields>;
 };
 
-const inputCls = (err?: string) =>
-  `w-full text-[13.5px] text-portal-text bg-portal-bg border ${
-    err
-      ? "border-red-400 focus:ring-red-300"
-      : "border-portal-border focus:border-portal-accent focus:ring-portal-accent/30"
-  } rounded-lg px-3 py-2 focus:outline-none focus:ring-2 transition-all`;
+const inputCls = (err?: string) => inputClass(err, "sm");
 
 export default function VendorBankDetails({ vendor }: Props) {
   useBanks();

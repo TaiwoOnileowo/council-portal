@@ -24,6 +24,7 @@ import {
   UpdateProfileInput,
   LevelValue,
 } from "@/modules/auth/auth.types";
+import { inputClass } from "@/lib/utils";
 
 type ProfileFields = {
   firstName: string;
@@ -39,12 +40,7 @@ type Props = {
   user: Omit<ProfileFields, "level"> & { id: string; level: string };
 };
 
-const inputCls = (err?: string) =>
-  `w-full text-[13.5px] text-portal-text bg-portal-bg border ${
-    err
-      ? "border-red-400 focus:ring-red-300"
-      : "border-portal-border focus:border-portal-accent focus:ring-portal-accent/30"
-  } rounded-lg px-3 py-2 focus:outline-none focus:ring-2 transition-all`;
+const inputCls = (err?: string) => inputClass(err, "sm");
 
 export default function ProfileDetails({ user }: Props) {
   const queryClient = useQueryClient();
