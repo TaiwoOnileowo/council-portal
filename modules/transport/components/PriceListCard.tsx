@@ -1,4 +1,4 @@
-import type { PriceList } from "@/modules/vendor/vendor.types";
+import type { PriceList } from "@/modules/transport/transport.types";
 import StatusPill from "./StatusPill";
 
 export default function PriceListCard({ pl, onEdit }: { pl: PriceList; onEdit: () => void }) {

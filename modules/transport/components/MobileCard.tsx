@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import type { VendorBooking } from "@/modules/vendor/vendor.types";
+import type { TransportBooking } from "@/modules/transport/transport.types";
 import DirectionBadge from "./DirectionBadge";
 import StatusBadge from "./StatusBadge";
 
@@ -8,7 +8,7 @@ export default function MobileCard({
   showStatus,
   onClick,
 }: {
-  booking: VendorBooking;
+  booking: TransportBooking;
   showStatus: boolean;
   onClick: () => void;
 }) {

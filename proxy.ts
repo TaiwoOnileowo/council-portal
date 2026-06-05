@@ -34,14 +34,15 @@ const PUBLIC_ROUTES: PublicRoute[] = [
   {
     pattern: /^\/gate(\/.*)?$/,
     description: "Login gate — bounce authenticated non-vendors home",
-    resolve: (session) => (session && !session.user.isVendor ? "/" : null),
+    resolve: (session) =>
+      session && session.user.role !== "VENDOR" ? "/" : null,
   },
   {
     pattern: /^\/vendor-gate(\/.*)?$/,
     description:
       "Vendor login gate — bounce authenticated vendors to dashboard",
     resolve: (session) =>
-      session && session.user.isVendor ? "/vendor-dashboard" : null,
+      session && session.user.role === "VENDOR" ? "/vendor-dashboard" : null,
   },
 ];
 

@@ -6,18 +6,25 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { requestPasswordReset } from "@/lib/actions/password.action";
 
-const forgotSchema = z.object({
+const studentSchema = z.object({
   email: z.string().regex(/@stu\.cu\.edu\.ng$/, "Only @stu.cu.edu.ng email addresses are allowed"),
 });
-type ForgotInput = z.infer<typeof forgotSchema>;
+const vendorSchema = z.object({
+  email: z.string().email("Please enter a valid email address"),
+});
+type ForgotInput = z.infer<typeof studentSchema>;
 
 type Step = "email" | "sent";
 
 interface ForgotPasswordFormProps {
   onBack: () => void;
+  isVendor?: boolean;
 }
 
-export default function ForgotPasswordForm({ onBack }: ForgotPasswordFormProps) {
+export default function ForgotPasswordForm({
+  onBack,
+  isVendor = false,
+}: ForgotPasswordFormProps) {
   const [step, setStep] = useState<Step>("email");
   const [sentEmail, setSentEmail] = useState("");
 
@@ -26,7 +33,7 @@ export default function ForgotPasswordForm({ onBack }: ForgotPasswordFormProps) 
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<ForgotInput>({
-    resolver: zodResolver(forgotSchema),
+    resolver: zodResolver(isVendor ? vendorSchema : studentSchema),
   });
 
   async function onSubmit(data: ForgotInput) {
@@ -72,7 +79,7 @@ export default function ForgotPasswordForm({ onBack }: ForgotPasswordFormProps) 
         <input
           type="email"
           {...register("email")}
-          placeholder="you@stu.cu.edu.ng"
+          placeholder={isVendor ? "yourname@vendor.council.ng" : "you@stu.cu.edu.ng"}
           className={`w-full rounded-lg border bg-white px-4 py-3 text-[15px] text-portal-text placeholder:text-portal-muted outline-none focus:ring-1 transition ${
             errors.email
               ? "border-red-300 focus:border-red-400 focus:ring-red-200"

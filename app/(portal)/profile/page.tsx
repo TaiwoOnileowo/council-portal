@@ -1,22 +1,21 @@
-import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import ChangePassword from "@/modules/profile/components/ChangePassword";
-import MyReviews from "@/modules/profile/components/MyReviews";
 import ProfileDetails from "@/modules/profile/components/ProfileDetails";
 import ProfileHeader from "@/modules/profile/components/ProfileHeader";
+import { redirect } from "next/navigation";
 
 export default async function ProfilePage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/gate");
 
-  const dbUser = await db.user.findUnique({ where: { id: session.user.id } });
+  const dbUser = await db.user.findUnique({
+    where: { id: session.user.id },
+    include: { student_profile: true },
+  });
   if (!dbUser) redirect("/gate");
 
-  const nameParts = dbUser.name.trim().split(/\s+/);
-  const firstName = nameParts[0] ?? "";
-  const lastName = nameParts.slice(1).join(" ");
-  const level = dbUser.level.replace("L", "");
+  const level = dbUser.student_profile?.level.replace("L", "") ?? "";
 
   return (
     <>
@@ -27,13 +26,13 @@ export default async function ProfilePage() {
           <ProfileDetails
             user={{
               id: dbUser.id,
-              firstName,
-              lastName,
+              firstName: dbUser.first_name,
+              lastName: dbUser.last_name,
               email: dbUser.email,
               phone: dbUser.phone,
-              matricNumber: dbUser.matricNumber,
+              matricNumber: dbUser.student_profile?.matric_number ?? "",
               level,
-              department: dbUser.department,
+              department: dbUser.student_profile?.department ?? "",
             }}
           />
           <ChangePassword email={dbUser.email} />

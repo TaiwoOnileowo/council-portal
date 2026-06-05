@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion } from "motion/react";
 import { Power } from "lucide-react";
 import { toast } from "sonner";
-import { updateVendorAvailability } from "@/lib/actions/vendor.action";
+import { updateVendorProfile } from "@/lib/actions/vendor.action";
 
 type Props = {
   initialIsActive: boolean;
@@ -20,8 +20,8 @@ export default function AvailabilityToggle({ initialIsActive }: Props) {
     setIsPending(true);
 
     try {
-      const result = await updateVendorAvailability(next);
-      if (!result.ok) throw new Error(result.error);
+      const result = await updateVendorProfile({ isActive: next });
+      if (result?.error) throw new Error(result.error);
     } catch {
       setAvailable(!next);
       toast.error("Failed to update availability. Please try again.");

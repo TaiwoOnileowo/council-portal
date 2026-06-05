@@ -1,35 +1,36 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { ZodError } from "zod";
-import { signInSchema } from "@/modules/auth/auth.types";
-import { vendorSignInSchema } from "@/modules/vendor/vendor.types";
+import { credentialsSchema } from "@/modules/auth/auth.types";
 import { db } from "@/lib/db";
 import { verifyPassword } from "@/lib/password";
+import type { Role } from "@/generated/prisma/enums";
 
 declare module "next-auth" {
   interface Session {
     user: {
       id: string;
       name: string | null | undefined;
+      firstName: string;
+      lastName: string;
       email: string;
       image: string | null | undefined;
-      role: string;
-      isVendor?: boolean;
+      role: Role;
     };
   }
   interface User {
     id?: string;
     name?: string | null;
+    firstName?: string;
+    lastName?: string;
     email?: string | null;
     image?: string | null;
-    role?: string;
-    isVendor?: boolean;
+    role?: Role;
   }
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
-    // Student credentials provider
     Credentials({
       id: "credentials",
       credentials: {
@@ -38,15 +39,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
       authorize: async (credentials) => {
         try {
-          const { email, password } = await signInSchema.parseAsync(credentials);
+          const { email, password } =
+            await credentialsSchema.parseAsync(credentials);
 
           const user = await db.user.findUnique({ where: { email } });
 
-          if (!user || !user.passwordHash) {
+          if (!user || !user.password_hash) {
             throw new Error("Invalid email or password");
           }
 
-          const isValid = await verifyPassword(password, user.passwordHash);
+          const isValid = await verifyPassword(password, user.password_hash);
 
           if (!isValid) {
             throw new Error("Invalid email or password");
@@ -54,51 +56,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
           return {
             id: user.id,
-            name: user.name,
+            name: `${user.first_name} ${user.last_name}`,
+            firstName: user.first_name,
+            lastName: user.last_name,
             email: user.email,
             image: user.image,
             role: user.role,
-            isVendor: false,
-          };
-        } catch (error) {
-          if (error instanceof ZodError) {
-            throw new Error("Invalid input format");
-          }
-          throw error;
-        }
-      },
-    }),
-
-    // Vendor credentials provider
-    Credentials({
-      id: "vendor",
-      credentials: {
-        email: {},
-        password: {},
-      },
-      authorize: async (credentials) => {
-        try {
-          const { email, password } = await vendorSignInSchema.parseAsync(credentials);
-
-          const vendor = await db.vendor.findUnique({ where: { email } });
-
-          if (!vendor) {
-            throw new Error("Invalid email or password");
-          }
-
-          const isValid = await verifyPassword(password, vendor.passwordHash);
-
-          if (!isValid) {
-            throw new Error("Invalid email or password");
-          }
-
-          return {
-            id: vendor.id,
-            name: `${vendor.firstName} ${vendor.lastName}`,
-            email: vendor.email,
-            image: vendor.image,
-            role: "VENDOR",
-            isVendor: true,
           };
         } catch (error) {
           if (error instanceof ZodError) {
@@ -114,14 +77,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.id = user.id;
         token.role = user.role;
-        token.isVendor = user.isVendor ?? false;
+        token.firstName = user.firstName;
+        token.lastName = user.lastName;
       }
       return token;
     },
     async session({ session, token }) {
       session.user.id = token.id as string;
-      session.user.role = token.role as string;
-      session.user.isVendor = token.isVendor as boolean;
+      session.user.role = token.role as Role;
+      session.user.firstName = token.firstName as string;
+      session.user.lastName = token.lastName as string;
       return session;
     },
   },

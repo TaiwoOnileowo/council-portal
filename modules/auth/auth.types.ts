@@ -1,16 +1,12 @@
 import { z } from "zod";
+import { STUDENT_EMAIL_DOMAIN, LEVELS } from "@/modules/auth/auth.constant";
 
-export const LEVELS = ["100", "200", "300", "400", "500"] as const;
-export type LevelValue = (typeof LEVELS)[number];
+export { LEVELS };
+export type { LevelValue } from "@/modules/auth/auth.constant";
 
-export const signInSchema = z.object({
-  email: z
-    .string()
-    .email("Please enter a valid email")
-    .refine((v) => v.endsWith("@stu.cu.edu.ng"), {
-      message: "Only @stu.cu.edu.ng email addresses are allowed",
-    }),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+export const credentialsSchema = z.object({
+  email: z.string().email("Please enter a valid email"),
+  password: z.string().min(1, "Password is required"),
 });
 
 export const signUpBaseSchema = z.object({
@@ -19,12 +15,10 @@ export const signUpBaseSchema = z.object({
   email: z
     .string()
     .email("Please enter a valid email")
-    .refine((v) => v.endsWith("@stu.cu.edu.ng"), {
-      message: "Only @stu.cu.edu.ng email addresses are allowed",
+    .refine((v) => v.endsWith(STUDENT_EMAIL_DOMAIN), {
+      message: `Only ${STUDENT_EMAIL_DOMAIN} email addresses are allowed`,
     }),
-  phone: z
-    .string()
-    .regex(/^\d{11}$/, "Phone number must be exactly 11 digits"),
+  phone: z.string().regex(/^\d{11}$/, "Phone number must be exactly 11 digits"),
   matricNumber: z.string().min(10, "Enter a valid matric number"),
   department: z.string().min(3, "Department is required"),
   level: z.enum(["100", "200", "300", "400", "500"], {
@@ -36,21 +30,19 @@ export const signUpBaseSchema = z.object({
 
 export const signUpSchema = signUpBaseSchema.refine(
   (data) => data.password === data.confirmPassword,
-  { message: "Passwords do not match", path: ["confirmPassword"] }
+  { message: "Passwords do not match", path: ["confirmPassword"] },
 );
 
-export const updateProfileSchema = z.object({
+export const updateStudentProfileSchema = z.object({
   firstName: z.string().min(2, "First name must be at least 2 characters"),
   lastName: z.string().min(2, "Last name must be at least 2 characters"),
   email: z
     .string()
     .email("Please enter a valid email")
-    .refine((v) => v.endsWith("@stu.cu.edu.ng"), {
-      message: "Only @stu.cu.edu.ng email addresses are allowed",
+    .refine((v) => v.endsWith(STUDENT_EMAIL_DOMAIN), {
+      message: `Only ${STUDENT_EMAIL_DOMAIN} email addresses are allowed`,
     }),
-  phone: z
-    .string()
-    .regex(/^\d{11}$/, "Phone number must be exactly 11 digits"),
+  phone: z.string().regex(/^\d{11}$/, "Phone number must be exactly 11 digits"),
   matricNumber: z.string().min(10, "Enter a valid matric number"),
   department: z.string().min(2, "Department is required"),
   level: z.enum(["100", "200", "300", "400", "500"], {
@@ -68,7 +60,7 @@ export const newPasswordSchema = z
     path: ["confirmPassword"],
   });
 
-export type SignInInput = z.infer<typeof signInSchema>;
+export type CredentialsInput = z.infer<typeof credentialsSchema>;
 export type SignUpInput = z.infer<typeof signUpSchema>;
-export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+export type UpdateProfileInput = z.infer<typeof updateStudentProfileSchema>;
 export type NewPasswordInput = z.infer<typeof newPasswordSchema>;

@@ -4,9 +4,9 @@ import { useState, useRef } from "react";
 import { motion } from "motion/react";
 import { format } from "date-fns";
 import { ChevronDown, Loader2, Users } from "lucide-react";
-import { useVendorBookings } from "@/modules/vendor/hooks/useVendorBookings";
-import type { VendorBooking } from "@/modules/vendor/vendor.types";
-import VendorBookingDetailModal from "@/modules/vendor/components/VendorBookingDetailModal";
+import { useTransportBookings } from "@/modules/transport/hooks/useTransportBookings";
+import type { TransportBooking } from "@/modules/transport/transport.types";
+import TransportBookingDetailModal from "@/modules/transport/components/TransportBookingDetailModal";
 import DirectionBadge from "./DirectionBadge";
 import StatusBadge from "./StatusBadge";
 import MobileCard from "./MobileCard";
@@ -18,10 +18,10 @@ export default function IncomingBookings() {
   const [route, setRoute] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [selected, setSelected] = useState<VendorBooking | null>(null);
+  const [selected, setSelected] = useState<TransportBooking | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
 
-  const { data, isLoading, isError } = useVendorBookings({ tab, route, dateFrom, dateTo });
+  const { data, isLoading, isError } = useTransportBookings({ tab, route, dateFrom, dateTo });
 
   const bookings = data?.bookings ?? [];
   const routes = data?.routes ?? [];
@@ -225,7 +225,7 @@ export default function IncomingBookings() {
         </div>
       </motion.div>
 
-      <VendorBookingDetailModal
+      <TransportBookingDetailModal
         booking={selected}
         open={!!selected}
         onClose={() => setSelected(null)}

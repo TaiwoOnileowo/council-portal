@@ -5,7 +5,7 @@ import type {
   PublicPriceList,
   PublicRoute,
   PublicVendor,
-} from "@/lib/actions/vendor.action";
+} from "@/lib/actions/transport.action";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   AlertCircle,

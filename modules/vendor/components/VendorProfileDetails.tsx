@@ -7,7 +7,9 @@ import { z } from "zod";
 import { motion } from "motion/react";
 import { Pencil, Check, X, Mail, Phone } from "lucide-react";
 import { toast } from "sonner";
-import { updateVendorPersonalInfo } from "@/lib/actions/vendor.action";
+import { useQueryClient } from "@tanstack/react-query";
+import { updateVendorProfile } from "@/lib/actions/vendor.action";
+import { CURRENT_USER_KEY } from "@/modules/auth/hooks/useCurrentUser";
 import { updateVendorPersonalInfoSchema } from "@/modules/vendor/vendor.types";
 
 type ProfileFields = {
@@ -31,6 +33,7 @@ const inputCls = (err?: string) =>
   } rounded-lg px-3 py-2 focus:outline-none focus:ring-2 transition-all`;
 
 export default function VendorProfileDetails({ vendor }: Props) {
+  const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [profile, setProfile] = useState<ProfileFields>({
     firstName: vendor.firstName,
@@ -60,8 +63,7 @@ export default function VendorProfileDetails({ vendor }: Props) {
   }
 
   async function onSubmit(data: UpdateVendorPersonalInfoInput) {
-    const result = await updateVendorPersonalInfo({
-      vendorId: vendor.id,
+    const result = await updateVendorProfile({
       firstName: data.firstName,
       lastName: data.lastName,
       email: data.email,
@@ -75,6 +77,7 @@ export default function VendorProfileDetails({ vendor }: Props) {
 
     setProfile(data);
     setEditing(false);
+    queryClient.invalidateQueries({ queryKey: CURRENT_USER_KEY });
     toast.success("Profile updated successfully");
   }
 

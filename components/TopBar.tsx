@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
+import { useCurrentUser } from "@/modules/auth/hooks/useCurrentUser";
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -9,7 +10,10 @@ function getGreeting() {
   return "Good evening";
 }
 
-export default function TopBar({ firstName }: { firstName: string }) {
+export default function TopBar() {
+  const { data: user } = useCurrentUser();
+  const firstName = user?.firstName ?? "there";
+
   return (
     <motion.div
       className="flex items-start justify-between mb-7"

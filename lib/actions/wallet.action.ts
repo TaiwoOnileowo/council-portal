@@ -2,21 +2,25 @@
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import type { Prisma } from "@/generated/prisma/client";
 
-async function getOrCreateWallet(userId: string) {
-  return db.wallet.upsert({
-    where: { userId },
-    create: { userId },
-    update: {},
+async function currentBalance(
+  userId: string,
+  client: Prisma.TransactionClient | typeof db = db,
+): Promise<number> {
+  const latest = await client.wallet.findFirst({
+    where: { user_id: userId },
+    orderBy: { created_at: "desc" },
+    select: { balance: true },
   });
+  return latest?.balance ?? 0;
 }
 
 export async function getWalletBalance() {
   const session = await auth();
   if (!session?.user?.id) return { error: "Unauthorized" };
 
-  const wallet = await getOrCreateWallet(session.user.id);
-  return { balance: wallet.balance };
+  return { balance: await currentBalance(session.user.id) };
 }
 
 export async function topUpWallet(amountKobo: number) {
@@ -25,28 +29,26 @@ export async function topUpWallet(amountKobo: number) {
 
   if (amountKobo <= 0) return { error: "Invalid amount" };
 
+  const userId = session.user.id;
   const ref = `TXN-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
 
-  const wallet = await getOrCreateWallet(session.user.id);
-
-  const [, updatedWallet] = await db.$transaction([
-    db.transaction.create({
+  const entry = await db.$transaction(async (tx) => {
+    const balance = await currentBalance(userId, tx);
+    return tx.wallet.create({
       data: {
-        walletId: wallet.id,
-        type: "TOP_UP",
-        status: "COMPLETED",
-        amount: amountKobo,
-        description: "Wallet top-up",
-        ref,
+        user_id: userId,
+        difference: amountKobo,
+        balance: balance + amountKobo,
+        reason: "Wallet top-up",
+        type: "topup",
+        model_responsible: "Payment",
+        reference: ref,
       },
-    }),
-    db.wallet.update({
-      where: { id: wallet.id },
-      data: { balance: { increment: amountKobo } },
-    }),
-  ]);
+      select: { balance: true },
+    });
+  });
 
-  return { balance: updatedWallet.balance, ref };
+  return { balance: entry.balance, ref };
 }
 
 export async function verifyAndTopUpWallet({
@@ -64,10 +66,9 @@ export async function verifyAndTopUpWallet({
   const userId = session.user.id;
 
   // Idempotency — already processed
-  const existing = await db.transaction.findUnique({ where: { ref: txRef } });
+  const existing = await db.wallet.findUnique({ where: { reference: txRef } });
   if (existing) {
-    const wallet = await db.wallet.findUnique({ where: { userId } });
-    return { balance: wallet?.balance ?? 0, ref: txRef };
+    return { balance: await currentBalance(userId), ref: txRef };
   }
 
   // Verify with Flutterwave
@@ -104,30 +105,26 @@ export async function verifyAndTopUpWallet({
     return { error: "Payment amount mismatch." };
   }
 
-  const wallet = await getOrCreateWallet(userId);
-
   try {
-    const [, updatedWallet] = await db.$transaction([
-      db.transaction.create({
+    const entry = await db.$transaction(async (tx) => {
+      const balance = await currentBalance(userId, tx);
+      return tx.wallet.create({
         data: {
-          walletId: wallet.id,
-          type: "TOP_UP",
-          status: "COMPLETED",
-          amount: amountKobo,
-          description: "Wallet top-up",
-          ref: txRef,
+          user_id: userId,
+          difference: amountKobo,
+          balance: balance + amountKobo,
+          reason: "Wallet top-up",
+          type: "topup",
+          model_responsible: "Payment",
+          reference: txRef,
         },
-      }),
-      db.wallet.update({
-        where: { id: wallet.id },
-        data: { balance: { increment: amountKobo } },
-      }),
-    ]);
-    return { balance: updatedWallet.balance, ref: txRef };
+        select: { balance: true },
+      });
+    });
+    return { balance: entry.balance, ref: txRef };
   } catch {
-    // Unique constraint race — return current balance
-    const w = await db.wallet.findUnique({ where: { userId } });
-    return { balance: w?.balance ?? 0, ref: txRef };
+    // Unique constraint race — already processed
+    return { balance: await currentBalance(userId), ref: txRef };
   }
 }
 
@@ -135,15 +132,21 @@ export async function getTransactionHistory() {
   const session = await auth();
   if (!session?.user?.id) return { error: "Unauthorized", transactions: [] };
 
-  const wallet = await db.wallet.findUnique({
-    where: { userId: session.user.id },
-    include: {
-      transactions: {
-        orderBy: { createdAt: "desc" },
-        take: 20,
-      },
-    },
+  const entries = await db.wallet.findMany({
+    where: { user_id: session.user.id },
+    orderBy: { created_at: "desc" },
+    take: 20,
   });
 
-  return { transactions: wallet?.transactions ?? [] };
+  const transactions = entries.map((t) => ({
+    id: t.id,
+    reason: t.reason,
+    type: t.type,
+    difference: t.difference,
+    balance: t.balance,
+    reference: t.reference,
+    createdAt: t.created_at.toISOString(),
+  }));
+
+  return { transactions };
 }

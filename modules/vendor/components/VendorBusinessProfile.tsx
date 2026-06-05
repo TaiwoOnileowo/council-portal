@@ -6,7 +6,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "motion/react";
 import { Pencil, Check, X, Upload, Instagram, Link } from "lucide-react";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import { updateVendorProfile } from "@/lib/actions/vendor.action";
+import { CURRENT_USER_KEY } from "@/modules/auth/hooks/useCurrentUser";
 import { vendorStep2Schema, VendorStep2Fields } from "@/modules/vendor/vendor.types";
 import { uploadFiles } from "@/lib/uploadthing";
 
@@ -113,7 +115,8 @@ function ImageUpload({
   );
 }
 
-export default function VendorTransportProfile({ vendor }: Props) {
+export default function VendorBusinessProfile({ vendor }: Props) {
+  const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [profile, setProfile] = useState<TransportFields>({
     transportName: vendor.transportName,
@@ -154,7 +157,6 @@ export default function VendorTransportProfile({ vendor }: Props) {
 
   async function onSubmit(data: VendorStep2Fields) {
     const result = await updateVendorProfile({
-      vendorId: vendor.id,
       firstName: vendor.firstName,
       lastName: vendor.lastName,
       email: vendor.email,
@@ -180,6 +182,7 @@ export default function VendorTransportProfile({ vendor }: Props) {
       image: draftImage,
     });
     setEditing(false);
+    queryClient.invalidateQueries({ queryKey: CURRENT_USER_KEY });
     toast.success("Transport profile updated successfully");
   }
 
@@ -192,7 +195,7 @@ export default function VendorTransportProfile({ vendor }: Props) {
     >
       <div className="flex items-center justify-between mb-5">
         <h3 className="font-heading text-[15px] font-bold text-portal-text">
-          Transport Profile
+          Business Profile
         </h3>
         {!editing ? (
           <button

@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { resetPassword } from "@/lib/actions/password.action";
-import { signInUser } from "@/lib/actions/user.action";
+import { signInWithCredentials } from "@/lib/actions/user.action";
 import { newPasswordSchema, NewPasswordInput } from "@/modules/auth/auth.types";
 
 interface NewPasswordFormProps {
@@ -14,7 +14,10 @@ interface NewPasswordFormProps {
   token: string;
 }
 
-export default function NewPasswordForm({ email, token }: NewPasswordFormProps) {
+export default function NewPasswordForm({
+  email,
+  token,
+}: NewPasswordFormProps) {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
 
@@ -36,17 +39,18 @@ export default function NewPasswordForm({ email, token }: NewPasswordFormProps) 
       return;
     }
 
-    const signInResult = await signInUser({ email, password: data.password });
+    const isVendor = resetResult.role === "VENDOR";
+    const signInResult = await signInWithCredentials({
+      email,
+      password: data.password,
+    });
     if (signInResult?.error) {
-      toast.error(
-        "Password changed but sign-in failed. Please log in manually.",
-      );
-      router.push("/gate");
+      router.push(isVendor ? "/vendor-gate" : "/gate");
       return;
     }
 
     toast.success("Keys changed! Welcome back.");
-    router.push("/");
+    router.push(isVendor ? "/vendor-dashboard" : "/");
     router.refresh();
   }
 

@@ -1,18 +1,18 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  getVendorPriceLists,
+  getTransportPriceLists,
   createPriceList,
   updatePriceList,
-} from "@/lib/actions/vendor.action";
+} from "@/lib/actions/transport.action";
 import { queryKeys } from "@/lib/query-keys";
 import { STALE } from "@/lib/query-config";
-import type { PriceList, PriceListBody } from "@/modules/vendor/vendor.types";
+import type { PriceList, PriceListBody } from "@/modules/transport/transport.types";
 
-export function useVendorPriceLists() {
+export function useTransportPriceLists() {
   return useQuery<PriceList[]>({
     queryKey: queryKeys.vendor.priceLists(),
     queryFn: async () => {
-      const result = await getVendorPriceLists();
+      const result = await getTransportPriceLists();
       if (!result.ok) throw new Error(result.error);
       return result.data;
     },

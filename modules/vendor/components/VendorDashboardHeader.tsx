@@ -6,14 +6,14 @@ import { motion } from "motion/react";
 type Props = {
   firstName: string;
   lastName: string;
-  transportName: string;
+  businessName: string;
   image: string | null;
 };
 
 export default function VendorDashboardHeader({
   firstName,
   lastName,
-  transportName,
+  businessName,
   image,
 }: Props) {
   const initials = `${firstName[0]}${lastName[0]}`.toUpperCase();
@@ -29,7 +29,7 @@ export default function VendorDashboardHeader({
           {image ? (
             <Image
               src={image}
-              alt={transportName}
+              alt={businessName}
               width={44}
               height={44}
               style={{
@@ -45,7 +45,7 @@ export default function VendorDashboardHeader({
           )}
           <div>
             <h1 className="font-heading text-[20px] sm:text-[24px] font-extrabold text-portal-text">
-              {transportName}
+              {businessName}
             </h1>
             <p className="text-[12.5px] text-portal-muted mt-0.5">
               {firstName} {lastName}

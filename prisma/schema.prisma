@@ -12,6 +12,9 @@ enum Role {
   ADMIN
   VENDOR
 }
+enum VendorCategory {
+  TRANSPORT
+}
 
 enum Level {
   L100
@@ -19,57 +22,6 @@ enum Level {
   L300
   L400
   L500
-}
-
-enum TransactionType {
-  TOP_UP
-  PAYMENT
-  REFUND
-}
-
-enum TransactionStatus {
-  PENDING
-  COMPLETED
-  FAILED
-}
-
-model User {
-  id           String   @id @default(uuid())
-  name         String
-  email        String   @unique
-  phone        String   @unique
-  matricNumber String   @unique
-  department   String
-  level        Level
-  passwordHash String?
-  role         Role     @default(STUDENT)
-  image        String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  wallet       Wallet?
-  bookings     Booking[]
-}
-
-model Wallet {
-  id           String        @id @default(uuid())
-  userId       String        @unique
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  balance      Int           @default(0) // stored in kobo (smallest unit)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  transactions Transaction[]
-}
-
-model Transaction {
-  id          String            @id @default(uuid())
-  walletId    String
-  wallet      Wallet            @relation(fields: [walletId], references: [id], onDelete: Cascade)
-  type        TransactionType
-  status      TransactionStatus @default(PENDING)
-  amount      Int               // in kobo
-  description String
-  ref         String            @unique
-  createdAt   DateTime          @default(now())
 }
 
 enum PriceListDirection {
@@ -83,102 +35,140 @@ enum AvailabilityType {
   SCHEDULED
 }
 
-model Vendor {
-  id            String      @id @default(uuid())
-  firstName     String
-  lastName      String
-  email         String      @unique
-  phone         String?      @unique
-  passwordHash  String
-  transportName String
-  image         String?
-  tagline       String?
-  description   String?
-  tiktok        String?
-  instagram     String?
-  bankCode      String?
-  bankName      String?
-  accountNumber String?
-  accountName   String?
-  isActive      Boolean     @default(true)
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  priceLists    PriceList[]
-  bookings      Booking[]
-}
-
-model PriceList {
-  id            String             @id @default(uuid())
-  vendorId      String
-  vendor        Vendor             @relation(fields: [vendorId], references: [id], onDelete: Cascade)
-  name          String
-  direction     PriceListDirection
-  luggagePolicy String             @default("")
-  notes         String             @default("")
-  availType     AvailabilityType   @default(ACTIVE)
-  schedStart    DateTime?
-  schedEnd      DateTime?
-  routes        PriceListRoute[]
-  departureTimes DepartureTime[]
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
-
-  @@unique([vendorId, direction])
-}
-
-model PriceListRoute {
-  id          String    @id @default(uuid())
-  priceListId String
-  priceList   PriceList @relation(fields: [priceListId], references: [id], onDelete: Cascade)
-  name        String
-  price       Int       // in naira
-  capacity    Int?      // null = unlimited
-  active      Boolean   @default(true)
-  bookings    Booking[]
-}
-
-model DepartureTime {
-  id          String    @id @default(uuid())
-  priceListId String
-  priceList   PriceList @relation(fields: [priceListId], references: [id], onDelete: Cascade)
-  day         String
-  time        String    // "HH:MM" 24hr format
-}
-
 enum BookingStatus {
   CONFIRMED
   CANCELLED
   FAILED
 }
 
-model Booking {
-  id             String             @id @default(uuid())
-  reference      String             @unique // our tx_ref passed to Flutterwave
-  flwRef         String?            // Flutterwave's internal flw_ref
-  status         BookingStatus      @default(CONFIRMED)
+model user {
+  id              String           @id @default(uuid())
+  first_name      String
+  last_name       String
+  email           String           @unique
+  phone           String           @unique
+  password_hash   String?
+  role            Role             @default(STUDENT)
+  image           String?
+  created_at      DateTime         @default(now())
+  updated_at      DateTime         @updatedAt
+  student_profile student_profile?
+  vendor_profile  vendor_profile?
+  wallet          wallet[] // append-only ledger entries
+  bookings        booking[] // as passenger
+}
+
+model student_profile {
+  user_id       String @id
+  user          user   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  matric_number String @unique
+  department    String
+  level         Level
+}
+
+model vendor_profile {
+  user_id        String         @id
+  user           user           @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  category       VendorCategory @default(TRANSPORT)
+  business_name  String
+  tagline        String?
+  description    String?
+  tiktok         String?
+  instagram      String?
+  bank_code      String?
+  bank_name      String?
+  account_number String?
+  account_name   String?
+  is_active      Boolean        @default(true)
+  price_lists    price_list[] // transport vertical
+  bookings       booking[] // transport vertical — as provider
+}
+
+model wallet {
+  id                String   @id @default(uuid())
+  user_id           String
+  user              user     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  balance           Int // running balance in kobo, after this entry is applied
+  difference        Int // signed delta in kobo applied by this entry
+  currency          String   @default("NGN")
+  reason            String // free-text, e.g. "Wallet top-up", "Transport booking — Daniel Hall"
+  type              String? // category, e.g. "topup", "booking", "refund"
+  model_responsible String? // originating model, e.g. "Payment", "Booking", "Refund"
+  model_id          String? // id of the originating record
+  reference         String?  @unique // idempotency key (Flutterwave tx_ref, booking reference)
+  domain            String   @default("live")
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  @@index([user_id, created_at])
+}
+
+model price_list {
+  id                String             @id @default(uuid())
+  vendor_id         String
+  vendor            vendor_profile     @relation(fields: [vendor_id], references: [user_id], onDelete: Cascade)
+  name              String
+  direction         PriceListDirection
+  luggage_policy    String             @default("")
+  notes             String             @default("")
+  availability_type AvailabilityType   @default(ACTIVE)
+  scheduled_start   DateTime?
+  scheduled_end     DateTime?
+  routes            price_list_route[]
+  departure_times   departure_time[]
+  created_at        DateTime           @default(now())
+  updated_at        DateTime           @updatedAt
+
+  @@unique([vendor_id, direction])
+}
+
+model price_list_route {
+  id            String     @id @default(uuid())
+  price_list_id String
+  price_list    price_list @relation(fields: [price_list_id], references: [id], onDelete: Cascade)
+  name          String
+  price         Int // in naira
+  capacity      Int? // null = unlimited
+  active        Boolean    @default(true)
+  bookings      booking[]
+}
+
+model departure_time {
+  id            String     @id @default(uuid())
+  price_list_id String
+  price_list    price_list @relation(fields: [price_list_id], references: [id], onDelete: Cascade)
+  day           String
+  time          String // "HH:MM" 24hr format
+}
+
+model booking {
+  id        String        @id @default(uuid())
+  reference String        @unique // our tx_ref passed to Flutterwave
+  flw_ref   String? // Flutterwave's internal flw_ref
+  status    BookingStatus @default(CONFIRMED)
 
   // Passenger snapshot
-  passengerName  String
-  passengerPhone String
-  parentsPhone   String
-  hall           String
-  roomNumber     String
+  passenger_name  String
+  passenger_phone String
+  parents_phone   String
+  hall            String
+  room_number     String
 
   // Route snapshot (preserved even if route is edited/deleted)
-  direction      PriceListDirection
-  routeName      String
-  fare           Int                // naira
-  serviceFee     Int                // naira
-  studentNotes   String?            // optional note from student to vendor
+  direction     PriceListDirection
+  route_name    String
+  fare          Int // naira
+  service_fee   Int // naira
+  student_notes String? // optional note from student to vendor
 
   // Relations
-  userId         String?
-  user           User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
-  vendorId       String
-  vendor         Vendor             @relation(fields: [vendorId], references: [id])
-  routeId        String
-  route          PriceListRoute     @relation(fields: [routeId], references: [id])
+  user_id   String?
+  user      user?            @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  vendor_id String
+  vendor    vendor_profile   @relation(fields: [vendor_id], references: [user_id])
+  route_id  String
+  route     price_list_route @relation(fields: [route_id], references: [id])
 
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 }

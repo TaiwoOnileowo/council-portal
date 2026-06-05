@@ -16,7 +16,7 @@ import {
 import { toast } from "sonner";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { signUpVendor, checkVendorEmail } from "@/lib/actions/vendor.action";
+import { signUpVendor, checkVendorApproval } from "@/lib/actions/vendor.action";
 import { getBanks, verifyBankAccount } from "@/lib/actions/bank.action";
 import type { Bank } from "@/lib/actions/bank.action";
 import { vendorSignUpSchema, vendorBankSchema } from "@/modules/vendor/vendor.types";
@@ -603,7 +603,7 @@ export default function VendorSignUpForm() {
 
     setChecking(true);
     try {
-      const { approved } = await checkVendorEmail(getValues("email"));
+      const { approved } = await checkVendorApproval(getValues("email"));
       if (!approved) {
         setUnapproved(true);
         return;

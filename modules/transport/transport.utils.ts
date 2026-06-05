@@ -1,4 +1,4 @@
-import type { PriceList, PriceListRoute, PriceListBody, DepartureTime } from "./vendor.types";
+import type { PriceList, PriceListRoute, PriceListBody, DepartureTime } from "@/modules/transport/transport.types";
 import { parseAmount } from "@/lib/format";
 
 export type DrawerFormValues = {

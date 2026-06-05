@@ -2,16 +2,37 @@ import { auth } from "@/auth";
 import ChangePassword from "@/modules/profile/components/ChangePassword";
 import VendorBankDetails from "@/modules/vendor/components/VendorBankDetails";
 import VendorProfileDetails from "@/modules/vendor/components/VendorProfileDetails";
-import VendorTransportProfile from "@/modules/vendor/components/VendorTransportProfile";
+import VendorBusinessProfile from "@/modules/vendor/components/VendorBusinessProfile";
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 
 export default async function VendorProfilePage() {
   const session = await auth();
-  if (!session?.user?.isVendor) redirect("/vendor-gate");
+  if (session?.user?.role !== "VENDOR") redirect("/vendor-gate");
 
-  const vendor = await db.vendor.findUnique({ where: { id: session.user.id } });
-  if (!vendor) redirect("/vendor-gate");
+  const user = await db.user.findUnique({
+    where: { id: session.user.id },
+    include: { vendor_profile: true },
+  });
+  if (!user || !user.vendor_profile) redirect("/vendor-gate");
+
+  const vendor = {
+    id: user.id,
+    firstName: user.first_name,
+    lastName: user.last_name,
+    email: user.email,
+    phone: user.phone,
+    image: user.image,
+    transportName: user.vendor_profile.business_name,
+    tagline: user.vendor_profile.tagline,
+    description: user.vendor_profile.description,
+    instagram: user.vendor_profile.instagram,
+    tiktok: user.vendor_profile.tiktok,
+    bankCode: user.vendor_profile.bank_code,
+    bankName: user.vendor_profile.bank_name,
+    accountNumber: user.vendor_profile.account_number,
+    accountName: user.vendor_profile.account_name,
+  };
 
   return (
     <>
@@ -48,7 +69,7 @@ export default async function VendorProfilePage() {
         </div>
 
         <div className="space-y-5">
-          <VendorTransportProfile
+          <VendorBusinessProfile
             vendor={{
               id: vendor.id,
               firstName: vendor.firstName,

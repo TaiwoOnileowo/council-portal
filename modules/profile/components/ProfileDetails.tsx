@@ -15,8 +15,15 @@ import {
   BookOpen,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import { updateProfile } from "@/lib/actions/user.action";
-import { updateProfileSchema, LEVELS, UpdateProfileInput, LevelValue } from "@/modules/auth/auth.types";
+import { CURRENT_USER_KEY } from "@/modules/auth/hooks/useCurrentUser";
+import {
+  updateStudentProfileSchema,
+  LEVELS,
+  UpdateProfileInput,
+  LevelValue,
+} from "@/modules/auth/auth.types";
 
 type ProfileFields = {
   firstName: string;
@@ -40,6 +47,7 @@ const inputCls = (err?: string) =>
   } rounded-lg px-3 py-2 focus:outline-none focus:ring-2 transition-all`;
 
 export default function ProfileDetails({ user }: Props) {
+  const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [profile, setProfile] = useState<ProfileFields>({
     firstName: user.firstName,
@@ -58,7 +66,7 @@ export default function ProfileDetails({ user }: Props) {
     control,
     formState: { errors, isDirty, isSubmitting },
   } = useForm<UpdateProfileInput>({
-    resolver: zodResolver(updateProfileSchema),
+    resolver: zodResolver(updateStudentProfileSchema),
   });
 
   function startEdit() {
@@ -81,6 +89,7 @@ export default function ProfileDetails({ user }: Props) {
 
     setProfile(data);
     setEditing(false);
+    queryClient.invalidateQueries({ queryKey: CURRENT_USER_KEY });
     toast.success("Profile updated successfully");
   }
 
@@ -138,7 +147,9 @@ export default function ProfileDetails({ user }: Props) {
                 className={inputCls(errors.firstName?.message)}
               />
               {errors.firstName && (
-                <p className="mt-1 text-xs text-red-500">{errors.firstName.message}</p>
+                <p className="mt-1 text-xs text-red-500">
+                  {errors.firstName.message}
+                </p>
               )}
             </>
           ) : (
@@ -159,7 +170,9 @@ export default function ProfileDetails({ user }: Props) {
                 className={inputCls(errors.lastName?.message)}
               />
               {errors.lastName && (
-                <p className="mt-1 text-xs text-red-500">{errors.lastName.message}</p>
+                <p className="mt-1 text-xs text-red-500">
+                  {errors.lastName.message}
+                </p>
               )}
             </>
           ) : (
@@ -188,13 +201,17 @@ export default function ProfileDetails({ user }: Props) {
                 />
               </div>
               {errors.email && (
-                <p className="mt-1 text-xs text-red-500 pl-6">{errors.email.message}</p>
+                <p className="mt-1 text-xs text-red-500 pl-6">
+                  {errors.email.message}
+                </p>
               )}
             </>
           ) : (
             <div className="flex items-center gap-2.5 py-2">
               <Mail className="w-4 h-4 text-portal-muted flex-shrink-0" />
-              <p className="text-[13.5px] font-medium text-portal-text">{profile.email}</p>
+              <p className="text-[13.5px] font-medium text-portal-text">
+                {profile.email}
+              </p>
             </div>
           )}
         </div>
@@ -216,7 +233,9 @@ export default function ProfileDetails({ user }: Props) {
                       {...field}
                       type="tel"
                       onChange={(e) =>
-                        field.onChange(e.target.value.replace(/\D/g, "").slice(0, 11))
+                        field.onChange(
+                          e.target.value.replace(/\D/g, "").slice(0, 11),
+                        )
                       }
                       placeholder="08012345678"
                       inputMode="numeric"
@@ -227,13 +246,17 @@ export default function ProfileDetails({ user }: Props) {
                 />
               </div>
               {errors.phone && (
-                <p className="mt-1 text-xs text-red-500 pl-6">{errors.phone.message}</p>
+                <p className="mt-1 text-xs text-red-500 pl-6">
+                  {errors.phone.message}
+                </p>
               )}
             </>
           ) : (
             <div className="flex items-center gap-2.5 py-2">
               <Phone className="w-4 h-4 text-portal-muted flex-shrink-0" />
-              <p className="text-[13.5px] font-medium text-portal-text">{profile.phone}</p>
+              <p className="text-[13.5px] font-medium text-portal-text">
+                {profile.phone}
+              </p>
             </div>
           )}
         </div>
@@ -255,13 +278,17 @@ export default function ProfileDetails({ user }: Props) {
                 />
               </div>
               {errors.matricNumber && (
-                <p className="mt-1 text-xs text-red-500 pl-6">{errors.matricNumber.message}</p>
+                <p className="mt-1 text-xs text-red-500 pl-6">
+                  {errors.matricNumber.message}
+                </p>
               )}
             </>
           ) : (
             <div className="flex items-center gap-2.5 py-2">
               <GraduationCap className="w-4 h-4 text-portal-muted flex-shrink-0" />
-              <p className="text-[13.5px] font-medium text-portal-text">{profile.matricNumber}</p>
+              <p className="text-[13.5px] font-medium text-portal-text">
+                {profile.matricNumber}
+              </p>
             </div>
           )}
         </div>
@@ -279,25 +306,32 @@ export default function ProfileDetails({ user }: Props) {
                   {...register("level")}
                   className={inputCls(errors.level?.message)}
                 >
-                  <option value="" disabled>Select level</option>
+                  <option value="" disabled>
+                    Select level
+                  </option>
                   {LEVELS.map((l) => (
-                    <option key={l} value={l}>{l} Level</option>
+                    <option key={l} value={l}>
+                      {l} Level
+                    </option>
                   ))}
                 </select>
               </div>
               {errors.level && (
-                <p className="mt-1 text-xs text-red-500 pl-6">{errors.level.message}</p>
+                <p className="mt-1 text-xs text-red-500 pl-6">
+                  {errors.level.message}
+                </p>
               )}
             </>
           ) : (
             <div className="flex items-center gap-2.5 py-2">
               <BookOpen className="w-4 h-4 text-portal-muted flex-shrink-0" />
-              <p className="text-[13.5px] font-medium text-portal-text">{profile.level} Level</p>
+              <p className="text-[13.5px] font-medium text-portal-text">
+                {profile.level} Level
+              </p>
             </div>
           )}
         </div>
 
-        {/* Department */}
         <div>
           <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">
             Department
@@ -314,13 +348,17 @@ export default function ProfileDetails({ user }: Props) {
                 />
               </div>
               {errors.department && (
-                <p className="mt-1 text-xs text-red-500 pl-6">{errors.department.message}</p>
+                <p className="mt-1 text-xs text-red-500 pl-6">
+                  {errors.department.message}
+                </p>
               )}
             </>
           ) : (
             <div className="flex items-center gap-2.5 py-2">
               <Building2 className="w-4 h-4 text-portal-muted flex-shrink-0" />
-              <p className="text-[13.5px] font-medium text-portal-text">{profile.department}</p>
+              <p className="text-[13.5px] font-medium text-portal-text">
+                {profile.department}
+              </p>
             </div>
           )}
         </div>

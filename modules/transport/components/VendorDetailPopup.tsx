@@ -8,7 +8,7 @@ import type {
   PublicVendor,
   PublicPriceList,
   PublicRoute,
-} from "@/lib/actions/vendor.action";
+} from "@/lib/actions/transport.action";
 import { isVendorAvailable } from "./VendorCardsList";
 
 type ActiveTab = "leaving" | "returning";

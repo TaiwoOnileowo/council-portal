@@ -1,27 +1,78 @@
 "use server";
 
-import { signIn, signOut } from "@/auth";
+import { auth, signIn, signOut } from "@/auth";
 import { Level } from "@/generated/prisma/enums";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
 import {
-  signInSchema,
+  credentialsSchema,
   signUpSchema,
-  updateProfileSchema,
+  updateStudentProfileSchema,
 } from "@/modules/auth/auth.types";
 import { CallbackRouteError } from "@auth/core/errors";
+
 export async function getUserFromDb(email: string) {
   return db.user.findUnique({ where: { email } });
 }
 
-export async function signInUser({
+/**
+ * The signed-in user's full profile, role-shaped. Fetched once on the client
+ * via `useCurrentUser` and cached — components read it instead of each page
+ * re-querying on mount. Returns null when unauthenticated.
+ */
+export async function getCurrentUser() {
+  const session = await auth();
+  if (!session?.user?.id) return null;
+
+  const user = await db.user.findUnique({
+    where: { id: session.user.id },
+    include: { student_profile: true, vendor_profile: true },
+  });
+  if (!user) return null;
+
+  return {
+    id: user.id,
+    firstName: user.first_name,
+    lastName: user.last_name,
+    fullName: `${user.first_name} ${user.last_name}`,
+    email: user.email,
+    phone: user.phone,
+    image: user.image,
+    role: user.role,
+    student: user.student_profile
+      ? {
+          matricNumber: user.student_profile.matric_number,
+          department: user.student_profile.department,
+          level: user.student_profile.level.replace("L", ""),
+        }
+      : null,
+    vendor: user.vendor_profile
+      ? {
+          category: user.vendor_profile.category,
+          businessName: user.vendor_profile.business_name,
+          tagline: user.vendor_profile.tagline,
+          description: user.vendor_profile.description,
+          instagram: user.vendor_profile.instagram,
+          tiktok: user.vendor_profile.tiktok,
+          bankCode: user.vendor_profile.bank_code,
+          bankName: user.vendor_profile.bank_name,
+          accountNumber: user.vendor_profile.account_number,
+          accountName: user.vendor_profile.account_name,
+          isActive: user.vendor_profile.is_active,
+        }
+      : null,
+  };
+}
+
+
+export async function signInWithCredentials({
   email,
   password,
 }: {
   email: string;
   password: string;
 }) {
-  const parsed = signInSchema.safeParse({ email, password });
+  const parsed = credentialsSchema.safeParse({ email, password });
   if (!parsed.success) {
     return { error: parsed.error.issues[0].message };
   }
@@ -97,7 +148,9 @@ export async function signUpUser({
     };
   }
 
-  const existingMatric = await db.user.findUnique({ where: { matricNumber } });
+  const existingMatric = await db.student_profile.findUnique({
+    where: { matric_number: matricNumber },
+  });
   if (existingMatric) {
     return {
       error: "This matric number is already registered",
@@ -106,19 +159,24 @@ export async function signUpUser({
   }
 
   const passwordHash = await hashPassword(password);
-  const name = `${firstName} ${lastName}`;
   const dbLevel = `L${level}` as Level;
 
   try {
     await db.user.create({
       data: {
-        name,
+        first_name: firstName,
+        last_name: lastName,
         email,
         phone,
-        matricNumber,
-        department,
-        level: dbLevel,
-        passwordHash,
+        password_hash: passwordHash,
+        role: "STUDENT",
+        student_profile: {
+          create: {
+            matric_number: matricNumber,
+            department,
+            level: dbLevel,
+          },
+        },
       },
     });
   } catch (error: unknown) {
@@ -134,7 +192,7 @@ export async function signUpUser({
     return { error: "Failed to create account. Please try again." };
   }
 
-  return await signInUser({ email, password });
+  return await signInWithCredentials({ email, password });
 }
 
 export async function updateProfile({
@@ -156,7 +214,7 @@ export async function updateProfile({
   department: string;
   level: string;
 }) {
-  const parsed = updateProfileSchema.safeParse({
+  const parsed = updateStudentProfileSchema.safeParse({
     firstName,
     lastName,
     email,
@@ -175,12 +233,17 @@ export async function updateProfile({
     await db.user.update({
       where: { id: userId },
       data: {
-        name: `${firstName} ${lastName}`,
+        first_name: firstName,
+        last_name: lastName,
         email,
         phone,
-        matricNumber,
-        department,
-        level: dbLevel,
+        student_profile: {
+          update: {
+            matric_number: matricNumber,
+            department,
+            level: dbLevel,
+          },
+        },
       },
     });
     return { success: true };

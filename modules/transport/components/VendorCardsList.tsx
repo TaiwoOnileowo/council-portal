@@ -7,7 +7,7 @@ import type {
   PublicVendor,
   PublicPriceList,
   PublicRoute,
-} from "@/lib/actions/vendor.action";
+} from "@/lib/actions/transport.action";
 import VendorDetailPopup from "./VendorDetailPopup";
 import BookingFlow from "./BookingFlow";
 import TopUpModal from "@/modules/wallet/components/TopUpModal";

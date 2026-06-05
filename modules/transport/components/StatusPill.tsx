@@ -1,4 +1,4 @@
-import type { PriceListAvailability } from "@/modules/vendor/vendor.types";
+import type { PriceListAvailability } from "@/modules/transport/transport.types";
 
 export default function StatusPill({ availability }: { availability: PriceListAvailability }) {
   if (availability.type === "active") {

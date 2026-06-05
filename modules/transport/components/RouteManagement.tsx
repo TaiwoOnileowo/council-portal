@@ -12,29 +12,29 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import type { PriceList } from "@/modules/vendor/vendor.types";
+import type { PriceList } from "@/modules/transport/transport.types";
 import {
-  useVendorPriceLists,
+  useTransportPriceLists,
   useCreatePriceList,
   useUpdatePriceList,
-} from "@/modules/vendor/hooks/useVendorPriceLists";
+} from "@/modules/transport/hooks/useTransportPriceLists";
 import {
   type DrawerFormValues,
   buildBody,
   formValuesFromPriceList,
   emptyFormValues,
-} from "@/modules/vendor/vendor.utils";
+} from "@/modules/transport/transport.utils";
 import { formatWithCommas } from "@/lib/format";
-import TimeInput from "./TimeInput";
-import Toggle from "./Toggle";
-import DatePickerField from "./DatePickerField";
+import TimeInput from "@/components/ui/TimeInput";
+import Toggle from "@/components/ui/Toggle";
+import DatePickerField from "@/components/ui/DatePickerField";
 import PriceListCard from "./PriceListCard";
 import AddCard from "./AddCard";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 export default function RouteManagement() {
-  const { data: priceLists, isLoading, isError, refetch } = useVendorPriceLists();
+  const { data: priceLists, isLoading, isError, refetch } = useTransportPriceLists();
   const createMutation = useCreatePriceList();
   const updateMutation = useUpdatePriceList();
 

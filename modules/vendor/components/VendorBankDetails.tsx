@@ -16,7 +16,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { getBanks, verifyBankAccount } from "@/lib/actions/bank.action";
 import type { Bank } from "@/lib/actions/bank.action";
-import { updateVendorBankDetails } from "@/lib/actions/vendor.action";
+import { updateVendorProfile } from "@/lib/actions/vendor.action";
 import { vendorBankSchema } from "@/modules/vendor/vendor.types";
 
 type BankFields = {
@@ -222,7 +222,7 @@ export default function VendorBankDetails({ vendor }: Props) {
   }
 
   async function onSubmit(data: BankFields) {
-    const result = await updateVendorBankDetails({ vendorId: vendor.id, ...data });
+    const result = await updateVendorProfile({ ...data });
 
     if (result?.error) {
       toast.error(result.error);

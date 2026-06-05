@@ -5,15 +5,22 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { signInUser } from "@/lib/actions/user.action";
 import { Eye, EyeOff } from "lucide-react";
-import { signInSchema, SignInInput } from "@/modules/auth/auth.types";
+import { signInWithCredentials } from "@/lib/actions/user.action";
+import { credentialsSchema, CredentialsInput } from "@/modules/auth/auth.types";
+import { AUTH_MODE, type AuthMode } from "@/modules/auth/auth.constant";
 
-interface LoginFormProps {
+export type { AuthMode };
+
+interface AuthLoginFormProps {
+  mode: AuthMode;
   onForgotPassword?: () => void;
 }
 
-export default function LoginForm({ onForgotPassword }: LoginFormProps) {
+export default function AuthLoginForm({
+  mode,
+  onForgotPassword,
+}: AuthLoginFormProps) {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
 
@@ -22,12 +29,15 @@ export default function LoginForm({ onForgotPassword }: LoginFormProps) {
     handleSubmit,
     setError,
     formState: { errors, isSubmitting },
-  } = useForm<SignInInput>({
-    resolver: zodResolver(signInSchema),
+  } = useForm<CredentialsInput>({
+    resolver: zodResolver(credentialsSchema),
   });
 
-  async function onSubmit(data: SignInInput) {
-    const result = await signInUser({ email: data.email, password: data.password });
+  async function onSubmit(data: CredentialsInput) {
+    const result = await signInWithCredentials({
+      email: data.email,
+      password: data.password,
+    });
 
     if (result?.error) {
       toast.error(result.error);
@@ -35,7 +45,7 @@ export default function LoginForm({ onForgotPassword }: LoginFormProps) {
       return;
     }
     toast.success("Logged in successfully");
-    router.push("/");
+    router.push(AUTH_MODE[mode].redirect);
     router.refresh();
   }
 
@@ -48,7 +58,8 @@ export default function LoginForm({ onForgotPassword }: LoginFormProps) {
         <input
           type="email"
           {...register("email")}
-          placeholder="you@email.com"
+          placeholder={AUTH_MODE[mode].emailPlaceholder}
+          autoComplete="email"
           className="w-full rounded-lg border border-portal-border bg-white px-4 py-3 text-[15px] text-portal-text placeholder:text-portal-muted outline-none focus:border-portal-accent focus:ring-1 focus:ring-portal-accent transition"
         />
         {errors.email && (
@@ -64,6 +75,7 @@ export default function LoginForm({ onForgotPassword }: LoginFormProps) {
             type={showPassword ? "text" : "password"}
             {...register("password")}
             placeholder="••••••••••••••••"
+            autoComplete="current-password"
             className="w-full rounded-lg border border-portal-border bg-white px-4 py-3 pr-11 text-[15px] text-portal-text placeholder:text-portal-muted outline-none focus:border-portal-accent focus:ring-1 focus:ring-portal-accent transition"
           />
           <button

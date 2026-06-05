@@ -3,10 +3,10 @@
 import { MapPin, Phone, Home, Calendar, MessageSquare } from "lucide-react";
 import { format } from "date-fns";
 import Modal from "@/components/ui/Modal";
-import type { VendorBooking } from "@/modules/vendor/vendor.types";
+import type { TransportBooking } from "@/modules/transport/transport.types";
 
 type Props = {
-  booking: VendorBooking | null;
+  booking: TransportBooking | null;
   open: boolean;
   onClose: () => void;
 };
@@ -20,7 +20,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-export default function VendorBookingDetailModal({ booking, open, onClose }: Props) {
+export default function TransportBookingDetailModal({ booking, open, onClose }: Props) {
   if (!booking) return null;
 
   return (

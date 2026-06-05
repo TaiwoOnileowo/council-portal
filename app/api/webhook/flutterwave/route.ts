@@ -42,40 +42,36 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ received: true });
   }
 
-  // Only handle top-up refs (booking payment goes through wallet action inline)
   if (!txRef.startsWith("TOPUP-")) {
     return NextResponse.json({ received: true });
   }
 
   // Idempotency — already processed
-  const existing = await db.transaction.findUnique({ where: { ref: txRef } });
+  const existing = await db.wallet.findUnique({ where: { reference: txRef } });
   if (existing) return NextResponse.json({ received: true });
 
   const amountKobo = Math.round(amount * 100);
 
-  const wallet = await db.wallet.upsert({
-    where: { userId },
-    create: { userId },
-    update: {},
-  });
-
   try {
-    await db.$transaction([
-      db.transaction.create({
+    await db.$transaction(async (tx) => {
+      const latest = await tx.wallet.findFirst({
+        where: { user_id: userId },
+        orderBy: { created_at: "desc" },
+        select: { balance: true },
+      });
+      const balance = latest?.balance ?? 0;
+      await tx.wallet.create({
         data: {
-          walletId: wallet.id,
-          type: "TOP_UP",
-          status: "COMPLETED",
-          amount: amountKobo,
-          description: "Wallet top-up",
-          ref: txRef,
+          user_id: userId,
+          difference: amountKobo,
+          balance: balance + amountKobo,
+          reason: "Wallet top-up",
+          type: "topup",
+          model_responsible: "Payment",
+          reference: txRef,
         },
-      }),
-      db.wallet.update({
-        where: { id: wallet.id },
-        data: { balance: { increment: amountKobo } },
-      }),
-    ]);
+      });
+    });
   } catch {
     // Unique constraint — already handled via inline callback
   }

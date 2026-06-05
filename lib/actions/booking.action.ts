@@ -12,43 +12,67 @@ export async function getBookings(): Promise<
   if (!session?.user?.id) return { ok: false, error: "Unauthorized" };
 
   const bookings = await db.booking.findMany({
-    where: { userId: session.user.id },
+    where: { user_id: session.user.id },
     select: {
       id: true,
       reference: true,
       status: true,
-      passengerName: true,
-      passengerPhone: true,
-      parentsPhone: true,
+      passenger_name: true,
+      passenger_phone: true,
+      parents_phone: true,
       hall: true,
-      roomNumber: true,
+      room_number: true,
       direction: true,
-      routeName: true,
+      route_name: true,
       fare: true,
-      serviceFee: true,
-      studentNotes: true,
-      createdAt: true,
+      service_fee: true,
+      student_notes: true,
+      created_at: true,
       vendor: {
-        select: { transportName: true, phone: true, image: true },
+        select: {
+          business_name: true,
+          user: { select: { phone: true, image: true } },
+        },
       },
       route: {
         select: {
-          priceList: {
-            select: { luggagePolicy: true, notes: true },
+          price_list: {
+            select: { luggage_policy: true, notes: true },
           },
         },
       },
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: { created_at: "desc" },
   });
 
   return {
     ok: true,
     data: bookings.map((b) => ({
-      ...b,
-      createdAt: b.createdAt.toISOString(),
+      id: b.id,
+      reference: b.reference,
       status: b.status as StudentBooking["status"],
+      passengerName: b.passenger_name,
+      passengerPhone: b.passenger_phone,
+      parentsPhone: b.parents_phone,
+      hall: b.hall,
+      roomNumber: b.room_number,
       direction: b.direction as StudentBooking["direction"],
+      routeName: b.route_name,
+      fare: b.fare,
+      serviceFee: b.service_fee,
+      studentNotes: b.student_notes,
+      createdAt: b.created_at.toISOString(),
+      vendor: {
+        transportName: b.vendor.business_name,
+        phone: b.vendor.user.phone,
+        image: b.vendor.user.image,
+      },
+      route: {
+        priceList: {
+          luggagePolicy: b.route.price_list.luggage_policy,
+          notes: b.route.price_list.notes,
+        },
+      },
     })),
   };
 }
@@ -94,16 +118,17 @@ export async function payBookingFromWallet({
 
   try {
     const result = await db.$transaction(async (tx) => {
-      const wallet = await tx.wallet.upsert({
-        where: { userId },
-        create: { userId },
-        update: {},
+      const latest = await tx.wallet.findFirst({
+        where: { user_id: userId },
+        orderBy: { created_at: "desc" },
+        select: { balance: true },
       });
+      const currentBalance = latest?.balance ?? 0;
 
-      if (wallet.balance < totalAmountKobo) {
+      if (currentBalance < totalAmountKobo) {
         return {
           error: "INSUFFICIENT_BALANCE" as const,
-          shortfall: Math.ceil((totalAmountKobo - wallet.balance) / 100),
+          shortfall: Math.ceil((totalAmountKobo - currentBalance) / 100),
         };
       }
 
@@ -111,36 +136,33 @@ export async function payBookingFromWallet({
         data: {
           reference,
           status: "CONFIRMED",
-          passengerName,
-          passengerPhone,
-          parentsPhone,
+          passenger_name: passengerName,
+          passenger_phone: passengerPhone,
+          parents_phone: parentsPhone,
           hall,
-          roomNumber,
+          room_number: roomNumber,
           direction,
-          routeName,
+          route_name: routeName,
           fare,
-          serviceFee,
-          studentNotes: studentNotes?.trim() || null,
-          userId,
-          vendorId,
-          routeId,
+          service_fee: serviceFee,
+          student_notes: studentNotes?.trim() || null,
+          user_id: userId,
+          vendor_id: vendorId,
+          route_id: routeId,
         },
       });
 
-      await tx.transaction.create({
+      await tx.wallet.create({
         data: {
-          walletId: wallet.id,
-          type: "PAYMENT",
-          status: "COMPLETED",
-          amount: totalAmountKobo,
-          description: `Transport booking — ${routeName}`,
-          ref: reference,
+          user_id: userId,
+          difference: -totalAmountKobo,
+          balance: currentBalance - totalAmountKobo,
+          reason: `Transport booking — ${routeName}`,
+          type: "booking",
+          model_responsible: "Booking",
+          model_id: booking.id,
+          reference,
         },
-      });
-
-      await tx.wallet.update({
-        where: { id: wallet.id },
-        data: { balance: { decrement: totalAmountKobo } },
       });
 
       return { reference: booking.reference };
@@ -152,19 +174,18 @@ export async function payBookingFromWallet({
     const [user, vendor] = await Promise.all([
       db.user.findUnique({
         where: { id: userId },
-        select: { email: true, name: true },
+        select: { email: true, first_name: true },
       }),
-      db.vendor.findUnique({
-        where: { id: vendorId },
-        select: { transportName: true },
+      db.vendor_profile.findUnique({
+        where: { user_id: vendorId },
+        select: { business_name: true },
       }),
     ]);
 
     if (user?.email && vendor) {
-      const firstName = user.name.split(" ")[0];
-      sendBookingConfirmationEmail(user.email, firstName, {
+      sendBookingConfirmationEmail(user.email, user.first_name, {
         reference,
-        vendorName: vendor.transportName,
+        vendorName: vendor.business_name,
         routeName,
         direction,
         hall,

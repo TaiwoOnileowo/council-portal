@@ -1,27 +1,33 @@
 "use client";
 
 import { signOutUser } from "@/lib/actions/user.action";
+import { useCurrentUser } from "@/modules/auth/hooks/useCurrentUser";
 import { cn } from "@/lib/utils";
 import { Bus, Home, LogOut, Menu, User, X } from "lucide-react";
 import { motion } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
-const mainNav = [{ label: "Home", icon: Home, href: "/", badge: null }];
-
-const servicesNav = [
-  { label: "Transport", icon: Bus, href: "/transport", badge: null },
-];
-
-const accountNav = [
-  { label: "Profile", icon: User, href: "/profile", badge: null },
+const navGroups = [
+  {
+    label: "Menu",
+    items: [{ label: "Home", icon: Home, href: "/", badge: null }],
+  },
+  {
+    label: "Services",
+    items: [{ label: "Transport", icon: Bus, href: "/transport", badge: null }],
+  },
+  {
+    label: "Account",
+    items: [{ label: "Profile", icon: User, href: "/profile", badge: null }],
+  },
 ];
 
 interface NavGroupProps {
   label: string;
-  items: typeof mainNav;
+  items: (typeof navGroups)[number]["items"];
   pathname: string;
 }
 
@@ -74,23 +80,19 @@ function NavGroup({ label, items, pathname }: NavGroupProps) {
   );
 }
 
-type SidebarUser = {
-  name: string;
-  matricNumber: string;
-  level: string;
-};
-
-export default function Sidebar({ user }: { user?: SidebarUser | null }) {
+export default function Sidebar() {
+  const { data: user } = useCurrentUser();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [prevPathname, setPrevPathname] = useState(pathname);
 
-  useEffect(() => {
+  if (pathname !== prevPathname) {
+    setPrevPathname(pathname);
     setMobileOpen(false);
-  }, [pathname]);
+  }
 
   return (
     <>
-      {/* Mobile top bar */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-20 h-14 bg-portal-surface border-b border-portal-border px-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Image
@@ -113,7 +115,6 @@ export default function Sidebar({ user }: { user?: SidebarUser | null }) {
         </button>
       </div>
 
-      {/* Backdrop */}
       {mobileOpen && (
         <div
           className="lg:hidden fixed inset-0 bg-black/40 z-30"
@@ -121,7 +122,6 @@ export default function Sidebar({ user }: { user?: SidebarUser | null }) {
         />
       )}
 
-      {/* Sidebar */}
       <aside
         className={cn(
           "fixed top-0 left-0 bottom-0 w-[260px] bg-portal-surface border-r border-portal-border flex flex-col z-40 transition-transform duration-300 ease-in-out",
@@ -129,7 +129,6 @@ export default function Sidebar({ user }: { user?: SidebarUser | null }) {
         )}
       >
         <div className="px-4 pt-6 pb-5 relative">
-          {/* Mobile close button */}
           <button
             className="lg:hidden absolute top-4 right-4 p-1.5 rounded-lg text-portal-muted hover:bg-portal-bg transition-colors"
             onClick={() => setMobileOpen(false)}
@@ -138,7 +137,6 @@ export default function Sidebar({ user }: { user?: SidebarUser | null }) {
             <X className="w-4 h-4" />
           </button>
 
-          {/* Logo */}
           <div className="flex items-center gap-2.5 pb-5 border-b border-portal-border mb-5">
             <Image
               src="/logo.png"
@@ -151,27 +149,34 @@ export default function Sidebar({ user }: { user?: SidebarUser | null }) {
               <div className="font-heading text-sm font-bold leading-tight text-portal-text">
                 CU Student Council
               </div>
-              <div className="text-[11px] text-portal-muted">Student Portal</div>
+              <div className="text-[11px] text-portal-muted">
+                Student Portal
+              </div>
             </div>
           </div>
 
-          {/* Navigation */}
           <nav className="flex-1 overflow-y-auto">
-            <NavGroup label="Menu" items={mainNav} pathname={pathname} />
-            <NavGroup label="Services" items={servicesNav} pathname={pathname} />
-            <NavGroup label="Account" items={accountNav} pathname={pathname} />
+            {navGroups.map((group) => (
+              <NavGroup
+                key={group.label}
+                label={group.label}
+                items={group.items}
+                pathname={pathname}
+              />
+            ))}
           </nav>
         </div>
 
-        {/* User pill */}
         <div className="mt-auto border-t border-portal-border px-4 py-4">
           <div className="flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl bg-portal-bg hover:bg-portal-bg2 transition-colors">
             <div className="min-w-0 flex-1">
               <div className="text-[13px] font-semibold text-portal-text truncate">
-                {user?.name ?? "Student"}
+                {user?.fullName ?? "Student"}
               </div>
               <div className="text-[11px] text-portal-muted truncate">
-                {user ? `${user.matricNumber} · ${user.level}L` : ""}
+                {user?.student
+                  ? `${user.student.matricNumber} · ${user.student.level}L`
+                  : ""}
               </div>
             </div>
             <form action={signOutUser}>
