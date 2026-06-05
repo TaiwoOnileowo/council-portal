@@ -89,6 +89,7 @@ export type TransportBooking = {
   fare: number;
   studentNotes: string | null;
   destinationAddress: string | null;
+  departureAt: string | null;
   status: "PENDING" | "CONFIRMED" | "CANCELLED" | "FAILED";
   createdAt: string;
 };
@@ -128,6 +129,7 @@ export type StudentBooking = {
   serviceFee: number;
   studentNotes: string | null;
   destinationAddress: string | null;
+  departureAt: string | null;
   createdAt: string;
   vendor: {
     transportName: string;

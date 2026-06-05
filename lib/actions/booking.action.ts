@@ -64,6 +64,7 @@ export async function getBookings(
         service_fee: true,
         student_notes: true,
         destination_address: true,
+        departure_at: true,
         created_at: true,
         vendor: {
           select: {
@@ -113,6 +114,7 @@ export async function getBookings(
         serviceFee: b.service_fee,
         studentNotes: b.student_notes,
         destinationAddress: b.destination_address,
+        departureAt: b.departure_at ? b.departure_at.toISOString() : null,
         createdAt: b.created_at.toISOString(),
         vendor: {
           transportName: b.vendor.business_name,
@@ -144,6 +146,7 @@ export async function payBookingFromWallet({
   serviceFee,
   studentNotes,
   destinationAddress,
+  departureAt,
 }: {
   vendorId: string;
   routeId: string;
@@ -158,6 +161,7 @@ export async function payBookingFromWallet({
   serviceFee: number;
   studentNotes?: string;
   destinationAddress: string;
+  departureAt?: string;
 }): Promise<
   | { reference: string }
   | { error: "INSUFFICIENT_BALANCE"; shortfall: number }
@@ -203,6 +207,7 @@ export async function payBookingFromWallet({
           service_fee: serviceFee,
           student_notes: studentNotes?.trim() || null,
           destination_address: destinationAddress.trim(),
+          departure_at: departureAt ? new Date(departureAt) : null,
           user_id: userId,
           vendor_id: vendorId,
           route_id: routeId,

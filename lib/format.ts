@@ -1,3 +1,7 @@
+export function formatAmount(naira: number) {
+  return `₦${naira.toLocaleString("en-NG")}`;
+}
+
 export function formatWithCommas(value: string) {
   const digits = value.replace(/\D/g, "");
   if (!digits) return "";

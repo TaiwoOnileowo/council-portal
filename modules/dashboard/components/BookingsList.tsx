@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { motion } from "motion/react";
-import { format, isToday, isTomorrow } from "date-fns";
 import { ChevronDown, ChevronRight, Search, X } from "lucide-react";
 import { useBookings } from "@/modules/transport/hooks/useBookings";
 import {
@@ -12,20 +11,12 @@ import {
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import BookingDetailModal from "@/modules/dashboard/components/BookingDetailModal";
 import Pagination from "@/components/ui/Pagination";
-
-const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  CONFIRMED: { label: "Confirmed", color: "#2a7d4f" },
-  PENDING: { label: "Pending", color: "#c9952a" },
-  CANCELLED: { label: "Cancelled", color: "#ef4444" },
-  FAILED: { label: "Failed", color: "#ef4444" },
-};
-
-function formatDate(iso: string) {
-  const d = new Date(iso);
-  if (isToday(d)) return "Today";
-  if (isTomorrow(d)) return "Tomorrow";
-  return format(d, "d MMM");
-}
+import { bookingStatusConfig } from "@/modules/dashboard/dashboard.constant";
+import {
+  formatBookingDate,
+  formatDeparture,
+} from "@/modules/dashboard/dashboard.util";
+import { formatAmount } from "@/lib/format";
 
 function SkeletonRow() {
   return (
@@ -148,8 +139,7 @@ export default function BookingsList() {
             </div>
           ) : (
             bookings.map((booking) => {
-              const statusCfg =
-                STATUS_CONFIG[booking.status] ?? STATUS_CONFIG.CONFIRMED;
+              const statusCfg = bookingStatusConfig(booking.status);
               return (
                 <button
                   key={booking.id}
@@ -168,13 +158,16 @@ export default function BookingsList() {
                       {booking.direction === "LEAVING"
                         ? "Leaving"
                         : "Returning"}{" "}
-                      · {formatDate(booking.createdAt)}
+                      ·{" "}
+                      {booking.departureAt
+                        ? formatDeparture(booking.departureAt)
+                        : formatBookingDate(booking.createdAt)}
                     </p>
                   </div>
                   <div className="text-right flex-shrink-0 flex items-center gap-2">
                     <div>
                       <p className="text-[13px] font-bold font-heading">
-                        ₦{(booking.fare + booking.serviceFee).toLocaleString()}
+                        {formatAmount(booking.fare + booking.serviceFee)}
                       </p>
                       <span
                         className="inline-block mt-1 text-[11px] font-semibold px-2 py-0.5 rounded-full"

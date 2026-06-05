@@ -6,6 +6,8 @@ import type {
   PublicRoute,
   PublicVendor,
 } from "@/lib/actions/transport.action";
+import { formatAmount } from "@/lib/format";
+import { inputClass } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -21,7 +23,6 @@ import {
   Info,
   Loader2,
   MapPin,
-  MessageCircle,
   Search,
   X,
 } from "lucide-react";
@@ -118,6 +119,9 @@ export default function BookingFlow({
   const [isProcessing, setIsProcessing] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [shortfall, setShortfall] = useState<number | null>(null);
+  const [selectedDeparture, setSelectedDeparture] = useState<string | null>(
+    null,
+  );
   const {
     register,
     control,
@@ -149,6 +153,7 @@ export default function BookingFlow({
     setStep("pick-destination");
     setSearch("");
     setSelectedRoute(null);
+    setSelectedDeparture(null);
     setBookingRef("");
     setCopied(false);
     setIsProcessing(false);
@@ -206,6 +211,7 @@ export default function BookingFlow({
         serviceFee: SERVICE_FEE,
         studentNotes: values.studentNotes,
         destinationAddress: values.destinationAddress,
+        departureAt: selectedDeparture ?? undefined,
       });
 
       if ("error" in result) {
@@ -397,21 +403,33 @@ export default function BookingFlow({
                         <div className="flex items-center gap-1.5 mb-2">
                           <CalendarClock className="w-3.5 h-3.5 text-portal-muted" />
                           <p className="text-[11px] font-semibold text-portal-text2">
-                            Departure schedule
+                            Select your departure
                           </p>
                         </div>
                         <div className="flex flex-wrap gap-1.5">
-                          {priceList.departureTimes.map((d, i) => (
-                            <span
-                              key={i}
-                              className="text-[12px] font-medium text-portal-text bg-portal-surface border border-portal-border rounded-lg px-2.5 py-1"
-                            >
-                              {format(
-                                new Date(d.departsAt),
-                                "EEE d MMM · h:mm a",
-                              )}
-                            </span>
-                          ))}
+                          {priceList.departureTimes.map((d, i) => {
+                            const isSelected =
+                              selectedDeparture === d.departsAt;
+                            return (
+                              <button
+                                key={i}
+                                type="button"
+                                onClick={() =>
+                                  setSelectedDeparture(d.departsAt)
+                                }
+                                className={`text-[12px] font-medium rounded-lg px-2.5 py-1 border transition-colors ${
+                                  isSelected
+                                    ? "bg-portal-accent text-white border-portal-accent"
+                                    : "bg-portal-surface text-portal-text border-portal-border hover:border-portal-accent"
+                                }`}
+                              >
+                                {format(
+                                  new Date(d.departsAt),
+                                  "EEE d MMM · h:mm a",
+                                )}
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
@@ -460,21 +478,30 @@ export default function BookingFlow({
                       <div className="flex justify-between text-[14px] pt-2 border-t border-portal-border">
                         <span className="font-bold">Total</span>
                         <span className="font-heading font-extrabold text-base">
-                          &#x20A6;{totalAmount.toLocaleString()}
+                          {formatAmount(totalAmount)}
                         </span>
                       </div>
                     </div>
 
+                    {priceList.departureTimes.length > 0 &&
+                      !selectedDeparture && (
+                        <p className="text-[12px] text-portal-muted text-center mb-2">
+                          Select a departure time to continue
+                        </p>
+                      )}
                     <button
                       onClick={() => setStep("passenger-details")}
-                      className="w-full py-3 bg-portal-accent hover:bg-portal-accent2 text-white rounded-xl text-[14px] font-semibold transition-all hover:-translate-y-0.5"
+                      disabled={
+                        priceList.departureTimes.length > 0 &&
+                        !selectedDeparture
+                      }
+                      className="w-full py-3 bg-portal-accent hover:bg-portal-accent2 text-white rounded-xl text-[14px] font-semibold transition-all hover:-translate-y-0.5 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0"
                     >
                       Continue
                     </button>
                   </motion.div>
                 )}
 
-                {/* ── Step 3: Passenger Details ── */}
                 {step === "passenger-details" && (
                   <motion.div
                     key="step-passenger"
@@ -673,7 +700,7 @@ export default function BookingFlow({
                             Processing...
                           </>
                         ) : (
-                          `Pay \u20A6${totalAmount.toLocaleString()} from Wallet`
+                          `Pay ${formatAmount(totalAmount)} from Wallet`
                         )}
                       </button>
                     </form>
@@ -730,10 +757,21 @@ export default function BookingFlow({
                           {pickup} &#x2192; {destination}
                         </span>
                       </div>
+                      {selectedDeparture && (
+                        <div className="flex justify-between text-[13px]">
+                          <span className="text-portal-muted">Departure</span>
+                          <span className="font-semibold text-right max-w-[60%]">
+                            {format(
+                              new Date(selectedDeparture),
+                              "EEE d MMM · h:mm a",
+                            )}
+                          </span>
+                        </div>
+                      )}
                       <div className="flex justify-between text-[13px] pt-2 border-t border-portal-border">
                         <span className="font-bold">Total Paid</span>
                         <span className="font-heading font-extrabold text-base">
-                          &#x20A6;{totalAmount.toLocaleString()}
+                          {formatAmount(totalAmount)}
                         </span>
                       </div>
                     </div>
@@ -763,13 +801,7 @@ export default function BookingFlow({
   );
 }
 
-function inputCls(hasError: boolean) {
-  return `w-full px-3.5 py-2.5 bg-portal-bg border rounded-xl text-sm text-portal-text placeholder:text-portal-muted outline-none transition-colors ${
-    hasError
-      ? "border-red-400 focus:border-red-500"
-      : "border-portal-border focus:border-portal-accent"
-  }`;
-}
+const inputCls = (err?: any) => inputClass(err, "sm");
 
 function Field({
   label,

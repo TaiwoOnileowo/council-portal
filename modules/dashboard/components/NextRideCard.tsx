@@ -2,22 +2,15 @@
 
 import Link from "next/link";
 import { motion } from "motion/react";
-import { format, isToday, isTomorrow } from "date-fns";
 import { ArrowRight, Bus, MapPin } from "lucide-react";
 import { useBookings } from "@/modules/transport/hooks/useBookings";
 import { BorderBeam } from "@/components/ui/border-beam";
-
-const STATUS_COLOR: Record<string, string> = {
-  CONFIRMED: "#2a7d4f",
-  PENDING: "#c9952a",
-};
-
-function formatDate(iso: string) {
-  const d = new Date(iso);
-  if (isToday(d)) return "Today";
-  if (isTomorrow(d)) return "Tomorrow";
-  return format(d, "d MMM");
-}
+import { bookingStatusConfig } from "@/modules/dashboard/dashboard.constant";
+import {
+  formatBookingDate,
+  formatDeparture,
+} from "@/modules/dashboard/dashboard.util";
+import { formatAmount } from "@/lib/format";
 
 export default function NextRideCard() {
   const { data, isLoading } = useBookings({
@@ -68,12 +61,12 @@ export default function NextRideCard() {
           Book a ride
           <ArrowRight className="w-3.5 h-3.5" />
         </Link>
-
       </motion.div>
     );
   }
 
-  const statusColor = STATUS_COLOR[nextRide.status] ?? STATUS_COLOR.CONFIRMED;
+  const statusCfg = bookingStatusConfig(nextRide.status);
+  const statusColor = statusCfg.color;
 
   return (
     <motion.div
@@ -90,7 +83,7 @@ export default function NextRideCard() {
           className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full"
           style={{ color: statusColor, background: `${statusColor}1a` }}
         >
-          {nextRide.status === "CONFIRMED" ? "Confirmed" : "Pending"}
+          {statusCfg.label}
         </span>
       </div>
 
@@ -107,12 +100,14 @@ export default function NextRideCard() {
             <span className="truncate">
               {nextRide.routeName} ·{" "}
               {nextRide.direction === "LEAVING" ? "Leaving" : "Returning"} ·{" "}
-              {formatDate(nextRide.createdAt)}
+              {nextRide.departureAt
+                ? formatDeparture(nextRide.departureAt)
+                : formatBookingDate(nextRide.createdAt)}
             </span>
           </div>
         </div>
         <p className="ml-auto font-heading text-[20px] font-extrabold text-portal-text flex-shrink-0">
-          ₦{(nextRide.fare + nextRide.serviceFee).toLocaleString()}
+          {formatAmount(nextRide.fare + nextRide.serviceFee)}
         </p>
       </div>
       <BorderBeam duration={15} size={100} />

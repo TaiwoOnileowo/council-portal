@@ -1,58 +1,21 @@
 "use client";
 
-import Image from "next/image";
-import {
-  MapPin,
-  Clock,
-  Calendar,
-  BadgeCheck,
-  XCircle,
-  Phone,
-} from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import type { StudentBooking } from "@/modules/transport/transport.types";
+import { Calendar, Clock, MapPin } from "lucide-react";
+import Image from "next/image";
+import { bookingStatusConfig } from "@/modules/dashboard/dashboard.constant";
+import {
+  formatDeparture,
+  formatFullDate,
+} from "@/modules/dashboard/dashboard.util";
+import { formatAmount } from "@/lib/format";
 
 type Props = {
   booking: StudentBooking | null;
   open: boolean;
   onClose: () => void;
 };
-
-const STATUS_CONFIG = {
-  CONFIRMED: {
-    label: "Confirmed",
-    icon: BadgeCheck,
-    className: "text-portal-green bg-portal-green-bg",
-  },
-  PENDING: {
-    label: "Pending",
-    icon: Clock,
-    className: "text-portal-gold bg-portal-gold-bg",
-  },
-  CANCELLED: {
-    label: "Cancelled",
-    icon: XCircle,
-    className: "text-red-500 bg-red-50",
-  },
-  FAILED: {
-    label: "Failed",
-    icon: XCircle,
-    className: "text-red-500 bg-red-50",
-  },
-};
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-GB", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
-
-function formatAmount(naira: number) {
-  return `₦${naira.toLocaleString()}`;
-}
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -70,7 +33,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 export default function BookingDetailModal({ booking, open, onClose }: Props) {
   if (!booking) return null;
 
-  const statusCfg = STATUS_CONFIG[booking.status] ?? STATUS_CONFIG.CONFIRMED;
+  const statusCfg = bookingStatusConfig(booking.status);
   const StatusIcon = statusCfg.icon;
   const totalAmount = booking.fare + booking.serviceFee;
   const directionLabel =
@@ -141,12 +104,23 @@ export default function BookingDetailModal({ booking, open, onClose }: Props) {
               }
             />
           )}
+          {booking.departureAt && (
+            <Row
+              label="Departure"
+              value={
+                <span className="flex items-center gap-1.5 justify-end">
+                  <Clock className="w-3.5 h-3.5 text-portal-muted flex-shrink-0" />
+                  {formatDeparture(booking.departureAt)}
+                </span>
+              }
+            />
+          )}
           <Row
             label="Date booked"
             value={
               <span className="flex items-center gap-1.5">
                 <Calendar className="w-3.5 h-3.5 text-portal-muted flex-shrink-0" />
-                {formatDate(booking.createdAt)}
+                {formatFullDate(booking.createdAt)}
               </span>
             }
           />
@@ -162,7 +136,6 @@ export default function BookingDetailModal({ booking, open, onClose }: Props) {
           />
         </div>
 
-        {/* Student's note */}
         {booking.studentNotes && (
           <div className="bg-portal-bg rounded-xl border border-portal-border p-4 mb-5">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1">
@@ -174,7 +147,6 @@ export default function BookingDetailModal({ booking, open, onClose }: Props) {
           </div>
         )}
 
-        {/* Luggage & Notes */}
         {(booking.route.priceList.luggagePolicy ||
           booking.route.priceList.notes) && (
           <div className="space-y-3 mb-5">
@@ -201,7 +173,6 @@ export default function BookingDetailModal({ booking, open, onClose }: Props) {
           </div>
         )}
 
-        {/* Reference */}
         <div className="text-center py-2">
           <p className="text-[11px] text-portal-muted">Booking reference</p>
           <p className="text-[13px] font-mono font-bold text-portal-text mt-0.5 tracking-wider">

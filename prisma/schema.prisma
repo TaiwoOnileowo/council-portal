@@ -154,12 +154,13 @@ model booking {
   room_number     String
 
   // Route snapshot (preserved even if route is edited/deleted)
-  direction     PriceListDirection
+  direction           PriceListDirection
   route_name          String
   fare                Int // naira
   service_fee         Int // naira
   student_notes       String? // optional note from student to vendor
   destination_address String? // student's off-campus drop-off / pickup address
+  departure_at        DateTime? // snapshot of the departure the student chose
 
   // Relations
   user_id   String?

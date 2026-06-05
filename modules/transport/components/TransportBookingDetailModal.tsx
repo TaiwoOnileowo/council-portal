@@ -1,6 +1,13 @@
 "use client";
 
-import { MapPin, Phone, Home, Calendar, MessageSquare } from "lucide-react";
+import {
+  MapPin,
+  Phone,
+  Home,
+  Calendar,
+  Clock,
+  MessageSquare,
+} from "lucide-react";
 import { format } from "date-fns";
 import Modal from "@/components/ui/Modal";
 import type { TransportBooking } from "@/modules/transport/transport.types";
@@ -14,13 +21,21 @@ type Props = {
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-4 py-3 border-b border-portal-border last:border-b-0">
-      <span className="text-[12.5px] text-portal-muted flex-shrink-0">{label}</span>
-      <span className="text-[13px] font-medium text-portal-text text-right">{value}</span>
+      <span className="text-[12.5px] text-portal-muted flex-shrink-0">
+        {label}
+      </span>
+      <span className="text-[13px] font-medium text-portal-text text-right">
+        {value}
+      </span>
     </div>
   );
 }
 
-export default function TransportBookingDetailModal({ booking, open, onClose }: Props) {
+export default function TransportBookingDetailModal({
+  booking,
+  open,
+  onClose,
+}: Props) {
   if (!booking) return null;
 
   return (
@@ -32,7 +47,6 @@ export default function TransportBookingDetailModal({ booking, open, onClose }: 
       maxWidth="max-w-[440px]"
     >
       <div className="px-5 py-4 space-y-4">
-        {/* Passenger contact */}
         <div className="bg-portal-bg rounded-xl border border-portal-border px-4">
           <Row
             label="Name"
@@ -76,7 +90,6 @@ export default function TransportBookingDetailModal({ booking, open, onClose }: 
           <Row label="Room" value={booking.roomNumber} />
         </div>
 
-        {/* Trip info */}
         <div className="bg-portal-bg rounded-xl border border-portal-border px-4">
           <Row
             label="Route"
@@ -89,10 +102,18 @@ export default function TransportBookingDetailModal({ booking, open, onClose }: 
           />
           <Row
             label="Direction"
-            value={booking.direction === "LEAVING" ? "Leaving school" : "Returning to school"}
+            value={
+              booking.direction === "LEAVING"
+                ? "Leaving school"
+                : "Returning to school"
+            }
           />
           <Row
-            label={booking.direction === "LEAVING" ? "Drop-off address" : "Pickup address"}
+            label={
+              booking.direction === "LEAVING"
+                ? "Drop-off address"
+                : "Pickup address"
+            }
             value={
               booking.destinationAddress ? (
                 <span className="inline-flex items-start gap-1.5">
@@ -104,6 +125,17 @@ export default function TransportBookingDetailModal({ booking, open, onClose }: 
               )
             }
           />
+          {booking.departureAt && (
+            <Row
+              label="Departure"
+              value={
+                <span className="inline-flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-portal-muted flex-shrink-0" />
+                  {format(new Date(booking.departureAt), "EEE d MMM · h:mm a")}
+                </span>
+              }
+            />
+          )}
           <Row
             label="Booked on"
             value={
@@ -115,7 +147,6 @@ export default function TransportBookingDetailModal({ booking, open, onClose }: 
           />
         </div>
 
-        {/* Student notes */}
         {booking.studentNotes && (
           <div className="bg-portal-bg rounded-xl border border-portal-border p-4">
             <div className="flex items-center gap-1.5 mb-2">
