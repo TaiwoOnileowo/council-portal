@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import { CheckCircle2, Copy, Loader2, Wallet } from "lucide-react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { verifyAndTopUpWallet } from "@/lib/actions/wallet.action";
 import Modal from "@/components/ui/Modal";
+import { verifyAndTopUpWallet } from "@/lib/actions/wallet.action";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { CheckCircle2, Copy, Loader2, Wallet } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useSession } from "next-auth/react";
+import { useEffect, useRef, useState } from "react";
 
 type Step = "enter-amount" | "processing" | "success";
 
@@ -39,13 +39,14 @@ export default function TopUpModal({
   onClose,
   prefilledAmount,
   onSuccess,
+  user,
 }: {
   open: boolean;
   onClose: () => void;
   prefilledAmount?: number;
   onSuccess?: () => void;
+  user: { id: string; name: string; email: string };
 }) {
-  const { data: session, status: sessionStatus } = useSession();
   const [step, setStep] = useState<Step>("enter-amount");
   const [amountInput, setAmountInput] = useState("");
   const [tagline] = useState(
@@ -130,7 +131,7 @@ export default function TopUpModal({
     setAmountInput(naira.toLocaleString("en-NG"));
   }
   function handlePay() {
-    if (amountKobo <= 0 || !session?.user) return;
+    if (amountKobo <= 0) return;
 
     // eslint-disable-next-line react-hooks/purity
     const ref = `TOPUP-${Date.now().toString(36).toUpperCase()}-${Math.random()
@@ -148,10 +149,10 @@ export default function TopUpModal({
       currency: "NGN",
       payment_options: "card,ussd,banktransfer",
       customer: {
-        email: session.user.email ?? "",
-        name: session.user.name ?? "",
+        email: user?.email ?? "",
+        name: user?.name ?? "",
       },
-      meta: { userId: session.user.id },
+      meta: { userId: user?.id },
       customizations: {
         title: "Council Portal Wallet",
         description: "Top up your wallet",
@@ -274,7 +275,7 @@ export default function TopUpModal({
 
             <button
               onClick={() => handlePay()}
-              disabled={amountKobo <= 0 || sessionStatus !== "authenticated"}
+              disabled={amountKobo <= 0}
               className="w-full py-3 bg-portal-accent hover:bg-portal-accent2 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl text-[14px] font-semibold transition-all hover:enabled:-translate-y-0.5"
             >
               {amountNaira > 0

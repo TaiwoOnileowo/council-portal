@@ -7,8 +7,10 @@ import { useQuery } from "@tanstack/react-query";
 import { BorderBeam } from "@/components/ui/border-beam";
 import { getWalletBalance } from "@/lib/actions/wallet.action";
 import TopUpModal from "@/modules/wallet/components/TopUpModal";
+import { useSession } from "next-auth/react";
 
 export function WalletCard() {
+  const { data: session } = useSession();
   const [topUpOpen, setTopUpOpen] = useState(false);
 
   const { data } = useQuery({
@@ -17,12 +19,12 @@ export function WalletCard() {
   });
 
   const balanceNaira =
-    data && "balance" in data && data.balance != null ? data.balance / 100 : null;
+    data && "balance" in data && data.balance != null
+      ? data.balance / 100
+      : null;
 
   const displayBalance =
-    balanceNaira !== null
-      ? `₦${balanceNaira.toLocaleString("en-NG")}`
-      : "₦—";
+    balanceNaira !== null ? `₦${balanceNaira.toLocaleString("en-NG")}` : "₦—";
 
   return (
     <>
@@ -55,7 +57,11 @@ export function WalletCard() {
         <BorderBeam duration={15} size={100} />
       </motion.div>
 
-      <TopUpModal open={topUpOpen} onClose={() => setTopUpOpen(false)} />
+      <TopUpModal
+        open={topUpOpen}
+        onClose={() => setTopUpOpen(false)}
+        user={session?.user as any}
+      />
     </>
   );
 }

@@ -161,6 +161,7 @@ export default function VendorCardsList({
         onClose={handleTopUpClose}
         prefilledAmount={topUpPrefill}
         onSuccess={topUpOnSuccess ?? undefined}
+        user={user}
       />
     </>
   );
