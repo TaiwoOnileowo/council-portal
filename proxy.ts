@@ -1,41 +1,65 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import type { Session } from "next-auth";
+
+type PublicRoute = {
+  // Matches the request pathname.
+  pattern: RegExp;
+  // Human-readable note on why this route bypasses the session gate.
+  description: string;
+  // Optional gate: runs only when a route needs a session-aware decision.
+  // Return a path to redirect to, or null/undefined to let the request through.
+  resolve?: (session: Session | null) => string | null | undefined;
+};
+
+const PUBLIC_ROUTES: PublicRoute[] = [
+  {
+    pattern: /^\/api\/auth(\/.*)?$/,
+    description: "NextAuth internals — always allowed",
+  },
+  {
+    pattern: /^\/api\/webhook(\/.*)?$/,
+    description:
+      "Inbound webhooks (e.g. flutterwave) — auth handled in handler",
+  },
+  {
+    pattern: /^\/api\/uploadthing(\/.*)?$/,
+    description: "UploadThing upload endpoint — auth handled in handler",
+  },
+  {
+    pattern: /^\/new-keys(\/.*)?$/,
+    description: "Password reset — user is unauthenticated by definition",
+  },
+  {
+    pattern: /^\/gate(\/.*)?$/,
+    description: "Login gate — bounce authenticated non-vendors home",
+    resolve: (session) => (session && !session.user.isVendor ? "/" : null),
+  },
+  {
+    pattern: /^\/vendor-gate(\/.*)?$/,
+    description:
+      "Vendor login gate — bounce authenticated vendors to dashboard",
+    resolve: (session) =>
+      session && session.user.isVendor ? "/vendor-dashboard" : null,
+  },
+];
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Always allow NextAuth internals through
-  if (/^\/api\/auth(\/.*)?$/.test(pathname)) {
-    return NextResponse.next();
-  }
+  const publicRoute = PUBLIC_ROUTES.find((route) =>
+    route.pattern.test(pathname),
+  );
 
-  // Gate: let unauthenticated users in, bounce authenticated users home
-  if (/^\/gate(\/.*)?$/.test(pathname)) {
-    const session = await auth();
-    if (session && !session.user.isVendor) {
-      return NextResponse.redirect(new URL("/", req.url));
+  if (publicRoute) {
+    if (!publicRoute.resolve) {
+      return NextResponse.next();
     }
-    return NextResponse.next();
-  }
-
-  // Vendor gate: same as /gate — unauthenticated users in, authenticated users bounce home
-  if (/^\/vendor-gate(\/.*)?$/.test(pathname)) {
-    const session = await auth();
-    if (session && session.user.isVendor) {
-      return NextResponse.redirect(new URL("/vendor-dashboard", req.url));
-    }
-    return NextResponse.next();
-  }
-
-  // New-keys (password reset): always public — user is unauthenticated by definition
-  if (/^\/new-keys(\/.*)?$/.test(pathname)) {
-    return NextResponse.next();
-  }
-
-  // UploadThing: public upload endpoint (auth handled inside the route handler)
-  if (/^\/api\/uploadthing(\/.*)?$/.test(pathname)) {
-    return NextResponse.next();
+    const redirectTo = publicRoute.resolve(await auth());
+    return redirectTo
+      ? NextResponse.redirect(new URL(redirectTo, req.url))
+      : NextResponse.next();
   }
 
   // Every other route requires a session
