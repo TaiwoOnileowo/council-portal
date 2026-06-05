@@ -121,7 +121,6 @@ export default function VendorProfileDetails({ vendor }: Props) {
         )}
       </div>
 
-      {/* Name row */}
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div>
           <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">First Name</label>
@@ -155,7 +154,6 @@ export default function VendorProfileDetails({ vendor }: Props) {
         </div>
       </div>
 
-      {/* Email */}
       <div className="mb-4">
         <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">Email Address</label>
         {editing ? (
@@ -178,7 +176,6 @@ export default function VendorProfileDetails({ vendor }: Props) {
         )}
       </div>
 
-      {/* Phone */}
       <div>
         <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">Phone Number</label>
         {editing ? (

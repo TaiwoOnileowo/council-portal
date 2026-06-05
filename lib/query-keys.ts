@@ -9,6 +9,9 @@ export const queryKeys = {
   wallet: {
     all: () => ["wallet"] as const,
   },
+  banks: {
+    all: () => ["banks", "NG"] as const,
+  },
   vendor: {
     bookings: (filters?: object) =>
       filters ? ["vendor", "bookings", filters] as const : ["vendor", "bookings"] as const,

@@ -148,6 +148,7 @@ export default function SignUpForm() {
       }
       return;
     }
+    toast.success("Account created successfully!");
     router.push("/");
     router.refresh();
   });
@@ -173,7 +174,9 @@ export default function SignUpForm() {
                 className={inputClass(errors.firstName?.message)}
               />
               {errors.firstName && (
-                <p className="mt-1 text-xs text-red-500">{errors.firstName.message}</p>
+                <p className="mt-1 text-xs text-red-500">
+                  {errors.firstName.message}
+                </p>
               )}
             </div>
             <div className="flex-1">
@@ -187,7 +190,9 @@ export default function SignUpForm() {
                 className={inputClass(errors.lastName?.message)}
               />
               {errors.lastName && (
-                <p className="mt-1 text-xs text-red-500">{errors.lastName.message}</p>
+                <p className="mt-1 text-xs text-red-500">
+                  {errors.lastName.message}
+                </p>
               )}
             </div>
           </div>
@@ -203,7 +208,9 @@ export default function SignUpForm() {
               className={inputClass(errors.email?.message)}
             />
             {errors.email && (
-              <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>
+              <p className="mt-1 text-xs text-red-500">
+                {errors.email.message}
+              </p>
             )}
           </div>
 
@@ -228,7 +235,9 @@ export default function SignUpForm() {
               </button>
             </div>
             {errors.password && (
-              <p className="mt-1 text-xs text-red-500">{errors.password.message}</p>
+              <p className="mt-1 text-xs text-red-500">
+                {errors.password.message}
+              </p>
             )}
           </div>
 
@@ -253,7 +262,9 @@ export default function SignUpForm() {
               </button>
             </div>
             {errors.confirmPassword && (
-              <p className="mt-1 text-xs text-red-500">{errors.confirmPassword.message}</p>
+              <p className="mt-1 text-xs text-red-500">
+                {errors.confirmPassword.message}
+              </p>
             )}
           </div>
 
@@ -270,8 +281,12 @@ export default function SignUpForm() {
       {step === 2 && (
         <form onSubmit={handleVerify} className="space-y-5">
           <div className="text-center space-y-1">
-            <p className="text-sm text-portal-text">We sent a 6-digit code to</p>
-            <p className="font-medium text-portal-accent break-all">{getValues("email")}</p>
+            <p className="text-sm text-portal-text">
+              We sent a 6-digit code to
+            </p>
+            <p className="font-medium text-portal-accent break-all">
+              {getValues("email")}
+            </p>
             <p className="text-xs text-portal-muted pt-1">
               Can&apos;t find it? Check your spam folder.{" "}
               {fromEmail && (
@@ -287,7 +302,12 @@ export default function SignUpForm() {
             </p>
           </div>
 
-          <OtpInput value={otp} onChange={setOtp} disabled={verifying} error={otpError} />
+          <OtpInput
+            value={otp}
+            onChange={setOtp}
+            disabled={verifying}
+            error={otpError}
+          />
 
           <button
             type="submit"
@@ -312,7 +332,11 @@ export default function SignUpForm() {
               disabled={cooldown > 0 || sendingOtp}
               className="text-portal-accent hover:underline disabled:text-portal-muted disabled:no-underline disabled:cursor-not-allowed transition-colors"
             >
-              {sendingOtp ? "Sending…" : cooldown > 0 ? `Resend in ${cooldown}s` : "Resend code"}
+              {sendingOtp
+                ? "Sending…"
+                : cooldown > 0
+                  ? `Resend in ${cooldown}s`
+                  : "Resend code"}
             </button>
           </div>
         </form>
@@ -331,7 +355,9 @@ export default function SignUpForm() {
               className={inputClass(errors.matricNumber?.message)}
             />
             {errors.matricNumber && (
-              <p className="mt-1 text-xs text-red-500">{errors.matricNumber.message}</p>
+              <p className="mt-1 text-xs text-red-500">
+                {errors.matricNumber.message}
+              </p>
             )}
           </div>
 
@@ -346,7 +372,11 @@ export default function SignUpForm() {
                 <input
                   {...field}
                   type="tel"
-                  onChange={(e) => field.onChange(e.target.value.replace(/\D/g, "").slice(0, 11))}
+                  onChange={(e) =>
+                    field.onChange(
+                      e.target.value.replace(/\D/g, "").slice(0, 11),
+                    )
+                  }
                   inputMode="numeric"
                   maxLength={11}
                   placeholder="08012345678"
@@ -355,7 +385,9 @@ export default function SignUpForm() {
               )}
             />
             {errors.phone && (
-              <p className="mt-1 text-xs text-red-500">{errors.phone.message}</p>
+              <p className="mt-1 text-xs text-red-500">
+                {errors.phone.message}
+              </p>
             )}
           </div>
 
@@ -370,7 +402,9 @@ export default function SignUpForm() {
               className={inputClass(errors.department?.message)}
             />
             {errors.department && (
-              <p className="mt-1 text-xs text-red-500">{errors.department.message}</p>
+              <p className="mt-1 text-xs text-red-500">
+                {errors.department.message}
+              </p>
             )}
           </div>
 
@@ -378,14 +412,23 @@ export default function SignUpForm() {
             <label className="block text-sm font-medium text-portal-text mb-1.5">
               Level<span className="text-portal-accent">*</span>
             </label>
-            <select {...register("level")} className={inputClass(errors.level?.message)}>
-              <option value="" disabled>Select your level</option>
+            <select
+              {...register("level")}
+              className={inputClass(errors.level?.message)}
+            >
+              <option value="" disabled>
+                Select your level
+              </option>
               {LEVELS.map((l) => (
-                <option key={l} value={l}>{l} Level</option>
+                <option key={l} value={l}>
+                  {l} Level
+                </option>
               ))}
             </select>
             {errors.level && (
-              <p className="mt-1 text-xs text-red-500">{errors.level.message}</p>
+              <p className="mt-1 text-xs text-red-500">
+                {errors.level.message}
+              </p>
             )}
           </div>
 

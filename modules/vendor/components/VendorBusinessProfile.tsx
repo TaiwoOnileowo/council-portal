@@ -227,7 +227,6 @@ export default function VendorBusinessProfile({ vendor }: Props) {
       </div>
 
       <div className="space-y-4">
-        {/* Logo */}
         <div>
           <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">
             Logo / Display Picture
@@ -256,7 +255,6 @@ export default function VendorBusinessProfile({ vendor }: Props) {
           )}
         </div>
 
-        {/* Transport Name */}
         <div>
           <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">
             Transport Name
@@ -287,7 +285,6 @@ export default function VendorBusinessProfile({ vendor }: Props) {
           )}
         </div>
 
-        {/* Tagline */}
         <div>
           <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">
             Tagline{" "}
@@ -324,7 +321,6 @@ export default function VendorBusinessProfile({ vendor }: Props) {
           )}
         </div>
 
-        {/* Description */}
         <div>
           <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">
             About Your Service{" "}
@@ -361,7 +357,6 @@ export default function VendorBusinessProfile({ vendor }: Props) {
           )}
         </div>
 
-        {/* Socials */}
         <div>
           <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-2">
             Socials{" "}
