@@ -1,5 +1,6 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { signOutUser } from "@/lib/actions/user.action";
 import { useCurrentUser } from "@/modules/auth/hooks/useCurrentUser";
 import { cn } from "@/lib/utils";
@@ -10,27 +11,60 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
-const navGroups = [
-  {
-    label: "Menu",
-    items: [{ label: "Home", icon: Home, href: "/", badge: null }],
-  },
-  {
-    label: "Services",
-    items: [{ label: "Transport", icon: Bus, href: "/transport", badge: null }],
-  },
-  {
-    label: "Account",
-    items: [
-      { label: "Profile", icon: User, href: "/profile", badge: null },
-      { label: "Wallet", icon: Wallet, href: "/wallet", badge: null },
+interface SidebarNavItem {
+  label: string;
+  icon: React.ElementType;
+  href: string;
+  badge?: string | number | null;
+}
+
+interface SidebarNavGroup {
+  label: string;
+  items: SidebarNavItem[];
+}
+
+export type SidebarVariant = "student" | "vendor";
+
+const SIDEBAR_CONFIG: Record<
+  SidebarVariant,
+  { subtitle: string; navGroups: SidebarNavGroup[] }
+> = {
+  student: {
+    subtitle: "Student Portal",
+    navGroups: [
+      { label: "Menu", items: [{ label: "Home", icon: Home, href: "/" }] },
+      {
+        label: "Services",
+        items: [{ label: "Transport", icon: Bus, href: "/transport" }],
+      },
+      {
+        label: "Account",
+        items: [
+          { label: "Profile", icon: User, href: "/profile" },
+          { label: "Wallet", icon: Wallet, href: "/wallet" },
+        ],
+      },
     ],
   },
-];
+  vendor: {
+    subtitle: "Vendor Portal",
+    navGroups: [
+      {
+        label: "Menu",
+        items: [
+          { label: "Home", icon: Home, href: "/vendor-dashboard" },
+          { label: "Profile", icon: User, href: "/vendor-dashboard/profile" },
+        ],
+      },
+    ],
+  },
+};
 
-interface NavGroupProps {
-  label: string;
-  items: (typeof navGroups)[number]["items"];
+interface SidebarProps {
+  variant: SidebarVariant;
+}
+
+interface NavGroupProps extends SidebarNavGroup {
   pathname: string;
 }
 
@@ -83,8 +117,10 @@ function NavGroup({ label, items, pathname }: NavGroupProps) {
   );
 }
 
-export default function Sidebar() {
+export default function Sidebar({ variant }: SidebarProps) {
+  const { subtitle, navGroups } = SIDEBAR_CONFIG[variant];
   const { data: user } = useCurrentUser();
+  const queryClient = useQueryClient();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [prevPathname, setPrevPathname] = useState(pathname);
@@ -93,6 +129,16 @@ export default function Sidebar() {
     setPrevPathname(pathname);
     setMobileOpen(false);
   }
+
+  async function handleLogout() {
+    queryClient.clear();
+    await signOutUser();
+  }
+
+  const displayName = user?.fullName ?? (user?.student ? "Student" : "Vendor");
+  const secondaryLine = user?.student
+    ? `${user.student.matricNumber} · ${user.student.level}L`
+    : (user?.email ?? "");
 
   return (
     <>
@@ -152,9 +198,7 @@ export default function Sidebar() {
               <div className="font-heading text-sm font-bold leading-tight text-portal-text">
                 CU Student Council
               </div>
-              <div className="text-[11px] text-portal-muted">
-                Student Portal
-              </div>
+              <div className="text-[11px] text-portal-muted">{subtitle}</div>
             </div>
           </div>
 
@@ -172,25 +216,37 @@ export default function Sidebar() {
 
         <div className="mt-auto border-t border-portal-border px-4 py-4">
           <div className="flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl bg-portal-bg hover:bg-portal-bg2 transition-colors">
+            {user?.image ? (
+              <Image
+                src={user.image}
+                alt={displayName}
+                width={32}
+                height={32}
+                className="rounded-full flex-shrink-0 object-cover"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-portal-accent flex items-center justify-center flex-shrink-0">
+                <span className="text-white text-[11px] font-bold">
+                  {displayName.charAt(0)}
+                </span>
+              </div>
+            )}
             <div className="min-w-0 flex-1">
               <div className="text-[13px] font-semibold text-portal-text truncate">
-                {user?.fullName ?? "Student"}
+                {displayName}
               </div>
               <div className="text-[11px] text-portal-muted truncate">
-                {user?.student
-                  ? `${user.student.matricNumber} · ${user.student.level}L`
-                  : ""}
+                {secondaryLine}
               </div>
             </div>
-            <form action={signOutUser}>
-              <button
-                type="submit"
-                title="Logout"
-                className="p-1.5 rounded-lg text-portal-muted hover:text-red-500 hover:bg-red-50 transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </form>
+            <button
+              type="button"
+              onClick={handleLogout}
+              title="Logout"
+              className="p-1.5 rounded-lg text-portal-muted hover:text-red-500 hover:bg-red-50 transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </aside>

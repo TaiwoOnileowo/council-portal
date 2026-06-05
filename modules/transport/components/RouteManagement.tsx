@@ -32,8 +32,6 @@ import Select from "@/components/ui/Select";
 import PriceListCard from "./PriceListCard";
 import AddCard from "./AddCard";
 
-const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-
 export default function RouteManagement() {
   const { data: priceLists, isLoading, isError, refetch } = useTransportPriceLists();
   const createMutation = useCreatePriceList();
@@ -103,11 +101,11 @@ export default function RouteManagement() {
   }
 
   function addRoute() {
-    appendRoute({ name: "", price: "", capacityType: "number", capacityValue: "", active: true });
+    appendRoute({ name: "", price: "", capacityType: "unlimited", capacityValue: "", active: true });
   }
 
   function addDeparture() {
-    appendDeparture({ day: "Monday", time: "08:00" });
+    appendDeparture({ date: "", time: "08:00" });
   }
 
   const canSave =
@@ -115,6 +113,7 @@ export default function RouteManagement() {
     watchedName.trim().length > 0 &&
     watchedRoutes.length >= 1 &&
     watchedDepartureTimes.length >= 1 &&
+    watchedDepartureTimes.every((d) => !!d?.date) &&
     (watchedAvailType !== "scheduled" || (!!watchedSchedStart && !!watchedSchedEnd));
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
@@ -346,14 +345,16 @@ export default function RouteManagement() {
                 </div>
               ))}
 
-              <button
-                type="button"
-                onClick={addRoute}
-                className="w-full flex items-center gap-1.5 px-5 py-3 text-[13px] font-medium text-portal-accent hover:bg-portal-accent-bg transition-colors"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Add Route
-              </button>
+              <div className="px-5 py-3">
+                <button
+                  type="button"
+                  onClick={addRoute}
+                  className="flex items-center gap-1.5 text-[13px] font-medium text-portal-accent hover:text-portal-accent2 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Add Route
+                </button>
+              </div>
             </div>
 
             <div className="border-b border-portal-border">
@@ -374,15 +375,13 @@ export default function RouteManagement() {
                     >
                       <div className="sm:flex-1 min-w-0">
                         <Controller
-                          name={`departureTimes.${index}.day`}
+                          name={`departureTimes.${index}.date`}
                           control={control}
                           render={({ field }) => (
-                            <Select
-                              size="sm"
-                              className="px-2 py-1.5 text-[13px] rounded-md"
-                              options={DAYS.map((d) => ({ value: d, label: d }))}
+                            <DatePickerField
                               value={field.value}
                               onChange={field.onChange}
+                              placeholder="Pick a date"
                             />
                           )}
                         />

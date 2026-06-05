@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -22,6 +23,7 @@ export default function AuthLoginForm({
   onForgotPassword,
 }: AuthLoginFormProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [showPassword, setShowPassword] = useState(false);
 
   const {
@@ -44,6 +46,7 @@ export default function AuthLoginForm({
       setError("root", { message: result.error });
       return;
     }
+    queryClient.clear();
     toast.success("Logged in successfully");
     router.push(AUTH_MODE[mode].redirect);
     router.refresh();

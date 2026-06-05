@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -19,6 +20,7 @@ export default function NewPasswordForm({
   token,
 }: NewPasswordFormProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [showPassword, setShowPassword] = useState(false);
 
   const {
@@ -49,6 +51,7 @@ export default function NewPasswordForm({
       return;
     }
 
+    queryClient.clear();
     toast.success("Keys changed! Welcome back.");
     router.push(isVendor ? "/vendor-dashboard" : "/");
     router.refresh();

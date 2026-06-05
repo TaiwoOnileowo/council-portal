@@ -5,7 +5,6 @@ import { verifyAndTopUpWallet } from "@/lib/actions/wallet.action";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Copy, Loader2, Wallet } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 
 type Step = "enter-amount" | "processing" | "success";
@@ -17,7 +16,7 @@ declare global {
 }
 
 const TAGLINES = [
-  "Broke at the gate is not a vibe",
+  "Broke at the portal is not a vibe",
   "Top up once, ride anytime",
   "Because last-minute scrambling is so last semester",
 ];

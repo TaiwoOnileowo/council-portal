@@ -2,6 +2,7 @@
 
 import { motion } from "motion/react";
 import { useCurrentUser } from "@/modules/auth/hooks/useCurrentUser";
+import { WalletChip } from "@/modules/wallet/components/WalletChip";
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -16,7 +17,7 @@ export default function TopBar() {
 
   return (
     <motion.div
-      className="flex items-start justify-between mb-7"
+      className="flex items-center justify-between gap-4 mb-7"
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, ease: "easeOut" }}
@@ -30,6 +31,7 @@ export default function TopBar() {
           </span>
         </h1>
       </div>
+      <WalletChip />
     </motion.div>
   );
 }

@@ -7,18 +7,22 @@ export default function DatePickerField({
   label,
   value,
   onChange,
+  placeholder = "Pick a date",
 }: {
-  label: string;
+  label?: string;
   value: string;
   onChange: (v: string) => void;
+  placeholder?: string;
 }) {
   const selected = value ? new Date(value + "T00:00:00") : undefined;
 
   return (
     <div>
-      <label className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-portal-muted mb-1.5">
-        {label}
-      </label>
+      {label && (
+        <label className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-portal-muted mb-1.5">
+          {label}
+        </label>
+      )}
       <Popover>
         <PopoverTrigger asChild>
           <button
@@ -27,12 +31,13 @@ export default function DatePickerField({
           >
             <CalendarIcon className="w-3.5 h-3.5 text-portal-muted flex-shrink-0" />
             <span className={selected ? "text-portal-text" : "text-portal-muted/50"}>
-              {selected ? format(selected, "dd MMM yyyy") : "Pick a date"}
+              {selected ? format(selected, "dd MMM yyyy") : placeholder}
             </span>
           </button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0 rounded-xl border-portal-border" align="start">
           <Calendar
+            className="[--cell-size:2.4rem]"
             mode="single"
             selected={selected}
             onSelect={(date) => {

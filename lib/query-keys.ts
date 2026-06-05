@@ -1,10 +1,10 @@
 export const queryKeys = {
   currentUser: () => ["current-user"] as const,
   bookings: {
-    all: (userId: string, page?: number) =>
-      page === undefined
-        ? (["bookings", userId] as const)
-        : (["bookings", userId, page] as const),
+    all: (userId: string, filters?: object) =>
+      filters
+        ? (["bookings", userId, filters] as const)
+        : (["bookings", userId] as const),
   },
   vendors: {
     all: () => ["vendors"] as const,

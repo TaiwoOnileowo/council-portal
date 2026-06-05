@@ -137,8 +137,7 @@ model departure_time {
   id            String     @id @default(uuid())
   price_list_id String
   price_list    price_list @relation(fields: [price_list_id], references: [id], onDelete: Cascade)
-  day           String
-  time          String // "HH:MM" 24hr format
+  departs_at    DateTime // specific departure date and time
 }
 
 model booking {
@@ -156,10 +155,11 @@ model booking {
 
   // Route snapshot (preserved even if route is edited/deleted)
   direction     PriceListDirection
-  route_name    String
-  fare          Int // naira
-  service_fee   Int // naira
-  student_notes String? // optional note from student to vendor
+  route_name          String
+  fare                Int // naira
+  service_fee         Int // naira
+  student_notes       String? // optional note from student to vendor
+  destination_address String? // student's off-campus drop-off / pickup address
 
   // Relations
   user_id   String?
@@ -171,4 +171,8 @@ model booking {
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
+
+  @@index([vendor_id, status, created_at])
+  @@index([vendor_id, route_name])
+  @@index([user_id, created_at])
 }

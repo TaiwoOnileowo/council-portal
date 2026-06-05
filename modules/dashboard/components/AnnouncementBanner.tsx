@@ -28,7 +28,7 @@ export default function AnnouncementBanner() {
             <strong className="text-portal-text font-semibold">
               Resumption Transport, Booking Open:
             </strong>{" "}
-            Rides for the 2025/2026 Omega semester resumption are now
+            Rides for the 2025/2026 Omega semester departure are now
             available. Book early to secure your preferred vendor.
           </p>
           <button

@@ -1,7 +1,14 @@
 "use client";
 
 import Image from "next/image";
-import { MapPin, Clock, Calendar, BadgeCheck, XCircle, Phone } from "lucide-react";
+import {
+  MapPin,
+  Clock,
+  Calendar,
+  BadgeCheck,
+  XCircle,
+  Phone,
+} from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import type { StudentBooking } from "@/modules/transport/transport.types";
 
@@ -12,10 +19,26 @@ type Props = {
 };
 
 const STATUS_CONFIG = {
-  CONFIRMED: { label: "Confirmed", icon: BadgeCheck, className: "text-portal-green bg-portal-green-bg" },
-  PENDING: { label: "Pending", icon: Clock, className: "text-portal-gold bg-portal-gold-bg" },
-  CANCELLED: { label: "Cancelled", icon: XCircle, className: "text-red-500 bg-red-50" },
-  FAILED: { label: "Failed", icon: XCircle, className: "text-red-500 bg-red-50" },
+  CONFIRMED: {
+    label: "Confirmed",
+    icon: BadgeCheck,
+    className: "text-portal-green bg-portal-green-bg",
+  },
+  PENDING: {
+    label: "Pending",
+    icon: Clock,
+    className: "text-portal-gold bg-portal-gold-bg",
+  },
+  CANCELLED: {
+    label: "Cancelled",
+    icon: XCircle,
+    className: "text-red-500 bg-red-50",
+  },
+  FAILED: {
+    label: "Failed",
+    icon: XCircle,
+    className: "text-red-500 bg-red-50",
+  },
 };
 
 function formatDate(iso: string) {
@@ -34,8 +57,12 @@ function formatAmount(naira: number) {
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-4 py-3 border-b border-portal-border last:border-b-0">
-      <span className="text-[12.5px] text-portal-muted flex-shrink-0">{label}</span>
-      <span className="text-[13px] font-medium text-portal-text text-right">{value}</span>
+      <span className="text-[12.5px] text-portal-muted flex-shrink-0">
+        {label}
+      </span>
+      <span className="text-[13px] font-medium text-portal-text text-right">
+        {value}
+      </span>
     </div>
   );
 }
@@ -46,7 +73,8 @@ export default function BookingDetailModal({ booking, open, onClose }: Props) {
   const statusCfg = STATUS_CONFIG[booking.status] ?? STATUS_CONFIG.CONFIRMED;
   const StatusIcon = statusCfg.icon;
   const totalAmount = booking.fare + booking.serviceFee;
-  const directionLabel = booking.direction === "LEAVING" ? "Leaving school" : "Returning to school";
+  const directionLabel =
+    booking.direction === "LEAVING" ? "Leaving school" : "Returning to school";
 
   return (
     <Modal
@@ -84,21 +112,9 @@ export default function BookingDetailModal({ booking, open, onClose }: Props) {
             <p className="text-[14px] font-bold text-portal-text truncate">
               {booking.vendor.transportName}
             </p>
-            {booking.vendor.phone && (
-              <a
-                href={`https://wa.me/234${booking.vendor.phone.replace(/^0/, "")}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-[12px] text-portal-accent mt-0.5 hover:underline"
-              >
-                <Phone className="w-3 h-3" />
-                Contact on WhatsApp
-              </a>
-            )}
           </div>
         </div>
 
-        {/* Details */}
         <div className="bg-portal-bg rounded-xl border border-portal-border px-4 mb-5">
           <Row
             label="Route"
@@ -110,6 +126,21 @@ export default function BookingDetailModal({ booking, open, onClose }: Props) {
             }
           />
           <Row label="Direction" value={directionLabel} />
+          {booking.destinationAddress && (
+            <Row
+              label={
+                booking.direction === "LEAVING"
+                  ? "Drop-off address"
+                  : "Pickup address"
+              }
+              value={
+                <span className="flex items-center gap-1.5 justify-end">
+                  <MapPin className="w-3.5 h-3.5 text-portal-muted flex-shrink-0" />
+                  {booking.destinationAddress}
+                </span>
+              }
+            />
+          )}
           <Row
             label="Date booked"
             value={
@@ -124,7 +155,9 @@ export default function BookingDetailModal({ booking, open, onClose }: Props) {
           <Row
             label="Total paid"
             value={
-              <span className="font-bold font-heading text-[14px]">{formatAmount(totalAmount)}</span>
+              <span className="font-bold font-heading text-[14px]">
+                {formatAmount(totalAmount)}
+              </span>
             }
           />
         </div>
@@ -135,19 +168,24 @@ export default function BookingDetailModal({ booking, open, onClose }: Props) {
             <p className="text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1">
               Your Note to Vendor
             </p>
-            <p className="text-[13px] text-portal-text">{booking.studentNotes}</p>
+            <p className="text-[13px] text-portal-text">
+              {booking.studentNotes}
+            </p>
           </div>
         )}
 
         {/* Luggage & Notes */}
-        {(booking.route.priceList.luggagePolicy || booking.route.priceList.notes) && (
+        {(booking.route.priceList.luggagePolicy ||
+          booking.route.priceList.notes) && (
           <div className="space-y-3 mb-5">
             {booking.route.priceList.luggagePolicy && (
               <div className="bg-portal-bg rounded-xl border border-portal-border p-4">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1">
                   Luggage Policy
                 </p>
-                <p className="text-[13px] text-portal-text">{booking.route.priceList.luggagePolicy}</p>
+                <p className="text-[13px] text-portal-text">
+                  {booking.route.priceList.luggagePolicy}
+                </p>
               </div>
             )}
             {booking.route.priceList.notes && (
@@ -155,7 +193,9 @@ export default function BookingDetailModal({ booking, open, onClose }: Props) {
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1">
                   Vendor Notes
                 </p>
-                <p className="text-[13px] text-portal-text">{booking.route.priceList.notes}</p>
+                <p className="text-[13px] text-portal-text">
+                  {booking.route.priceList.notes}
+                </p>
               </div>
             )}
           </div>

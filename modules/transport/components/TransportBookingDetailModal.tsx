@@ -92,6 +92,19 @@ export default function TransportBookingDetailModal({ booking, open, onClose }: 
             value={booking.direction === "LEAVING" ? "Leaving school" : "Returning to school"}
           />
           <Row
+            label={booking.direction === "LEAVING" ? "Drop-off address" : "Pickup address"}
+            value={
+              booking.destinationAddress ? (
+                <span className="inline-flex items-start gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-portal-muted flex-shrink-0 mt-0.5" />
+                  {booking.destinationAddress}
+                </span>
+              ) : (
+                <span className="text-portal-muted">—</span>
+              )
+            }
+          />
+          <Row
             label="Booked on"
             value={
               <span className="inline-flex items-center gap-1.5">

@@ -8,9 +8,10 @@ import {
   type TransportBooking,
 } from "@/modules/transport/transport.types";
 import { format } from "date-fns";
-import { ChevronDown, Loader2, Users } from "lucide-react";
+import { ChevronDown, Loader2, Search, Users, X } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import DirectionBadge from "./DirectionBadge";
 import MobileCard from "./MobileCard";
 import StatusBadge from "./StatusBadge";
@@ -22,24 +23,28 @@ export default function IncomingBookings() {
   const [route, setRoute] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [searchInput, setSearchInput] = useState("");
   const [selected, setSelected] = useState<TransportBooking | null>(null);
   const [page, setPage] = useState(0);
+
+  const search = useDebouncedValue(searchInput.trim(), 300);
 
   const { data, isLoading, isError, isFetching } = useTransportBookings({
     tab,
     route,
     dateFrom,
     dateTo,
+    search,
     page,
   });
 
   const bookings = data?.bookings ?? [];
   const routes = data?.routes ?? [];
+  const routeCounts = data?.routeCounts ?? {};
   const total = data?.total ?? 0;
+  const allCount = Object.values(routeCounts).reduce((sum, n) => sum + n, 0);
 
   const pageCount = Math.ceil(total / VENDOR_BOOKINGS_PAGE_SIZE);
-
-  const showSummary = route !== "all" && total > 0;
 
   return (
     <>
@@ -73,6 +78,32 @@ export default function IncomingBookings() {
         </div>
 
         <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 mb-3 print:hidden">
+          <div className="relative flex-1 sm:min-w-[260px]">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-portal-muted pointer-events-none" />
+            <input
+              type="text"
+              value={searchInput}
+              onChange={(e) => {
+                setSearchInput(e.target.value);
+                setPage(0);
+              }}
+              placeholder="Search name, phone, ref, hall or room"
+              className="w-full bg-portal-surface border border-portal-border rounded-lg text-[12px] text-portal-text pl-8 pr-7 py-1.5 focus:outline-none focus:border-portal-accent"
+            />
+            {searchInput && (
+              <button
+                onClick={() => {
+                  setSearchInput("");
+                  setPage(0);
+                }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-portal-muted hover:text-portal-text"
+                aria-label="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
           <div className="relative">
             <select
               value={route}
@@ -82,10 +113,10 @@ export default function IncomingBookings() {
               }}
               className="w-full sm:w-auto appearance-none bg-portal-surface border border-portal-border rounded-lg text-[12px] text-portal-text pl-3 pr-7 py-1.5 cursor-pointer focus:outline-none focus:border-portal-accent"
             >
-              <option value="all">All routes</option>
+              <option value="all">All routes ({allCount})</option>
               {routes.map((r) => (
                 <option key={r} value={r}>
-                  {r}
+                  {r} ({routeCounts[r] ?? 0})
                 </option>
               ))}
             </select>
@@ -127,11 +158,19 @@ export default function IncomingBookings() {
           </div>
         </div>
 
-        {showSummary && (
+        {!isLoading && !isError && (
           <div className="flex items-center gap-2 mb-3 px-1">
             <Users className="w-3.5 h-3.5 text-portal-muted" />
             <p className="text-[12px] text-portal-muted">
-              <span className="font-medium text-portal-text2">{route}</span>
+              <span className="font-semibold text-portal-text">{total}</span>{" "}
+              {tab === "upcoming" ? "upcoming" : "past"} booking
+              {total !== 1 ? "s" : ""}
+              {route !== "all" && (
+                <>
+                  {" · "}
+                  <span className="font-medium text-portal-text2">{route}</span>
+                </>
+              )}
               {dateFrom && (
                 <>
                   {" · "}
@@ -141,10 +180,14 @@ export default function IncomingBookings() {
                     : ""}
                 </>
               )}
-              {" · "}
-              <span className="font-semibold text-portal-text">
-                {total} student{total !== 1 ? "s" : ""} booked
-              </span>
+              {search && (
+                <>
+                  {" · matching "}
+                  <span className="font-medium text-portal-text2">
+                    “{search}”
+                  </span>
+                </>
+              )}
             </p>
           </div>
         )}
@@ -180,9 +223,11 @@ export default function IncomingBookings() {
           ) : bookings.length === 0 ? (
             <div className="px-5 py-10 text-center">
               <p className="text-[13px] text-portal-muted">
-                {tab === "upcoming"
-                  ? "No upcoming bookings"
-                  : "No past bookings"}
+                {search || route !== "all" || dateFrom || dateTo
+                  ? "No bookings match your filters"
+                  : tab === "upcoming"
+                    ? "No upcoming bookings"
+                    : "No past bookings"}
               </p>
             </div>
           ) : (

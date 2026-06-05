@@ -6,21 +6,45 @@ import { sendBookingConfirmationEmail } from "@/lib/sendpulse";
 import {
   STUDENT_BOOKINGS_PAGE_SIZE,
   type StudentBooking,
+  type StudentBookingsFilters,
   type StudentBookingsResponse,
 } from "@/modules/transport/transport.types";
 
 export async function getBookings(
-  page = 0,
+  filters: StudentBookingsFilters = { vendorId: "all", search: "", page: 0 },
 ): Promise<
   { ok: true; data: StudentBookingsResponse } | { ok: false; error: string }
 > {
   const session = await auth();
   if (!session?.user?.id) return { ok: false, error: "Unauthorized" };
 
-  const where = { user_id: session.user.id };
-  const safePage = Math.max(0, page);
+  const search = filters.search.trim();
+  const searchWhere = search
+    ? {
+        OR: [
+          { route_name: { contains: search, mode: "insensitive" as const } },
+          { reference: { contains: search, mode: "insensitive" as const } },
+          { passenger_name: { contains: search, mode: "insensitive" as const } },
+          { hall: { contains: search, mode: "insensitive" as const } },
+          { room_number: { contains: search, mode: "insensitive" as const } },
+          {
+            vendor: {
+              business_name: { contains: search, mode: "insensitive" as const },
+            },
+          },
+        ],
+      }
+    : {};
 
-  const [bookings, total] = await Promise.all([
+  const where = {
+    user_id: session.user.id,
+    ...(filters.vendorId !== "all" ? { vendor_id: filters.vendorId } : {}),
+    ...searchWhere,
+  };
+
+  const safePage = Math.max(0, filters.page);
+
+  const [bookings, total, vendorRows] = await Promise.all([
     db.booking.findMany({
       where,
       skip: safePage * STUDENT_BOOKINGS_PAGE_SIZE,
@@ -39,6 +63,7 @@ export async function getBookings(
         fare: true,
         service_fee: true,
         student_notes: true,
+        destination_address: true,
         created_at: true,
         vendor: {
           select: {
@@ -57,12 +82,22 @@ export async function getBookings(
       orderBy: { created_at: "desc" },
     }),
     db.booking.count({ where }),
+    db.booking.findMany({
+      where: { user_id: session.user.id },
+      select: { vendor_id: true, vendor: { select: { business_name: true } } },
+      distinct: ["vendor_id"],
+    }),
   ]);
+
+  const vendors = vendorRows
+    .map((v) => ({ id: v.vendor_id, name: v.vendor.business_name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   return {
     ok: true,
     data: {
       total,
+      vendors,
       bookings: bookings.map((b) => ({
         id: b.id,
         reference: b.reference,
@@ -77,6 +112,7 @@ export async function getBookings(
         fare: b.fare,
         serviceFee: b.service_fee,
         studentNotes: b.student_notes,
+        destinationAddress: b.destination_address,
         createdAt: b.created_at.toISOString(),
         vendor: {
           transportName: b.vendor.business_name,
@@ -107,6 +143,7 @@ export async function payBookingFromWallet({
   fare,
   serviceFee,
   studentNotes,
+  destinationAddress,
 }: {
   vendorId: string;
   routeId: string;
@@ -120,6 +157,7 @@ export async function payBookingFromWallet({
   fare: number;
   serviceFee: number;
   studentNotes?: string;
+  destinationAddress: string;
 }): Promise<
   | { reference: string }
   | { error: "INSUFFICIENT_BALANCE"; shortfall: number }
@@ -148,6 +186,7 @@ export async function payBookingFromWallet({
           shortfall: Math.ceil((totalAmountKobo - currentBalance) / 100),
         };
       }
+      console.log(routeId, "ROUTE ID --- IGNORE ---");
 
       const booking = await tx.booking.create({
         data: {
@@ -163,6 +202,7 @@ export async function payBookingFromWallet({
           fare,
           service_fee: serviceFee,
           student_notes: studentNotes?.trim() || null,
+          destination_address: destinationAddress.trim(),
           user_id: userId,
           vendor_id: vendorId,
           route_id: routeId,
@@ -212,7 +252,8 @@ export async function payBookingFromWallet({
     }
 
     return { reference };
-  } catch {
+  } catch (error){
+    console.log("Booking error", error);
     return { error: "Failed to complete booking. Please try again." };
   }
 }

@@ -85,7 +85,6 @@ export async function signUpVendor(input: {
       },
     });
   } catch (error: unknown) {
-    console.log("Error creating vendor account:", error);
     const msg = error instanceof Error ? error.message : "";
     if (msg.includes("Unique constraint")) {
       return { error: "An account with this email already exists." };
@@ -99,12 +98,6 @@ export async function signUpVendor(input: {
   });
 }
 
-/**
- * Single update for the signed-in vendor — patches any combination of shared
- * `user` fields and `vendor_profile` fields (personal info, business profile,
- * bank details, availability). Only the keys provided are touched. The target
- * is always the authenticated vendor; the client cannot update another account.
- */
 export async function updateVendorProfile(input: UpdateVendorInput) {
   const session = await auth();
   if (session?.user?.role !== "VENDOR") return { error: "Unauthorized" };
@@ -121,15 +114,22 @@ export async function updateVendorProfile(input: UpdateVendorInput) {
   if (data.image !== undefined) userData.image = data.image || null;
 
   const profileData: Prisma.vendor_profileUpdateWithoutUserInput = {};
-  if (data.transportName !== undefined) profileData.business_name = data.transportName;
+  if (data.transportName !== undefined)
+    profileData.business_name = data.transportName;
   if (data.tagline !== undefined) profileData.tagline = data.tagline || null;
-  if (data.description !== undefined) profileData.description = data.description || null;
+  if (data.description !== undefined)
+    profileData.description = data.description || null;
   if (data.tiktok !== undefined) profileData.tiktok = data.tiktok || null;
-  if (data.instagram !== undefined) profileData.instagram = data.instagram || null;
-  if (data.bankCode !== undefined) profileData.bank_code = data.bankCode || null;
-  if (data.bankName !== undefined) profileData.bank_name = data.bankName || null;
-  if (data.accountNumber !== undefined) profileData.account_number = data.accountNumber || null;
-  if (data.accountName !== undefined) profileData.account_name = data.accountName || null;
+  if (data.instagram !== undefined)
+    profileData.instagram = data.instagram || null;
+  if (data.bankCode !== undefined)
+    profileData.bank_code = data.bankCode || null;
+  if (data.bankName !== undefined)
+    profileData.bank_name = data.bankName || null;
+  if (data.accountNumber !== undefined)
+    profileData.account_number = data.accountNumber || null;
+  if (data.accountName !== undefined)
+    profileData.account_name = data.accountName || null;
   if (data.isActive !== undefined) profileData.is_active = data.isActive;
 
   if (Object.keys(profileData).length > 0) {

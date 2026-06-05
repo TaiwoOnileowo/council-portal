@@ -1,3 +1,4 @@
+import { format } from "date-fns";
 import type { PriceList, PriceListRoute, PriceListBody, DepartureTime } from "@/modules/transport/transport.types";
 import { parseAmount } from "@/lib/format";
 
@@ -5,13 +6,14 @@ export type DrawerFormValues = {
   name: string;
   direction: "leaving" | "returning";
   routes: Array<{
+    id?: string;
     name: string;
     price: string;
     capacityType: "number" | "unlimited";
     capacityValue: string;
     active: boolean;
   }>;
-  departureTimes: Array<{ day: string; time: string }>;
+  departureTimes: Array<{ date: string; time: string }>;
   luggagePolicy: string;
   notes: string;
   availType: "active" | "inactive" | "scheduled";
@@ -21,6 +23,7 @@ export type DrawerFormValues = {
 
 export function draftFromRoute(r: PriceListRoute) {
   return {
+    id: r.id,
     name: r.name,
     price: r.price > 0 ? r.price.toLocaleString("en-NG") : "",
     capacityType: (r.capacity === "unlimited" ? "unlimited" : "number") as "number" | "unlimited",
@@ -34,10 +37,10 @@ export function formValuesFromPriceList(pl: PriceList): DrawerFormValues {
     name: pl.name,
     direction: pl.direction,
     routes: pl.routes.map(draftFromRoute),
-    departureTimes: pl.departureTimes.map((dt: DepartureTime) => ({
-      day: dt.day,
-      time: dt.time,
-    })),
+    departureTimes: pl.departureTimes.map((dt: DepartureTime) => {
+      const d = new Date(dt.departsAt);
+      return { date: format(d, "yyyy-MM-dd"), time: format(d, "HH:mm") };
+    }),
     luggagePolicy: pl.luggagePolicy,
     notes: pl.notes,
     availType: pl.availability.type,
@@ -58,13 +61,16 @@ export function buildBody(form: DrawerFormValues): PriceListBody {
     name: form.name.trim(),
     direction: form.direction,
     routes: form.routes.map((r) => ({
+      ...(r.id ? { id: r.id } : {}),
       name: r.name.trim(),
       price: parseAmount(r.price),
       capacity:
         r.capacityType === "unlimited" ? null : Math.max(1, parseInt(r.capacityValue, 10) || 1),
       active: r.active,
     })),
-    departureTimes: form.departureTimes.map((d) => ({ day: d.day, time: d.time })),
+    departureTimes: form.departureTimes.map((d) => ({
+      departsAt: new Date(`${d.date}T${d.time}:00`).toISOString(),
+    })),
     luggagePolicy: form.luggagePolicy,
     notes: form.notes,
     availability,

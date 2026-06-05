@@ -10,6 +10,7 @@ export const priceListBodySchema = z.object({
   routes: z
     .array(
       z.object({
+        id: z.string().optional(),
         name: z.string().min(1, "Route name is required"),
         price: z.number().int().min(0, "Price must be 0 or more"),
         capacity: z
@@ -24,8 +25,7 @@ export const priceListBodySchema = z.object({
   departureTimes: z
     .array(
       z.object({
-        day: z.string().min(1),
-        time: z.string().regex(/^\d{2}:\d{2}$/, "Invalid time format"),
+        departsAt: z.string().datetime("Invalid departure date/time"),
       }),
     )
     .min(1, "At least one departure time is required"),
@@ -61,8 +61,7 @@ export type PriceListAvailability =
 
 export type DepartureTime = {
   id: string;
-  day: string;
-  time: string;
+  departsAt: string; // ISO datetime
 };
 
 export type PriceList = {
@@ -89,6 +88,7 @@ export type TransportBooking = {
   direction: "LEAVING" | "RETURNING";
   fare: number;
   studentNotes: string | null;
+  destinationAddress: string | null;
   status: "PENDING" | "CONFIRMED" | "CANCELLED" | "FAILED";
   createdAt: string;
 };
@@ -99,6 +99,7 @@ export const STUDENT_BOOKINGS_PAGE_SIZE = 20;
 export type TransportBookingsResponse = {
   bookings: TransportBooking[];
   routes: string[];
+  routeCounts: Record<string, number>;
   total: number;
 };
 
@@ -107,6 +108,7 @@ export type BookingsFilters = {
   route: string;
   dateFrom: string;
   dateTo: string;
+  search: string;
   page: number;
 };
 
@@ -125,6 +127,7 @@ export type StudentBooking = {
   fare: number;
   serviceFee: number;
   studentNotes: string | null;
+  destinationAddress: string | null;
   createdAt: string;
   vendor: {
     transportName: string;
@@ -139,7 +142,14 @@ export type StudentBooking = {
   };
 };
 
+export type StudentBookingsFilters = {
+  vendorId: string;
+  search: string;
+  page: number;
+};
+
 export type StudentBookingsResponse = {
   bookings: StudentBooking[];
+  vendors: { id: string; name: string }[];
   total: number;
 };

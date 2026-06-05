@@ -3,12 +3,13 @@
 import { useState } from "react";
 import { motion } from "motion/react";
 import { format, isToday, isTomorrow } from "date-fns";
-import { ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Search, X } from "lucide-react";
 import { useBookings } from "@/modules/transport/hooks/useBookings";
 import {
   STUDENT_BOOKINGS_PAGE_SIZE,
   type StudentBooking,
 } from "@/modules/transport/transport.types";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import BookingDetailModal from "@/modules/dashboard/components/BookingDetailModal";
 import Pagination from "@/components/ui/Pagination";
 
@@ -44,12 +45,24 @@ function SkeletonRow() {
 
 export default function BookingsList() {
   const [page, setPage] = useState(0);
-  const { data, isLoading, isFetching } = useBookings(page);
+  const [vendorId, setVendorId] = useState("all");
+  const [searchInput, setSearchInput] = useState("");
   const [selected, setSelected] = useState<StudentBooking | null>(null);
 
+  const search = useDebouncedValue(searchInput.trim(), 300);
+  const { data, isLoading, isFetching } = useBookings({
+    vendorId,
+    search,
+    page,
+  });
+
   const bookings = data?.bookings ?? [];
+  const vendors = data?.vendors ?? [];
   const total = data?.total ?? 0;
   const pageCount = Math.ceil(total / STUDENT_BOOKINGS_PAGE_SIZE);
+
+  const hasFilters = search !== "" || vendorId !== "all";
+  const showControls = !isLoading && (vendors.length > 0 || hasFilters);
 
   return (
     <>
@@ -61,6 +74,55 @@ export default function BookingsList() {
         <div className="flex items-center justify-between mb-3.5">
           <h2 className="font-heading text-[17px] font-bold">My Bookings</h2>
         </div>
+
+        {showControls && (
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-portal-muted pointer-events-none" />
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => {
+                  setSearchInput(e.target.value);
+                  setPage(0);
+                }}
+                placeholder="Search route, vendor, ref or name"
+                className="w-full bg-portal-surface border border-portal-border rounded-lg text-[12px] text-portal-text pl-8 pr-7 py-1.5 focus:outline-none focus:border-portal-accent"
+              />
+              {searchInput && (
+                <button
+                  onClick={() => {
+                    setSearchInput("");
+                    setPage(0);
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-portal-muted hover:text-portal-text"
+                  aria-label="Clear search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            <div className="relative">
+              <select
+                value={vendorId}
+                onChange={(e) => {
+                  setVendorId(e.target.value);
+                  setPage(0);
+                }}
+                className="w-full sm:w-auto appearance-none bg-portal-surface border border-portal-border rounded-lg text-[12px] text-portal-text pl-3 pr-7 py-1.5 cursor-pointer focus:outline-none focus:border-portal-accent"
+              >
+                <option value="all">All vendors</option>
+                {vendors.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-portal-muted pointer-events-none" />
+            </div>
+          </div>
+        )}
 
         <div
           className={`bg-portal-surface border border-portal-border rounded-2xl overflow-hidden transition-opacity ${
@@ -76,10 +138,12 @@ export default function BookingsList() {
           ) : bookings.length === 0 ? (
             <div className="px-5 py-10 text-center">
               <p className="text-[13.5px] font-medium text-portal-text">
-                No bookings yet
+                {hasFilters ? "No matching bookings" : "No bookings yet"}
               </p>
               <p className="text-[12.5px] text-portal-muted mt-1">
-                Your transport bookings will appear here
+                {hasFilters
+                  ? "Try a different search or vendor"
+                  : "Your transport bookings will appear here"}
               </p>
             </div>
           ) : (

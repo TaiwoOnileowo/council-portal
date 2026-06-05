@@ -7,10 +7,13 @@ import type {
   PublicVendor,
 } from "@/lib/actions/transport.action";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
 import {
   AlertCircle,
   ArrowRight,
   Bus,
+  CalendarClock,
   CheckCircle2,
   ChevronDown,
   ChevronLeft,
@@ -20,16 +23,14 @@ import {
   MapPin,
   MessageCircle,
   Search,
-  User,
   X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 
-const SERVICE_FEE = 0
+const SERVICE_FEE = 0;
 
 const HALLS = [
   "Joseph Hall",
@@ -55,6 +56,11 @@ const passengerSchema = z.object({
     }),
   phone: z.string().regex(/^\d{11}$/, "Must be exactly 11 digits"),
   parentsPhone: z.string().regex(/^\d{11}$/, "Must be exactly 11 digits"),
+  destinationAddress: z
+    .string()
+    .min(5, "Please enter a complete address")
+    .max(200, "Max 200 characters")
+    .trim(),
   studentNotes: z.string().max(300, "Max 300 characters").optional(),
 });
 
@@ -112,7 +118,6 @@ export default function BookingFlow({
   const [isProcessing, setIsProcessing] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [shortfall, setShortfall] = useState<number | null>(null);
-  console.log(user, "USER INFO --- IGNORE ---");
   const {
     register,
     control,
@@ -129,6 +134,7 @@ export default function BookingFlow({
       roomNumber: "",
       phone: user.phone,
       parentsPhone: "",
+      destinationAddress: "",
     },
   });
 
@@ -183,6 +189,7 @@ export default function BookingFlow({
     setSubmitError("");
     setShortfall(null);
     setIsProcessing(true);
+    console.log(selectedRoute, "SELECTED ROUTE ID --- IGNORE ---");
 
     try {
       const result = await payBookingFromWallet({
@@ -198,6 +205,7 @@ export default function BookingFlow({
         fare: basePrice,
         serviceFee: SERVICE_FEE,
         studentNotes: values.studentNotes,
+        destinationAddress: values.destinationAddress,
       });
 
       if ("error" in result) {
@@ -384,6 +392,30 @@ export default function BookingFlow({
                       </div>
                     </div>
 
+                    {priceList.departureTimes.length > 0 && (
+                      <div className="mb-4 bg-portal-bg border border-portal-border rounded-xl px-3.5 py-3">
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <CalendarClock className="w-3.5 h-3.5 text-portal-muted" />
+                          <p className="text-[11px] font-semibold text-portal-text2">
+                            Departure schedule
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {priceList.departureTimes.map((d, i) => (
+                            <span
+                              key={i}
+                              className="text-[12px] font-medium text-portal-text bg-portal-surface border border-portal-border rounded-lg px-2.5 py-1"
+                            >
+                              {format(
+                                new Date(d.departsAt),
+                                "EEE d MMM · h:mm a",
+                              )}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {priceList.luggagePolicy && (
                       <div className="mb-4 flex gap-2.5 bg-portal-bg border border-portal-border rounded-xl px-3.5 py-3">
                         <Info className="w-3.5 h-3.5 text-portal-muted flex-shrink-0 mt-0.5" />
@@ -562,6 +594,30 @@ export default function BookingFlow({
                       </Field>
 
                       <Field
+                        label={
+                          isLeaving ? "Drop-off Address" : "Pickup Address"
+                        }
+                        hint={
+                          isLeaving
+                            ? "Exact address where you'll be dropped off"
+                            : "Exact address where the vendor should pick you up"
+                        }
+                        error={errors.destinationAddress?.message}
+                      >
+                        <textarea
+                          {...register("destinationAddress")}
+                          placeholder={
+                            isLeaving
+                              ? "e.g. 12 Allen Avenue, Ikeja, Lagos"
+                              : "e.g. 12 Allen Avenue, Ikeja, Lagos"
+                          }
+                          maxLength={200}
+                          rows={2}
+                          className={`${inputCls(!!errors.destinationAddress)} resize-none`}
+                        />
+                      </Field>
+
+                      <Field
                         label={`Note to ${vendor.transportName}`}
                         hint="Optional — e.g. luggage details, special requests"
                       >
@@ -681,20 +737,6 @@ export default function BookingFlow({
                         </span>
                       </div>
                     </div>
-
-                    {vendor.phone && (
-                      <div className="bg-portal-green-bg border border-green-200 rounded-xl p-3.5 flex items-center gap-3 mb-4">
-                        <MessageCircle className="w-5 h-5 text-portal-green flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[12px] font-semibold text-portal-green">
-                            Contact vendor on WhatsApp
-                          </p>
-                          <p className="text-[11px] text-portal-green/70">
-                            {vendor.phone}
-                          </p>
-                        </div>
-                      </div>
-                    )}
 
                     <div className="flex gap-3">
                       <button
