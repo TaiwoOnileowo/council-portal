@@ -28,6 +28,7 @@ import { formatWithCommas } from "@/lib/format";
 import TimeInput from "@/components/ui/TimeInput";
 import Toggle from "@/components/ui/Toggle";
 import DatePickerField from "@/components/ui/DatePickerField";
+import Select from "@/components/ui/Select";
 import PriceListCard from "./PriceListCard";
 import AddCard from "./AddCard";
 
@@ -297,13 +298,24 @@ export default function RouteManagement() {
                     />
 
                     <div className="flex items-center gap-1.5 flex-1 sm:flex-none">
-                      <select
-                        {...register(`routes.${index}.capacityType`)}
-                        className="flex-1 min-w-0 px-2 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
-                      >
-                        <option value="unlimited">Unlimited</option>
-                        <option value="number">Limited</option>
-                      </select>
+                      <div className="flex-1 min-w-0">
+                        <Controller
+                          name={`routes.${index}.capacityType`}
+                          control={control}
+                          render={({ field }) => (
+                            <Select
+                              size="sm"
+                              className="px-2 py-1.5 text-[13px] rounded-md"
+                              options={[
+                                { value: "unlimited", label: "Unlimited" },
+                                { value: "number", label: "Limited" },
+                              ]}
+                              value={field.value}
+                              onChange={field.onChange}
+                            />
+                          )}
+                        />
+                      </div>
                       {watchedRoutes[index]?.capacityType === "number" && (
                         <input
                           {...register(`routes.${index}.capacityValue`)}
@@ -360,16 +372,21 @@ export default function RouteManagement() {
                       key={field.id}
                       className="flex flex-col sm:flex-row sm:items-center gap-2"
                     >
-                      <select
-                        {...register(`departureTimes.${index}.day`)}
-                        className="sm:flex-1 min-w-0 px-2 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
-                      >
-                        {DAYS.map((d) => (
-                          <option key={d} value={d}>
-                            {d}
-                          </option>
-                        ))}
-                      </select>
+                      <div className="sm:flex-1 min-w-0">
+                        <Controller
+                          name={`departureTimes.${index}.day`}
+                          control={control}
+                          render={({ field }) => (
+                            <Select
+                              size="sm"
+                              className="px-2 py-1.5 text-[13px] rounded-md"
+                              options={DAYS.map((d) => ({ value: d, label: d }))}
+                              value={field.value}
+                              onChange={field.onChange}
+                            />
+                          )}
+                        />
+                      </div>
                       <div className="flex items-center gap-2">
                         <Controller
                           name={`departureTimes.${index}.time`}

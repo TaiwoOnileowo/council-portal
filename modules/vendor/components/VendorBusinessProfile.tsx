@@ -8,7 +8,7 @@ import { Pencil, Check, X, Instagram, Link } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { updateVendorProfile } from "@/lib/actions/vendor.action";
-import { CURRENT_USER_KEY } from "@/modules/auth/hooks/useCurrentUser";
+import { queryKeys } from "@/lib/query-keys";
 import { vendorStep2Schema, VendorStep2Fields } from "@/modules/vendor/vendor.types";
 import ImageUpload from "@/components/ui/ImageUpload";
 import { inputClass } from "@/lib/utils";
@@ -100,7 +100,7 @@ export default function VendorBusinessProfile({ vendor }: Props) {
       image: draftImage,
     });
     setEditing(false);
-    queryClient.invalidateQueries({ queryKey: CURRENT_USER_KEY });
+    queryClient.invalidateQueries({ queryKey: queryKeys.currentUser() });
     toast.success("Transport profile updated successfully");
   }
 

@@ -2,7 +2,10 @@
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { priceListBodySchema } from "@/modules/transport/transport.types";
+import {
+  priceListBodySchema,
+  VENDOR_BOOKINGS_PAGE_SIZE,
+} from "@/modules/transport/transport.types";
 import type {
   PriceList,
   PriceListRoute,
@@ -190,15 +193,21 @@ export async function getTransportBookings(
     dateRange.lte = to;
   }
 
-  const [bookings, routeNames] = await Promise.all([
+  const where = {
+    vendor_id: session.user.id,
+    status: { in: statusFilter },
+    ...(filters.route !== "all" ? { route_name: filters.route } : {}),
+    ...(Object.keys(dateRange).length > 0 ? { created_at: dateRange } : {}),
+  };
+
+  const page = Math.max(0, filters.page);
+
+  const [bookings, total, routeNames] = await Promise.all([
     db.booking.findMany({
-      where: {
-        vendor_id: session.user.id,
-        status: { in: statusFilter },
-        ...(filters.route !== "all" ? { route_name: filters.route } : {}),
-        ...(Object.keys(dateRange).length > 0 ? { created_at: dateRange } : {}),
-      },
+      where,
       orderBy: { created_at: "desc" },
+      skip: page * VENDOR_BOOKINGS_PAGE_SIZE,
+      take: VENDOR_BOOKINGS_PAGE_SIZE,
       select: {
         id: true,
         reference: true,
@@ -215,6 +224,7 @@ export async function getTransportBookings(
         created_at: true,
       },
     }),
+    db.booking.count({ where }),
     db.booking.findMany({
       where: { vendor_id: session.user.id },
       select: { route_name: true },
@@ -242,6 +252,7 @@ export async function getTransportBookings(
         direction: b.direction as TransportBooking["direction"],
       })),
       routes: routeNames.map((r) => r.route_name),
+      total,
     },
   };
 }

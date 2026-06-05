@@ -15,11 +15,6 @@ export async function getUserFromDb(email: string) {
   return db.user.findUnique({ where: { email } });
 }
 
-/**
- * The signed-in user's full profile, role-shaped. Fetched once on the client
- * via `useCurrentUser` and cached — components read it instead of each page
- * re-querying on mount. Returns null when unauthenticated.
- */
 export async function getCurrentUser() {
   const session = await auth();
   if (!session?.user?.id) return null;
@@ -63,7 +58,6 @@ export async function getCurrentUser() {
       : null,
   };
 }
-
 
 export async function signInWithCredentials({
   email,

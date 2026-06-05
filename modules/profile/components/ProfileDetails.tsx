@@ -17,7 +17,7 @@ import {
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { updateProfile } from "@/lib/actions/user.action";
-import { CURRENT_USER_KEY } from "@/modules/auth/hooks/useCurrentUser";
+import { queryKeys } from "@/lib/query-keys";
 import {
   updateStudentProfileSchema,
   LEVELS,
@@ -85,7 +85,7 @@ export default function ProfileDetails({ user }: Props) {
 
     setProfile(data);
     setEditing(false);
-    queryClient.invalidateQueries({ queryKey: CURRENT_USER_KEY });
+    queryClient.invalidateQueries({ queryKey: queryKeys.currentUser() });
     toast.success("Profile updated successfully");
   }
 

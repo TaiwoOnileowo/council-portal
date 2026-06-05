@@ -3,77 +3,94 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { sendBookingConfirmationEmail } from "@/lib/sendpulse";
-import type { StudentBooking } from "@/modules/transport/transport.types";
+import {
+  STUDENT_BOOKINGS_PAGE_SIZE,
+  type StudentBooking,
+  type StudentBookingsResponse,
+} from "@/modules/transport/transport.types";
 
-export async function getBookings(): Promise<
-  { ok: true; data: StudentBooking[] } | { ok: false; error: string }
+export async function getBookings(
+  page = 0,
+): Promise<
+  { ok: true; data: StudentBookingsResponse } | { ok: false; error: string }
 > {
   const session = await auth();
   if (!session?.user?.id) return { ok: false, error: "Unauthorized" };
 
-  const bookings = await db.booking.findMany({
-    where: { user_id: session.user.id },
-    select: {
-      id: true,
-      reference: true,
-      status: true,
-      passenger_name: true,
-      passenger_phone: true,
-      parents_phone: true,
-      hall: true,
-      room_number: true,
-      direction: true,
-      route_name: true,
-      fare: true,
-      service_fee: true,
-      student_notes: true,
-      created_at: true,
-      vendor: {
-        select: {
-          business_name: true,
-          user: { select: { phone: true, image: true } },
+  const where = { user_id: session.user.id };
+  const safePage = Math.max(0, page);
+
+  const [bookings, total] = await Promise.all([
+    db.booking.findMany({
+      where,
+      skip: safePage * STUDENT_BOOKINGS_PAGE_SIZE,
+      take: STUDENT_BOOKINGS_PAGE_SIZE,
+      select: {
+        id: true,
+        reference: true,
+        status: true,
+        passenger_name: true,
+        passenger_phone: true,
+        parents_phone: true,
+        hall: true,
+        room_number: true,
+        direction: true,
+        route_name: true,
+        fare: true,
+        service_fee: true,
+        student_notes: true,
+        created_at: true,
+        vendor: {
+          select: {
+            business_name: true,
+            user: { select: { phone: true, image: true } },
+          },
         },
-      },
-      route: {
-        select: {
-          price_list: {
-            select: { luggage_policy: true, notes: true },
+        route: {
+          select: {
+            price_list: {
+              select: { luggage_policy: true, notes: true },
+            },
           },
         },
       },
-    },
-    orderBy: { created_at: "desc" },
-  });
+      orderBy: { created_at: "desc" },
+    }),
+    db.booking.count({ where }),
+  ]);
 
   return {
     ok: true,
-    data: bookings.map((b) => ({
-      id: b.id,
-      reference: b.reference,
-      status: b.status as StudentBooking["status"],
-      passengerName: b.passenger_name,
-      passengerPhone: b.passenger_phone,
-      parentsPhone: b.parents_phone,
-      hall: b.hall,
-      roomNumber: b.room_number,
-      direction: b.direction as StudentBooking["direction"],
-      routeName: b.route_name,
-      fare: b.fare,
-      serviceFee: b.service_fee,
-      studentNotes: b.student_notes,
-      createdAt: b.created_at.toISOString(),
-      vendor: {
-        transportName: b.vendor.business_name,
-        phone: b.vendor.user.phone,
-        image: b.vendor.user.image,
-      },
-      route: {
-        priceList: {
-          luggagePolicy: b.route.price_list.luggage_policy,
-          notes: b.route.price_list.notes,
+    data: {
+      total,
+      bookings: bookings.map((b) => ({
+        id: b.id,
+        reference: b.reference,
+        status: b.status as StudentBooking["status"],
+        passengerName: b.passenger_name,
+        passengerPhone: b.passenger_phone,
+        parentsPhone: b.parents_phone,
+        hall: b.hall,
+        roomNumber: b.room_number,
+        direction: b.direction as StudentBooking["direction"],
+        routeName: b.route_name,
+        fare: b.fare,
+        serviceFee: b.service_fee,
+        studentNotes: b.student_notes,
+        createdAt: b.created_at.toISOString(),
+        vendor: {
+          transportName: b.vendor.business_name,
+          phone: b.vendor.user.phone,
+          image: b.vendor.user.image,
         },
-      },
-    })),
+        route: {
+          priceList: {
+            luggagePolicy: b.route.price_list.luggage_policy,
+            notes: b.route.price_list.notes,
+          },
+        },
+      })),
+    },
   };
 }
 

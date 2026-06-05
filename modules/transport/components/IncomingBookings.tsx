@@ -1,15 +1,19 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { motion } from "motion/react";
+import Pagination from "@/components/ui/Pagination";
+import TransportBookingDetailModal from "@/modules/transport/components/TransportBookingDetailModal";
+import { useTransportBookings } from "@/modules/transport/hooks/useTransportBookings";
+import {
+  VENDOR_BOOKINGS_PAGE_SIZE,
+  type TransportBooking,
+} from "@/modules/transport/transport.types";
 import { format } from "date-fns";
 import { ChevronDown, Loader2, Users } from "lucide-react";
-import { useTransportBookings } from "@/modules/transport/hooks/useTransportBookings";
-import type { TransportBooking } from "@/modules/transport/transport.types";
-import TransportBookingDetailModal from "@/modules/transport/components/TransportBookingDetailModal";
+import { motion } from "motion/react";
+import { useState } from "react";
 import DirectionBadge from "./DirectionBadge";
-import StatusBadge from "./StatusBadge";
 import MobileCard from "./MobileCard";
+import StatusBadge from "./StatusBadge";
 
 type Tab = "upcoming" | "past";
 
@@ -19,14 +23,23 @@ export default function IncomingBookings() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [selected, setSelected] = useState<TransportBooking | null>(null);
-  const printRef = useRef<HTMLDivElement>(null);
+  const [page, setPage] = useState(0);
 
-  const { data, isLoading, isError } = useTransportBookings({ tab, route, dateFrom, dateTo });
+  const { data, isLoading, isError, isFetching } = useTransportBookings({
+    tab,
+    route,
+    dateFrom,
+    dateTo,
+    page,
+  });
 
   const bookings = data?.bookings ?? [];
   const routes = data?.routes ?? [];
+  const total = data?.total ?? 0;
 
-  const showSummary = route !== "all" && bookings.length > 0;
+  const pageCount = Math.ceil(total / VENDOR_BOOKINGS_PAGE_SIZE);
+
+  const showSummary = route !== "all" && total > 0;
 
   return (
     <>
@@ -44,7 +57,10 @@ export default function IncomingBookings() {
           {(["upcoming", "past"] as Tab[]).map((t) => (
             <button
               key={t}
-              onClick={() => setTab(t)}
+              onClick={() => {
+                setTab(t);
+                setPage(0);
+              }}
               className={`flex-1 py-1.5 text-[12.5px] font-medium rounded-lg transition-colors capitalize ${
                 tab === t
                   ? "bg-portal-surface text-portal-text shadow-sm"
@@ -60,7 +76,10 @@ export default function IncomingBookings() {
           <div className="relative">
             <select
               value={route}
-              onChange={(e) => setRoute(e.target.value)}
+              onChange={(e) => {
+                setRoute(e.target.value);
+                setPage(0);
+              }}
               className="w-full sm:w-auto appearance-none bg-portal-surface border border-portal-border rounded-lg text-[12px] text-portal-text pl-3 pr-7 py-1.5 cursor-pointer focus:outline-none focus:border-portal-accent"
             >
               <option value="all">All routes</option>
@@ -77,14 +96,20 @@ export default function IncomingBookings() {
             <input
               type="date"
               value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
+              onChange={(e) => {
+                setDateFrom(e.target.value);
+                setPage(0);
+              }}
               className="flex-1 sm:flex-none bg-portal-surface border border-portal-border rounded-lg text-[12px] text-portal-text px-3 py-1.5 focus:outline-none focus:border-portal-accent"
             />
             <span className="text-[11px] text-portal-muted">to</span>
             <input
               type="date"
               value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
+              onChange={(e) => {
+                setDateTo(e.target.value);
+                setPage(0);
+              }}
               className="flex-1 sm:flex-none bg-portal-surface border border-portal-border rounded-lg text-[12px] text-portal-text px-3 py-1.5 focus:outline-none focus:border-portal-accent"
             />
             {(dateFrom || dateTo) && (
@@ -92,6 +117,7 @@ export default function IncomingBookings() {
                 onClick={() => {
                   setDateFrom("");
                   setDateTo("");
+                  setPage(0);
                 }}
                 className="text-[11px] text-portal-muted hover:text-portal-text underline"
               >
@@ -110,30 +136,35 @@ export default function IncomingBookings() {
                 <>
                   {" · "}
                   {format(new Date(dateFrom), "MMM d")}
-                  {dateTo ? ` – ${format(new Date(dateTo), "MMM d, yyyy")}` : ""}
+                  {dateTo
+                    ? ` – ${format(new Date(dateTo), "MMM d, yyyy")}`
+                    : ""}
                 </>
               )}
               {" · "}
               <span className="font-semibold text-portal-text">
-                {bookings.length} student{bookings.length !== 1 ? "s" : ""} booked
+                {total} student{total !== 1 ? "s" : ""} booked
               </span>
             </p>
           </div>
         )}
 
         <div className="hidden print:block mb-4">
-          <h1 className="text-lg font-bold">{route === "all" ? "All Bookings" : route}</h1>
+          <h1 className="text-lg font-bold">
+            {route === "all" ? "All Bookings" : route}
+          </h1>
           <p className="text-sm text-gray-500">
-            {tab === "upcoming" ? "Upcoming" : "Past"} · {bookings.length} booking
-            {bookings.length !== 1 ? "s" : ""}
+            {tab === "upcoming" ? "Upcoming" : "Past"} · {total} booking
+            {total !== 1 ? "s" : ""}
             {dateFrom && ` · from ${dateFrom}`}
             {dateTo && ` to ${dateTo}`}
           </p>
         </div>
 
         <div
-          ref={printRef}
-          className="bg-portal-surface border border-portal-border rounded-2xl overflow-hidden"
+          className={`bg-portal-surface border border-portal-border rounded-2xl overflow-hidden transition-opacity ${
+            isFetching && !isLoading ? "opacity-60" : ""
+          }`}
         >
           {isLoading ? (
             <div className="flex items-center justify-center py-12 gap-2 text-portal-muted">
@@ -142,12 +173,16 @@ export default function IncomingBookings() {
             </div>
           ) : isError ? (
             <div className="px-5 py-10 text-center">
-              <p className="text-[13px] text-red-400">Failed to load bookings</p>
+              <p className="text-[13px] text-red-400">
+                Failed to load bookings
+              </p>
             </div>
           ) : bookings.length === 0 ? (
             <div className="px-5 py-10 text-center">
               <p className="text-[13px] text-portal-muted">
-                {tab === "upcoming" ? "No upcoming bookings" : "No past bookings"}
+                {tab === "upcoming"
+                  ? "No upcoming bookings"
+                  : "No past bookings"}
               </p>
             </div>
           ) : (
@@ -188,7 +223,9 @@ export default function IncomingBookings() {
                           <p className="text-[13px] font-semibold text-portal-text">
                             {booking.passengerName}
                           </p>
-                          <p className="text-[11px] text-portal-muted">{booking.passengerPhone}</p>
+                          <p className="text-[11px] text-portal-muted">
+                            {booking.passengerPhone}
+                          </p>
                         </td>
                         <td className="px-4 py-3.5 text-[13px] text-portal-text">
                           {booking.routeName}
@@ -223,6 +260,15 @@ export default function IncomingBookings() {
             </>
           )}
         </div>
+
+        {!isLoading && !isError && (
+          <Pagination
+            page={page}
+            pageCount={pageCount}
+            onPageChange={setPage}
+            className="mt-3.5"
+          />
+        )}
       </motion.div>
 
       <TransportBookingDetailModal

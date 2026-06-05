@@ -3,7 +3,7 @@
 import { signOutUser } from "@/lib/actions/user.action";
 import { useCurrentUser } from "@/modules/auth/hooks/useCurrentUser";
 import { cn } from "@/lib/utils";
-import { Bus, Home, LogOut, Menu, User, X } from "lucide-react";
+import { Bus, Home, LogOut, Menu, User, Wallet, X } from "lucide-react";
 import { motion } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
@@ -21,7 +21,10 @@ const navGroups = [
   },
   {
     label: "Account",
-    items: [{ label: "Profile", icon: User, href: "/profile", badge: null }],
+    items: [
+      { label: "Profile", icon: User, href: "/profile", badge: null },
+      { label: "Wallet", icon: Wallet, href: "/wallet", badge: null },
+    ],
   },
 ];
 

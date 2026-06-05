@@ -93,9 +93,13 @@ export type TransportBooking = {
   createdAt: string;
 };
 
+export const VENDOR_BOOKINGS_PAGE_SIZE = 20;
+export const STUDENT_BOOKINGS_PAGE_SIZE = 20;
+
 export type TransportBookingsResponse = {
   bookings: TransportBooking[];
   routes: string[];
+  total: number;
 };
 
 export type BookingsFilters = {
@@ -103,6 +107,7 @@ export type BookingsFilters = {
   route: string;
   dateFrom: string;
   dateTo: string;
+  page: number;
 };
 
 
@@ -132,4 +137,9 @@ export type StudentBooking = {
       notes: string;
     };
   };
+};
+
+export type StudentBookingsResponse = {
+  bookings: StudentBooking[];
+  total: number;
 };
