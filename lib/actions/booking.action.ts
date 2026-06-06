@@ -220,7 +220,6 @@ export async function payBookingFromWallet({
           shortfall: Math.ceil((totalAmountKobo - currentBalance) / 100),
         };
       }
-      console.log(routeId, "ROUTE ID --- IGNORE ---");
 
       const booking = await tx.booking.create({
         data: {
@@ -287,8 +286,7 @@ export async function payBookingFromWallet({
     }
 
     return { reference };
-  } catch (error) {
-    console.log("Booking error", error);
+  } catch {
     return { error: "Failed to complete booking. Please try again." };
   }
 }

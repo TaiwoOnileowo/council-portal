@@ -202,7 +202,6 @@ export default function BookingFlow({
     setSubmitError("");
     setShortfall(null);
     setIsProcessing(true);
-    console.log(selectedRoute, "SELECTED ROUTE ID --- IGNORE ---");
 
     try {
       const result = await payBookingFromWallet({
@@ -353,7 +352,6 @@ export default function BookingFlow({
                   </motion.div>
                 )}
 
-                {/* ── Step 2: Ride Summary ── */}
                 {step === "ride-summary" && selectedRoute && (
                   <motion.div
                     key="step-summary"

@@ -3,29 +3,12 @@ import { ArrowDownLeft, ArrowUpRight, Bus, Plus, RotateCcw, type LucideIcon } fr
 type TransactionTypeConfig = {
   label: string;
   icon: LucideIcon;
-  iconBg: string;
-  iconColor: string;
 };
 
 const TRANSACTION_TYPE_CONFIG: Record<string, TransactionTypeConfig> = {
-  topup: {
-    label: "Wallet top-up",
-    icon: Plus,
-    iconBg: "bg-portal-green-bg",
-    iconColor: "text-portal-green",
-  },
-  booking: {
-    label: "Transport booking",
-    icon: Bus,
-    iconBg: "bg-portal-accent-bg",
-    iconColor: "text-portal-accent",
-  },
-  refund: {
-    label: "Refund",
-    icon: RotateCcw,
-    iconBg: "bg-portal-gold-bg",
-    iconColor: "text-portal-gold",
-  },
+  topup: { label: "Wallet top-up", icon: Plus },
+  booking: { label: "Transport booking", icon: Bus },
+  refund: { label: "Refund", icon: RotateCcw },
 };
 
 export function transactionTypeConfig(type: string | null, difference: number) {
@@ -35,8 +18,6 @@ export function transactionTypeConfig(type: string | null, difference: number) {
   return {
     label: credit ? "Credit" : "Debit",
     icon: credit ? ArrowDownLeft : ArrowUpRight,
-    iconBg: credit ? "bg-portal-green-bg" : "bg-portal-accent-bg",
-    iconColor: credit ? "text-portal-green" : "text-portal-accent",
   };
 }
 

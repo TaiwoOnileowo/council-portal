@@ -1,16 +1,15 @@
 "use client";
 
-import Link from "next/link";
-import { motion } from "motion/react";
-import { ArrowRight, Bus, MapPin } from "lucide-react";
-import { useNextBooking } from "@/modules/transport/hooks/useNextBooking";
 import { BorderBeam } from "@/components/ui/border-beam";
-import { bookingStatusConfig } from "@/modules/dashboard/dashboard.constant";
+import { formatAmount } from "@/lib/format";
 import {
   formatBookingDate,
   formatDeparture,
 } from "@/modules/dashboard/dashboard.util";
-import { formatAmount } from "@/lib/format";
+import { useNextBooking } from "@/modules/transport/hooks/useNextBooking";
+import { ArrowRight, Bus, MapPin } from "lucide-react";
+import { motion } from "motion/react";
+import Link from "next/link";
 
 export default function NextRideCard() {
   const { data: nextRide, isLoading } = useNextBooking();
@@ -55,9 +54,6 @@ export default function NextRideCard() {
     );
   }
 
-  const statusCfg = bookingStatusConfig(nextRide.status);
-  const statusColor = statusCfg.color;
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 14 }}
@@ -69,12 +65,6 @@ export default function NextRideCard() {
         <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-portal-muted">
           Your next ride
         </p>
-        <span
-          className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full"
-          style={{ color: statusColor, background: `${statusColor}1a` }}
-        >
-          {statusCfg.label}
-        </span>
       </div>
 
       <div className="flex items-center gap-4">
