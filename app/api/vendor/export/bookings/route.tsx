@@ -177,7 +177,10 @@ export async function GET(req: Request) {
     }) as React.ReactElement<DocumentProps>,
   );
 
-  return new Response(pdfBuffer, {
+  const arrayBuffer = new ArrayBuffer(pdfBuffer.byteLength);
+  new Uint8Array(arrayBuffer).set(pdfBuffer);
+
+  return new Response(arrayBuffer, {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename="bookings-${datestamp}.pdf"`,
