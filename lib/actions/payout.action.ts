@@ -3,13 +3,14 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { MIN_PAYOUT_KOBO, koboToNaira } from "@/lib/money";
-import { reversePayout } from "@/lib/payouts";
-import { vendorBalance, vendorEffectiveBalance } from "@/lib/actions/wallet.action";
+import { reversePayout, payoutLockKey } from "@/lib/payouts";
+import { vendorBalance } from "@/lib/actions/wallet.action";
+import { cacheSetIfNotExists, cacheDel } from "@/lib/cache";
 
 export type VendorWalletSummary = {
   balance: number; // available, in kobo
   totalEarned: number; // lifetime earnings, in kobo
-  totalPaidOut: number; // settled + in-flight payouts, in kobo
+  totalPaidOut: number; // settled payouts, in kobo
   bankAccount: { name: string; accountName: string; mask: string } | null;
 };
 
@@ -24,13 +25,13 @@ export async function getVendorWalletSummary(): Promise<
   const vendorId = session.user.id;
 
   const [balance, earnedAgg, paidOutAgg, vendor] = await Promise.all([
-    vendorEffectiveBalance(vendorId),
+    vendorBalance(vendorId),
     db.wallet.aggregate({
       where: { vendor_id: vendorId, type: "earning" },
       _sum: { difference: true },
     }),
     db.payout.aggregate({
-      where: { vendor_id: vendorId, status: { not: "FAILED" } },
+      where: { vendor_id: vendorId, status: "SUCCESS" },
       _sum: { amount: true },
     }),
     db.vendor_profile.findUnique({
@@ -63,7 +64,7 @@ export type PayoutHistoryItem = {
   id: string;
   reference: string;
   amount: number; // kobo
-  status: "PENDING" | "PROCESSING" | "SUCCESS" | "FAILED";
+  status: "PENDING" | "SUCCESS" | "FAILED";
   bankName: string;
   accountMask: string;
   failureReason: string | null;
@@ -90,7 +91,7 @@ export async function getPayoutHistory(): Promise<
       id: p.id,
       reference: p.reference,
       amount: p.amount,
-      status: p.status,
+      status: p.status as PayoutHistoryItem["status"],
       bankName: p.bank_name,
       accountMask: `••••${p.account_number.slice(-4)}`,
       failureReason: p.failure_reason,
@@ -116,6 +117,9 @@ export async function requestPayout(
     };
   }
 
+  const secret = process.env.FLW_SECRET_KEY;
+  if (!secret) return { error: "Payment service is not configured." };
+
   const vendor = await db.vendor_profile.findUnique({
     where: { user_id: vendorId },
     select: {
@@ -136,50 +140,41 @@ export async function requestPayout(
   }
 
   const reference = `PO-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
+  const lockKey = payoutLockKey(vendorId);
 
-  // Create the payout record atomically, serialized per-vendor to prevent
-  // concurrent requests from both passing the effective-balance check.
-  const setup = await db.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${vendorId}))`;
-
-    const [balance, pendingAgg] = await Promise.all([
-      vendorBalance(vendorId, tx),
-      tx.payout.aggregate({
-        where: { vendor_id: vendorId, status: { in: ["PENDING", "PROCESSING"] } },
-        _sum: { amount: true },
-      }),
-    ]);
-    const effectiveBalance = balance - (pendingAgg._sum.amount ?? 0);
-    if (effectiveBalance < amountKobo) {
-      return { error: "INSUFFICIENT_BALANCE" as const };
-    }
-
-    const payout = await tx.payout.create({
-      data: {
-        reference,
-        vendor_id: vendorId,
-        amount: amountKobo,
-        status: "PENDING",
-        bank_code: vendor.bank_code!,
-        bank_name: vendor.bank_name!,
-        account_number: vendor.account_number!,
-        account_name: vendor.account_name!,
-      },
-      select: { id: true },
-    });
-
-    return { payoutId: payout.id };
-  });
-
-  if ("error" in setup) {
-    return { error: "Insufficient balance." };
+  const acquired = await cacheSetIfNotExists(lockKey, reference, 24 * 60 * 60);
+  if (!acquired) {
+    return { error: "You already have a pending withdrawal. Please wait for it to complete." };
   }
 
-  // Fire the transfer. On any failure, reverse the debit and mark the payout failed.
-  const secret = process.env.FLW_SECRET_KEY;
-  if (!secret) {
-    await reversePayout(reference, "Payment service is not configured.");
-    return { error: "Payment service is not configured." };
+  try {
+    const balance = await db.$transaction(async (tx) => {
+      const bal = await vendorBalance(vendorId, tx);
+      if (bal < amountKobo) return null;
+
+      await tx.payout.create({
+        data: {
+          reference,
+          vendor_id: vendorId,
+          amount: amountKobo,
+          status: "PENDING",
+          bank_code: vendor.bank_code!,
+          bank_name: vendor.bank_name!,
+          account_number: vendor.account_number!,
+          account_name: vendor.account_name!,
+        },
+      });
+
+      return bal;
+    });
+
+    if (balance === null) {
+      await cacheDel(lockKey);
+      return { error: "Insufficient balance." };
+    }
+  } catch {
+    await cacheDel(lockKey);
+    return { error: "Failed to create payout. Please try again." };
   }
 
   try {
@@ -202,19 +197,13 @@ export async function requestPayout(
     const json = await res.json();
 
     if (json.status !== "success" || !json.data) {
-      await reversePayout(
-        reference,
-        json.message ?? "Transfer could not be initiated.",
-      );
+      await reversePayout(reference, json.message ?? "Transfer could not be initiated.");
       return { error: json.message ?? "Withdrawal failed. Please try again." };
     }
 
     await db.payout.update({
       where: { reference },
-      data: {
-        status: "PROCESSING",
-        flw_transfer_id: String(json.data.id),
-      },
+      data: { transfer_id: String(json.data.id) },
     });
 
     return { reference };

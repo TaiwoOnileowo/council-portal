@@ -1,26 +1,36 @@
+import { cacheDel } from "@/lib/cache";
 import { db } from "@/lib/db";
 import { vendorBalance } from "@/lib/actions/wallet.action";
 
-export async function reversePayout(
-  reference: string,
-  reason: string,
-): Promise<void> {
+export const payoutLockKey = (vendorId: string) => `payout:lock:${vendorId}`;
+
+export async function reversePayout(reference: string, reason: string): Promise<void> {
+  const payout = await db.payout.findUnique({
+    where: { reference },
+    select: { vendor_id: true, status: true },
+  });
+  if (!payout || payout.status !== "PENDING") return;
+
   await db.payout.updateMany({
-    where: { reference, status: { notIn: ["SUCCESS", "FAILED"] } },
+    where: { reference, status: "PENDING" },
     data: { status: "FAILED", failure_reason: reason },
   });
+
+  await cacheDel(payoutLockKey(payout.vendor_id));
 }
 
 export async function markPayoutSuccess(reference: string): Promise<void> {
+  let vendorId: string | null = null;
+
   try {
     await db.$transaction(async (tx) => {
       const payout = await tx.payout.findUnique({
         where: { reference },
         select: { vendor_id: true, amount: true, status: true },
       });
-      if (!payout || !["PENDING", "PROCESSING"].includes(payout.status)) return;
+      if (!payout || payout.status !== "PENDING") return;
 
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${payout.vendor_id}))`;
+      vendorId = payout.vendor_id;
 
       const balance = await vendorBalance(payout.vendor_id, tx);
 
@@ -43,5 +53,9 @@ export async function markPayoutSuccess(reference: string): Promise<void> {
     });
   } catch {
     // Unique constraint on wallet reference — already processed.
+  }
+
+  if (vendorId) {
+    await cacheDel(payoutLockKey(vendorId));
   }
 }

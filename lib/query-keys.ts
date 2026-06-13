@@ -24,9 +24,11 @@ export const queryKeys = {
   vendor: {
     bookings: (userId: string, filters?: object) =>
       filters
-        ? ["vendor", userId, "bookings", filters] as const
-        : ["vendor", userId, "bookings"] as const,
+        ? (["vendor", userId, "bookings", filters] as const)
+        : (["vendor", userId, "bookings"] as const),
     priceLists: (userId: string) => ["vendor", userId, "price-lists"] as const,
     availability: (userId: string) => ["vendor", userId, "availability"] as const,
+    wallet: (userId: string) => ["vendor", userId, "wallet"] as const,
+    payouts: (userId: string) => ["vendor", userId, "payouts"] as const,
   },
 };

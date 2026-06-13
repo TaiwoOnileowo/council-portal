@@ -43,7 +43,6 @@ enum BookingStatus {
 
 enum PayoutStatus {
   PENDING
-  PROCESSING
   SUCCESS
   FAILED
 }
@@ -124,13 +123,12 @@ model payout {
   amount          Int // payout amount in kobo
   status          PayoutStatus   @default(PENDING)
 
-  // Bank snapshot (preserved even if vendor edits bank details later)
   bank_code      String
   bank_name      String
   account_number String
   account_name   String
 
-  flw_transfer_id String? // Flutterwave's transfer id
+  transfer_id String?
   failure_reason  String?
 
   created_at DateTime @default(now())

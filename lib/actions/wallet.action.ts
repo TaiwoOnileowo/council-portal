@@ -33,16 +33,6 @@ export async function vendorBalance(
   return latest?.balance ?? 0;
 }
 
-export async function vendorEffectiveBalance(vendorId: string): Promise<number> {
-  const [balance, pendingAgg] = await Promise.all([
-    vendorBalance(vendorId),
-    db.payout.aggregate({
-      where: { vendor_id: vendorId, status: { in: ["PENDING", "PROCESSING"] } },
-      _sum: { amount: true },
-    }),
-  ]);
-  return balance - (pendingAgg._sum.amount ?? 0);
-}
 
 export async function getWalletBalance() {
   const session = await auth();

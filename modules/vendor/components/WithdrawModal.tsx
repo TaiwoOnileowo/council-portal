@@ -4,6 +4,8 @@ import Modal from "@/components/ui/Modal";
 import { requestPayout } from "@/lib/actions/payout.action";
 import { formatAmount, formatWithCommas, parseAmount } from "@/lib/format";
 import { MIN_PAYOUT_NAIRA, koboToNaira, nairaToKobo } from "@/lib/money";
+import { queryKeys } from "@/lib/query-keys";
+import { useCurrentUser } from "@/modules/auth/hooks/useCurrentUser";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, ChevronRight, Loader2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -22,6 +24,8 @@ export default function WithdrawModal({
   availableKobo: number;
   bankAccount: { name: string; accountName: string; mask: string } | null;
 }) {
+  const { data: currentUser } = useCurrentUser();
+  const userId = currentUser?.id ?? "";
   const [amountInput, setAmountInput] = useState("");
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
@@ -45,8 +49,8 @@ export default function WithdrawModal({
         setError(res.error);
         return;
       }
-      queryClient.invalidateQueries({ queryKey: ["vendor-wallet"] });
-      queryClient.invalidateQueries({ queryKey: ["payout-history"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.vendor.wallet(userId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.vendor.payouts(userId) });
       setDone(true);
       toast.success("Withdrawal is on its way to your bank.");
     },

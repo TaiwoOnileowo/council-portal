@@ -2,22 +2,25 @@
 
 import { BorderBeam } from "@/components/ui/border-beam";
 import { getWalletBalance } from "@/lib/actions/wallet.action";
+import { queryKeys } from "@/lib/query-keys";
 import { useModalStore } from "@/lib/stores/modal.store";
 import { useQuery } from "@tanstack/react-query";
 import { Plus, Wallet } from "lucide-react";
+import { useCurrentUser } from "@/modules/auth/hooks/useCurrentUser";
 
 export function WalletChip() {
   const { openTopUp } = useModalStore();
+  const { data: currentUser } = useCurrentUser();
+  const userId = currentUser?.id ?? "";
 
   const { data } = useQuery({
-    queryKey: ["wallet-balance"],
+    queryKey: queryKeys.wallet.all(userId),
     queryFn: () => getWalletBalance(),
+    enabled: !!userId,
   });
 
   const balanceNaira =
-    data && "balance" in data && data.balance != null
-      ? data.balance / 100
-      : null;
+    data && "balance" in data && data.balance != null ? data.balance / 100 : null;
 
   const displayBalance =
     balanceNaira !== null ? `₦${balanceNaira.toLocaleString("en-NG")}` : "₦—";

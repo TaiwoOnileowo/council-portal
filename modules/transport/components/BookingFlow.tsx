@@ -7,6 +7,7 @@ import type {
   PublicVendor,
 } from "@/lib/actions/transport.action";
 import { formatAmount } from "@/lib/format";
+import { queryKeys } from "@/lib/query-keys";
 import { useModalStore } from "@/lib/stores/modal.store";
 import { inputClass } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -231,8 +232,8 @@ export default function BookingFlow({
         return;
       }
 
-      queryClient.invalidateQueries({ queryKey: ["wallet-balance"] });
-      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.wallet.all(user.id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.bookings.all(user.id) });
       setBookingRef(result.reference);
       setStep("success");
     } catch {

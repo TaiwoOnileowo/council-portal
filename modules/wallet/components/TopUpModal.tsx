@@ -3,6 +3,7 @@
 import Modal from "@/components/ui/Modal";
 import { verifyAndTopUpWallet } from "@/lib/actions/wallet.action";
 import { useCurrentUser } from "@/modules/auth/hooks/useCurrentUser";
+import { queryKeys } from "@/lib/query-keys";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Copy, Loader2, Wallet } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -76,7 +77,7 @@ export default function TopUpModal({
         paymentStatusRef.current = "idle";
         return;
       }
-      queryClient.invalidateQueries({ queryKey: ["wallet-balance"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.wallet.all(currentUser?.id ?? "") });
       setStep("success");
       paymentStatusRef.current = "idle";
 

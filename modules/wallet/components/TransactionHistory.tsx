@@ -16,8 +16,8 @@ import {
   formatSignedAmount,
   formatTransactionDate,
 } from "@/modules/wallet/wallet.util";
+import { useCurrentUser } from "@/modules/auth/hooks/useCurrentUser";
 import { ChevronDown } from "lucide-react";
-import { useSession } from "next-auth/react";
 import { useState } from "react";
 
 function SkeletonRow() {
@@ -71,8 +71,8 @@ function TransactionRow({ tx }: { tx: WalletTransaction }) {
 }
 
 export default function TransactionHistory() {
-  const { data: session } = useSession();
-  const isVendor = session?.user?.role === "VENDOR";
+  const { data: currentUser } = useCurrentUser();
+  const isVendor = currentUser?.role === "VENDOR";
   const filters = isVendor
     ? VENDOR_TRANSACTION_TYPE_FILTERS
     : TRANSACTION_TYPE_FILTERS;

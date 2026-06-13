@@ -3,27 +3,29 @@
 import { BorderBeam } from "@/components/ui/border-beam";
 import { getVendorWalletSummary } from "@/lib/actions/payout.action";
 import { getWalletBalance } from "@/lib/actions/wallet.action";
+import { queryKeys } from "@/lib/query-keys";
 import { useModalStore } from "@/lib/stores/modal.store";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUpRight, Plus, Wallet } from "lucide-react";
-import { useSession } from "next-auth/react";
+import { useCurrentUser } from "@/modules/auth/hooks/useCurrentUser";
 
 export function WalletBalancePanel() {
-  const { data: session } = useSession();
-  const isVendor = session?.user?.role === "VENDOR";
+  const { data: currentUser } = useCurrentUser();
+  const userId = currentUser?.id ?? "";
+  const isVendor = currentUser?.role === "VENDOR";
 
   const { openTopUp, openWithdraw } = useModalStore();
 
   const { data: balanceData } = useQuery({
-    queryKey: ["wallet-balance"],
+    queryKey: queryKeys.wallet.all(userId),
     queryFn: () => getWalletBalance(),
-    enabled: !isVendor,
+    enabled: !!userId && !isVendor,
   });
 
   const { data: vendorData } = useQuery({
-    queryKey: ["vendor-wallet"],
+    queryKey: queryKeys.vendor.wallet(userId),
     queryFn: () => getVendorWalletSummary(),
-    enabled: isVendor,
+    enabled: !!userId && isVendor,
   });
 
   let balanceNaira: number | null = null;
