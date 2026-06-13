@@ -279,7 +279,7 @@ export async function payBookingFromWallet({
           vendor_id: vendorId,
           difference: vendorEarningKobo,
           balance: vendorBalance + vendorEarningKobo,
-          reason: `Earning — ${routeName}`,
+          reason: `Earning — ${routeName} · ${reference}`,
           type: "earning",
           model_responsible: "Booking",
           model_id: booking.id,

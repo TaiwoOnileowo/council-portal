@@ -25,7 +25,12 @@ export default function MobileCard({
           {booking.routeName}
         </p>
         <p className="text-[11px] text-portal-muted mt-0.5">
-          {format(new Date(booking.createdAt), "MMM d, yyyy")}
+          {booking.departureAt
+            ? format(new Date(booking.departureAt), "d MMM · h:mm a")
+            : format(new Date(booking.createdAt), "MMM d, yyyy")}
+        </p>
+        <p className="text-[10px] font-mono text-portal-muted/50 mt-0.5">
+          {booking.reference}
         </p>
       </div>
       <div className="flex flex-col items-end gap-1.5 flex-shrink-0">

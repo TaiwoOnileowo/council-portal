@@ -8,20 +8,9 @@ import type {
   PublicPriceList,
   PublicRoute,
 } from "@/lib/actions/transport.action";
+import { isVendorAvailable } from "@/modules/transport/transport.utils";
 import VendorDetailPopup from "./VendorDetailModal";
 import BookingFlow from "./BookingFlow";
-
-export function isVendorAvailable(vendor: PublicVendor): boolean {
-  if (!vendor.isActive) return false;
-  const now = new Date();
-  return vendor.priceLists.some((pl) => {
-    if (pl.availType === "ACTIVE") return true;
-    if (pl.availType === "INACTIVE") return false;
-    if (pl.schedStart && now < pl.schedStart) return false;
-    if (pl.schedEnd && now > pl.schedEnd) return false;
-    return true;
-  });
-}
 
 export default function VendorCardsList({
   vendors,

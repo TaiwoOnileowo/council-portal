@@ -1,6 +1,7 @@
 import { format } from "date-fns";
 import type { PriceList, PriceListRoute, PriceListBody, DepartureTime } from "@/modules/transport/transport.types";
 import { parseAmount } from "@/lib/format";
+import type { PublicVendor, PublicPriceList } from "@/lib/actions/transport.action";
 
 export type DrawerFormValues = {
   name: string;
@@ -75,6 +76,39 @@ export function buildBody(form: DrawerFormValues): PriceListBody {
     notes: form.notes,
     availability,
   };
+}
+
+export function isPriceListActive(pl: PublicPriceList): boolean {
+  if (pl.availType === "ACTIVE") return true;
+  if (pl.availType === "INACTIVE") return false;
+  const now = new Date();
+  if (pl.schedStart && now < pl.schedStart) return false;
+  if (pl.schedEnd && now > pl.schedEnd) return false;
+  return true;
+}
+
+export function closesToday(pl: PublicPriceList): boolean {
+  if (!pl.schedEnd) return false;
+  const today = new Date().toDateString();
+  return new Date(pl.schedEnd).toDateString() === today;
+}
+
+export function closesSoon(pl: PublicPriceList): boolean {
+  if (!pl.schedEnd || closesToday(pl)) return false;
+  const diff = new Date(pl.schedEnd).getTime() - new Date().getTime();
+  return diff > 0 && diff <= 2 * 24 * 60 * 60 * 1000;
+}
+
+export function isVendorAvailable(vendor: PublicVendor): boolean {
+  if (!vendor.isActive) return false;
+  const now = new Date();
+  return vendor.priceLists.some((pl) => {
+    if (pl.availType === "ACTIVE") return true;
+    if (pl.availType === "INACTIVE") return false;
+    if (pl.schedStart && now < pl.schedStart) return false;
+    if (pl.schedEnd && now > pl.schedEnd) return false;
+    return true;
+  });
 }
 
 export function emptyFormValues(direction: "leaving" | "returning"): DrawerFormValues {

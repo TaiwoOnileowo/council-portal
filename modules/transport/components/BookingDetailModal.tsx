@@ -21,7 +21,7 @@ function Row({
   value: string;
   copyable?: boolean;
 }) {
-  const [copied, setCopied] = useState(false);
+const [copied, setCopied] = useState(false);
 
   function handleCopy() {
     navigator.clipboard.writeText(value);

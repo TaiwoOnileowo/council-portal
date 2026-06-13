@@ -3,7 +3,7 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { MIN_PAYOUT_KOBO, koboToNaira } from "@/lib/money";
-import { reversePayout, vendorBalance } from "@/lib/payouts";
+import { reversePayout, vendorBalance, vendorEffectiveBalance } from "@/lib/payouts";
 
 export type VendorWalletSummary = {
   balance: number; // available, in kobo
@@ -23,7 +23,7 @@ export async function getVendorWalletSummary(): Promise<
   const vendorId = session.user.id;
 
   const [balance, earnedAgg, paidOutAgg, vendor] = await Promise.all([
-    vendorBalance(vendorId),
+    vendorEffectiveBalance(vendorId),
     db.wallet.aggregate({
       where: { vendor_id: vendorId, type: "earning" },
       _sum: { difference: true },
@@ -136,27 +136,22 @@ export async function requestPayout(
 
   const reference = `PO-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
 
-  // Debit the wallet and create the payout record atomically, serialized
-  // per-vendor against concurrent bookings/withdrawals.
+  // Create the payout record atomically, serialized per-vendor to prevent
+  // concurrent requests from both passing the effective-balance check.
   const setup = await db.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${vendorId}))`;
 
-    const balance = await vendorBalance(vendorId, tx);
-    if (balance < amountKobo) {
+    const [balance, pendingAgg] = await Promise.all([
+      vendorBalance(vendorId, tx),
+      tx.payout.aggregate({
+        where: { vendor_id: vendorId, status: { in: ["PENDING", "PROCESSING"] } },
+        _sum: { amount: true },
+      }),
+    ]);
+    const effectiveBalance = balance - (pendingAgg._sum.amount ?? 0);
+    if (effectiveBalance < amountKobo) {
       return { error: "INSUFFICIENT_BALANCE" as const };
     }
-
-    await tx.wallet.create({
-      data: {
-        vendor_id: vendorId,
-        difference: -amountKobo,
-        balance: balance - amountKobo,
-        reason: "Withdrawal",
-        type: "payout",
-        model_responsible: "Payout",
-        reference,
-      },
-    });
 
     const payout = await tx.payout.create({
       data: {

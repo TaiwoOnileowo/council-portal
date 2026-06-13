@@ -240,6 +240,9 @@ export default function IncomingBookings() {
                         Direction
                       </th>
                       <th className="text-left text-[11px] font-semibold text-portal-muted uppercase tracking-wide px-4 py-3">
+                        Departure
+                      </th>
+                      <th className="text-left text-[11px] font-semibold text-portal-muted uppercase tracking-wide px-4 py-3">
                         Booked On
                       </th>
                       {tab === "past" && (
@@ -265,12 +268,20 @@ export default function IncomingBookings() {
                           <p className="text-[11px] text-portal-muted">
                             {booking.passengerPhone}
                           </p>
+                          <p className="text-[10.5px] font-mono text-portal-muted/60 mt-0.5">
+                            {booking.reference}
+                          </p>
                         </td>
                         <td className="px-4 py-3.5 text-[13px] text-portal-text">
                           {booking.routeName}
                         </td>
                         <td className="px-4 py-3.5">
                           <DirectionBadge direction={booking.direction} />
+                        </td>
+                        <td className="px-4 py-3.5 text-[12.5px] text-portal-text2">
+                          {booking.departureAt
+                            ? format(new Date(booking.departureAt), "d MMM · h:mm a")
+                            : <span className="text-portal-muted/50">—</span>}
                         </td>
                         <td className="px-4 py-3.5 text-[12.5px] text-portal-text2">
                           {format(new Date(booking.createdAt), "MMM d, yyyy")}

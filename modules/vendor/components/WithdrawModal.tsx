@@ -2,24 +2,14 @@
 
 import Modal from "@/components/ui/Modal";
 import { requestPayout } from "@/lib/actions/payout.action";
-import { formatAmount } from "@/lib/format";
+import { formatAmount, formatWithCommas, parseAmount } from "@/lib/format";
 import { MIN_PAYOUT_NAIRA, koboToNaira, nairaToKobo } from "@/lib/money";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, ChevronRight, Loader2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
-
-function formatWithCommas(value: string) {
-  const digits = value.replace(/\D/g, "");
-  if (!digits) return "";
-  return Number(digits).toLocaleString("en-NG");
-}
-
-function parseAmount(value: string) {
-  return parseInt(value.replace(/,/g, ""), 10) || 0;
-}
 
 export default function WithdrawModal({
   open,
@@ -37,13 +27,12 @@ export default function WithdrawModal({
   const [done, setDone] = useState(false);
   const queryClient = useQueryClient();
 
-  useEffect(() => {
-    if (open) {
-      setAmountInput("");
-      setError("");
-      setDone(false);
-    }
-  }, [open]);
+  function handleClose() {
+    setAmountInput("");
+    setError("");
+    setDone(false);
+    onClose();
+  }
 
   const amountNaira = parseAmount(amountInput);
   const amountKobo = nairaToKobo(amountNaira);
@@ -79,7 +68,7 @@ export default function WithdrawModal({
   return (
     <Modal
       open={open}
-      onClose={isPending ? () => {} : onClose}
+      onClose={isPending ? () => {} : handleClose}
       title={done ? "Withdrawal Requested" : "Withdraw Earnings"}
       description={
         done ? undefined : `Available: ${formatAmount(availableNaira)}`
@@ -108,7 +97,7 @@ export default function WithdrawModal({
               </p>
             </div>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="w-full py-2.5 bg-portal-accent hover:bg-portal-accent2 text-white rounded-xl text-[13px] font-semibold transition-all"
             >
               Done
@@ -127,7 +116,7 @@ export default function WithdrawModal({
               your profile.
             </p>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="w-full py-2.5 bg-portal-accent hover:bg-portal-accent2 text-white rounded-xl text-[13px] font-semibold transition-all"
             >
               Got it
@@ -154,7 +143,7 @@ export default function WithdrawModal({
               </div>
               <Link
                 href="/vendor-dashboard/profile"
-                onClick={onClose}
+                onClick={handleClose}
                 className="flex items-center gap-0.5 text-[12px] font-semibold text-portal-accent hover:text-portal-accent2 transition-colors flex-shrink-0"
               >
                 Change

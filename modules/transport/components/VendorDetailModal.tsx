@@ -9,30 +9,14 @@ import type {
   PublicPriceList,
   PublicRoute,
 } from "@/lib/actions/transport.action";
-import { isVendorAvailable } from "./VendorCardsList";
+import {
+  isPriceListActive,
+  closesToday,
+  closesSoon,
+  isVendorAvailable,
+} from "@/modules/transport/transport.utils";
 
 type ActiveTab = "leaving" | "returning";
-
-function isPriceListActive(pl: PublicPriceList): boolean {
-  if (pl.availType === "ACTIVE") return true;
-  if (pl.availType === "INACTIVE") return false;
-  const now = new Date();
-  if (pl.schedStart && now < pl.schedStart) return false;
-  if (pl.schedEnd && now > pl.schedEnd) return false;
-  return true;
-}
-
-function closesToday(pl: PublicPriceList): boolean {
-  if (!pl.schedEnd) return false;
-  const today = new Date().toDateString();
-  return new Date(pl.schedEnd).toDateString() === today;
-}
-
-function closesSoon(pl: PublicPriceList): boolean {
-  if (!pl.schedEnd || closesToday(pl)) return false;
-  const diff = new Date(pl.schedEnd).getTime() - new Date().getTime();
-  return diff > 0 && diff <= 2 * 24 * 60 * 60 * 1000;
-}
 
 export default function VendorDetailPopup({
   vendor,
