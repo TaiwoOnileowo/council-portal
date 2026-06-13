@@ -5,8 +5,9 @@ import { requestPayout } from "@/lib/actions/payout.action";
 import { formatAmount } from "@/lib/format";
 import { MIN_PAYOUT_NAIRA, koboToNaira, nairaToKobo } from "@/lib/money";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2, ChevronRight, Loader2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -151,6 +152,14 @@ export default function WithdrawModal({
                   {bankAccount.accountName}
                 </p>
               </div>
+              <Link
+                href="/vendor-dashboard/profile"
+                onClick={onClose}
+                className="flex items-center gap-0.5 text-[12px] font-semibold text-portal-accent hover:text-portal-accent2 transition-colors flex-shrink-0"
+              >
+                Change
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
             </div>
 
             <div className="mb-4">
@@ -176,7 +185,7 @@ export default function WithdrawModal({
                 onClick={() =>
                   setAmountInput(availableNaira.toLocaleString("en-NG"))
                 }
-                className="mt-2 text-[12px] font-semibold text-portal-accent hover:underline"
+                className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-portal-accent bg-portal-accent-bg border border-portal-accent-border rounded-lg hover:bg-portal-accent hover:text-white transition-all duration-200"
               >
                 Withdraw all — {formatAmount(availableNaira)}
               </button>

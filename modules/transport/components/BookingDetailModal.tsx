@@ -3,7 +3,8 @@
 import Modal from "@/components/ui/Modal";
 import type { TransportBooking } from "@/modules/transport/transport.types";
 import { format } from "date-fns";
-import { MessageSquare } from "lucide-react";
+import { Check, Copy, MessageSquare } from "lucide-react";
+import { useState } from "react";
 
 type Props = {
   booking: TransportBooking | null;
@@ -11,20 +12,50 @@ type Props = {
   onClose: () => void;
 };
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({
+  label,
+  value,
+  copyable,
+}: {
+  label: string;
+  value: string;
+  copyable?: boolean;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  function handleCopy() {
+    navigator.clipboard.writeText(value);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
   return (
     <div className="flex items-start justify-between gap-4 py-3 border-b border-portal-border last:border-b-0">
       <span className="text-[12.5px] text-portal-muted flex-shrink-0">
         {label}
       </span>
-      <span className="text-[13px] font-medium text-portal-text text-right">
-        {value}
-      </span>
+      <div className="flex items-center gap-1.5">
+        <span className="text-[13px] font-medium text-portal-text text-right">
+          {value}
+        </span>
+        {copyable && (
+          <button
+            onClick={handleCopy}
+            className="flex-shrink-0 text-portal-muted/60 hover:text-portal-accent transition-colors"
+          >
+            {copied ? (
+              <Check className="w-3.5 h-3.5 text-green-500" />
+            ) : (
+              <Copy className="w-3.5 h-3.5" />
+            )}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
 
-export default function TransportBookingDetailModal({
+export default function BookingDetailModal({
   booking,
   open,
   onClose,
@@ -42,8 +73,8 @@ export default function TransportBookingDetailModal({
       <div className="px-5 py-4 space-y-4">
         <div className="bg-portal-accent-bg/50 rounded-xl border border-portal-border px-4">
           <Row label="Name" value={booking.passengerName} />
-          <Row label="Phone" value={booking.passengerPhone} />
-          <Row label="Guardian phone" value={booking.parentsPhone} />
+          <Row label="Phone" value={booking.passengerPhone} copyable />
+          <Row label="Guardian phone" value={booking.parentsPhone} copyable />
 
           <Row label="Hall" value={booking.hall} />
           <Row label="Room" value={booking.roomNumber} />

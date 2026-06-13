@@ -2,7 +2,7 @@
 
 import Pagination from "@/components/ui/Pagination";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
-import TransportBookingDetailModal from "@/modules/transport/components/TransportBookingDetailModal";
+import TransportBookingDetailModal from "@/modules/transport/components/BookingDetailModal";
 import { useTransportBookings } from "@/modules/transport/hooks/useTransportBookings";
 import {
   VENDOR_BOOKINGS_PAGE_SIZE,

@@ -8,7 +8,7 @@ import type {
   PublicPriceList,
   PublicRoute,
 } from "@/lib/actions/transport.action";
-import VendorDetailPopup from "./VendorDetailPopup";
+import VendorDetailPopup from "./VendorDetailModal";
 import BookingFlow from "./BookingFlow";
 
 export function isVendorAvailable(vendor: PublicVendor): boolean {

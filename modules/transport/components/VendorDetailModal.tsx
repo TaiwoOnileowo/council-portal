@@ -1,6 +1,6 @@
 "use client";
 
-import { X, MapPin, Phone, Instagram } from "lucide-react";
+import { X, MapPin, Phone, Instagram, Copy, Check } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
 import { useState } from "react";
@@ -58,6 +58,13 @@ export default function VendorDetailPopup({
 
   const defaultTab: ActiveTab = leavingList ? "leaving" : "returning";
   const [tab, setTab] = useState<ActiveTab>(defaultTab);
+  const [phoneCopied, setPhoneCopied] = useState(false);
+
+  function copyPhone() {
+    navigator.clipboard.writeText(vendor.phone);
+    setPhoneCopied(true);
+    setTimeout(() => setPhoneCopied(false), 2000);
+  }
 
   const activeList = tab === "leaving" ? leavingList : returningList;
   const listAvailable = activeList ? isPriceListActive(activeList) : false;
@@ -142,14 +149,18 @@ export default function VendorDetailPopup({
               )}
 
               <div className="flex flex-wrap gap-2">
-                <a
-                  href={`tel:${vendor.phone}`}
-                  onClick={(e) => e.stopPropagation()}
+                <button
+                  onClick={(e) => { e.stopPropagation(); copyPhone(); }}
                   className="flex items-center gap-1.5 text-xs text-portal-text2 bg-portal-accent-bg/50 border border-portal-border px-3 py-1.5 rounded-lg hover:border-portal-accent-border transition-colors"
                 >
                   <Phone className="w-3.5 h-3.5 text-portal-muted" />
                   {vendor.phone}
-                </a>
+                  {phoneCopied ? (
+                    <Check className="w-3 h-3 text-green-500" />
+                  ) : (
+                    <Copy className="w-3 h-3 text-portal-muted/60" />
+                  )}
+                </button>
                 {vendor.instagram && (
                   <a
                     href={`https://instagram.com/${vendor.instagram.replace(/^@/, "")}`}

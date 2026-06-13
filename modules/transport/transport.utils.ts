@@ -79,7 +79,7 @@ export function buildBody(form: DrawerFormValues): PriceListBody {
 
 export function emptyFormValues(direction: "leaving" | "returning"): DrawerFormValues {
   return {
-    name: "",
+    name: direction === "leaving" ? "Leaving School" : "Returning to School",
     direction,
     routes: [],
     departureTimes: [],
