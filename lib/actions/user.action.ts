@@ -7,6 +7,7 @@ import { hashPassword } from "@/lib/password";
 import {
   credentialsSchema,
   signUpSchema,
+  UpdateProfileInput,
   updateStudentProfileSchema,
 } from "@/modules/auth/auth.types";
 import { CallbackRouteError } from "@auth/core/errors";
@@ -191,36 +192,14 @@ export async function signUpUser({
 
 export async function updateProfile({
   userId,
-  firstName,
-  lastName,
-  email,
-  phone,
-  matricNumber,
-  department,
-  level,
-}: {
-  userId: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  matricNumber: string;
-  department: string;
-  level: string;
-}) {
-  const parsed = updateStudentProfileSchema.safeParse({
-    firstName,
-    lastName,
-    email,
-    phone,
-    matricNumber,
-    department,
-    level,
-  });
+  ...data
+}: UpdateProfileInput & { userId: string }) {
+  const parsed = updateStudentProfileSchema.safeParse(data);
   if (!parsed.success) {
     return { error: parsed.error.issues[0].message };
   }
 
+  const { firstName, lastName, email, phone, matricNumber, department, level } = parsed.data;
   const dbLevel = `L${level}` as Level;
 
   try {

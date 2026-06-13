@@ -28,14 +28,16 @@ type Props = {
 
 const SIZES = {
   sm: {
-    trigger: "bg-portal-bg px-3 py-2 text-[13.5px] focus:ring-2 focus:ring-portal-accent/30",
+    trigger:
+      "bg-portal-accent-bg/50 px-3 py-2 text-[13.5px] focus:ring-2 focus:ring-portal-accent/30",
     icon: "w-3.5 h-3.5",
     item: "px-3 py-2 text-[13px]",
     search: "px-3 py-1.5 text-[13px]",
     list: "max-h-48",
   },
   md: {
-    trigger: "bg-white px-4 py-3 text-[15px] focus:ring-1 focus:ring-portal-accent",
+    trigger:
+      "bg-white px-4 py-3 text-[15px] focus:ring-1 focus:ring-portal-accent",
     icon: "w-4 h-4",
     item: "px-4 py-2.5 text-[14px]",
     search: "px-3 py-2 text-[14px]",
@@ -120,7 +122,12 @@ export default function Select({
           className,
         )}
       >
-        <span className={cn("truncate", selected ? "text-portal-text" : "text-portal-muted")}>
+        <span
+          className={cn(
+            "truncate",
+            selected ? "text-portal-text" : "text-portal-muted",
+          )}
+        >
           {selected ? selected.label : placeholder}
         </span>
         <ChevronDown
@@ -156,7 +163,7 @@ export default function Select({
                   onKeyDown={handleKeyDown}
                   placeholder={searchPlaceholder}
                   className={cn(
-                    "w-full rounded-lg border border-portal-border outline-none focus:border-portal-accent bg-portal-bg",
+                    "w-full rounded-lg border border-portal-border outline-none focus:border-portal-accent bg-portal-accent-bg/50",
                     s.search,
                     "pl-8",
                   )}
@@ -172,7 +179,10 @@ export default function Select({
             onWheel={(e) => e.stopPropagation()}
             onTouchMove={(e) => e.stopPropagation()}
             role="listbox"
-            className={cn("overflow-y-auto overscroll-contain outline-none", s.list)}
+            className={cn(
+              "overflow-y-auto overscroll-contain outline-none",
+              s.list,
+            )}
           >
             {loading ? (
               <div className="flex items-center justify-center gap-2 py-4 text-portal-muted text-[13px]">
@@ -180,7 +190,9 @@ export default function Select({
                 Loading...
               </div>
             ) : filtered.length === 0 ? (
-              <p className="text-[13px] text-portal-muted text-center py-4">{emptyText}</p>
+              <p className="text-[13px] text-portal-muted text-center py-4">
+                {emptyText}
+              </p>
             ) : (
               filtered.map((option, i) => (
                 <button
@@ -204,7 +216,9 @@ export default function Select({
                 >
                   <span className="truncate">{option.label}</span>
                   {option.value === value && (
-                    <Check className={cn(s.icon, "shrink-0 text-portal-accent")} />
+                    <Check
+                      className={cn(s.icon, "shrink-0 text-portal-accent")}
+                    />
                   )}
                 </button>
               ))

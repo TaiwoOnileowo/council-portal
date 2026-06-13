@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import ChangePassword from "@/modules/profile/components/ChangePassword";
 import ProfileDetails from "@/modules/profile/components/ProfileDetails";
 import ProfileHeader from "@/modules/profile/components/ProfileHeader";
+import type { LevelValue } from "@/modules/auth/auth.types";
 import { redirect } from "next/navigation";
 
 export default async function ProfilePage() {
@@ -24,14 +25,14 @@ export default async function ProfilePage() {
       <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-5">
         <div className="space-y-5">
           <ProfileDetails
-            user={{
+            profile={{
               id: dbUser.id,
               firstName: dbUser.first_name,
               lastName: dbUser.last_name,
               email: dbUser.email,
               phone: dbUser.phone,
               matricNumber: dbUser.student_profile?.matric_number ?? "",
-              level,
+              level: level as LevelValue,
               department: dbUser.student_profile?.department ?? "",
             }}
           />

@@ -2,6 +2,10 @@
 
 import { motion, AnimatePresence } from "motion/react";
 import { X } from "lucide-react";
+import { createPortal } from "react-dom";
+import { useSyncExternalStore } from "react";
+
+const emptySubscribe = () => () => {};
 
 interface ModalProps {
   open: boolean;
@@ -20,7 +24,15 @@ export default function Modal({
   children,
   maxWidth = "max-w-[480px]",
 }: ModalProps) {
-  return (
+  const mounted = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false,
+  );
+
+  if (!mounted) return null;
+
+  return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
@@ -41,7 +53,6 @@ export default function Modal({
             onClick={(e) => e.stopPropagation()}
             className={`bg-portal-surface rounded-t-2xl sm:rounded-2xl w-full ${maxWidth} max-h-[92dvh] sm:max-h-[85vh] overflow-hidden flex flex-col shadow-2xl border border-portal-border`}
           >
-            {/* Header */}
             <div className="flex items-start justify-between px-5 py-4 border-b border-portal-border flex-shrink-0">
               <div>
                 <h3 className="font-heading text-[15px] font-bold">{title}</h3>
@@ -53,17 +64,18 @@ export default function Modal({
               </div>
               <button
                 onClick={onClose}
-                className="w-8 h-8 rounded-lg bg-portal-bg border border-portal-border flex items-center justify-center hover:bg-portal-bg2 transition-colors flex-shrink-0 ml-3"
+                className="w-8 h-8 rounded-lg bg-portal-accent-bg/50 border border-portal-border flex items-center justify-center hover:bg-portal-accent-bg/502 transition-colors flex-shrink-0 ml-3"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
-
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto pb-[env(safe-area-inset-bottom)]">{children}</div>
+            <div className="flex-1 overflow-y-auto pb-[env(safe-area-inset-bottom)]">
+              {children}
+            </div>
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }

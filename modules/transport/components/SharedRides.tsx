@@ -63,7 +63,7 @@ export default function SharedRides() {
             </div>
 
             {/* Seats */}
-            <div className="flex items-center gap-1.5 text-xs text-portal-text2 bg-portal-bg border border-portal-border px-3 py-1.5 rounded-lg">
+            <div className="flex items-center gap-1.5 text-xs text-portal-text2 bg-portal-accent-bg/50 border border-portal-border px-3 py-1.5 rounded-lg">
               <Armchair className="w-3.5 h-3.5" />
               <span>
                 {ride.seats} seat{ride.seats !== 1 ? "s" : ""} left
@@ -76,7 +76,7 @@ export default function SharedRides() {
             </p>
 
             {/* Join */}
-            <button className="px-4 py-1.5 bg-portal-bg border border-portal-border rounded-lg text-portal-text2 text-[13px] font-medium hover:border-portal-accent hover:text-portal-accent hover:bg-portal-accent-bg transition-all duration-200">
+            <button className="px-4 py-1.5 bg-portal-accent-bg/50 border border-portal-border rounded-lg text-portal-text2 text-[13px] font-medium hover:border-portal-accent hover:text-portal-accent hover:bg-portal-accent-bg transition-all duration-200">
               Join Ride
             </button>
           </motion.div>

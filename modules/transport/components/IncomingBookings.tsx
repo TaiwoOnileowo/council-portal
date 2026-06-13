@@ -52,7 +52,7 @@ export default function IncomingBookings() {
           <h2 className="font-heading text-[17px] font-bold">Bookings</h2>
         </div>
 
-        <div className="flex items-center gap-1 bg-portal-bg2 rounded-xl p-1 mb-3 print:hidden">
+        <div className="flex items-center gap-1 bg-portal-accent-bg/502 rounded-xl p-1 mb-3 print:hidden">
           {(["upcoming", "past"] as Tab[]).map((t) => (
             <button
               key={t}
@@ -229,7 +229,7 @@ export default function IncomingBookings() {
               <div className="hidden md:block print:block overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-portal-border bg-portal-bg">
+                    <tr className="border-b border-portal-border bg-portal-accent-bg/50">
                       <th className="text-left text-[11px] font-semibold text-portal-muted uppercase tracking-wide px-5 py-3">
                         Student
                       </th>
@@ -254,8 +254,8 @@ export default function IncomingBookings() {
                       <tr
                         key={booking.id}
                         onClick={() => setSelected(booking)}
-                        className={`border-b border-portal-border last:border-b-0 cursor-pointer hover:bg-portal-bg transition-colors ${
-                          i % 2 === 0 ? "" : "bg-portal-bg/40"
+                        className={`border-b border-portal-border last:border-b-0 cursor-pointer hover:bg-portal-accent-bg/50 transition-colors ${
+                          i % 2 === 0 ? "" : "bg-portal-accent-bg/50/40"
                         }`}
                       >
                         <td className="px-5 py-3.5">

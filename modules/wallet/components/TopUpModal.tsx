@@ -2,6 +2,7 @@
 
 import Modal from "@/components/ui/Modal";
 import { verifyAndTopUpWallet } from "@/lib/actions/wallet.action";
+import { useCurrentUser } from "@/modules/auth/hooks/useCurrentUser";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Copy, Loader2, Wallet } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -38,14 +39,13 @@ export default function TopUpModal({
   onClose,
   prefilledAmount,
   onSuccess,
-  user,
 }: {
   open: boolean;
   onClose: () => void;
   prefilledAmount?: number;
   onSuccess?: () => void;
-  user: { id: string; name: string; email: string };
 }) {
+  const { data: currentUser } = useCurrentUser();
   const [step, setStep] = useState<Step>("enter-amount");
   const [amountInput, setAmountInput] = useState("");
   const [tagline] = useState(
@@ -148,10 +148,10 @@ export default function TopUpModal({
       currency: "NGN",
       payment_options: "card,ussd,banktransfer",
       customer: {
-        email: user?.email ?? "",
-        name: user?.name ?? "",
+        email: currentUser?.email ?? "",
+        name: currentUser?.fullName ?? "",
       },
-      meta: { userId: user?.id },
+      meta: { userId: currentUser?.id },
       customizations: {
         title: "Council Portal Wallet",
         description: "Top up your wallet",
@@ -239,7 +239,7 @@ export default function TopUpModal({
                   placeholder="0"
                   value={amountInput}
                   onChange={handleInputChange}
-                  className="w-full pl-8 pr-3.5 py-3 bg-portal-bg border border-portal-border rounded-xl text-[22px] font-heading font-extrabold text-portal-text placeholder:text-portal-muted/40 outline-none focus:border-portal-accent transition-colors"
+                  className="w-full pl-8 pr-3.5 py-3 bg-portal-accent-bg/50 border border-portal-border rounded-xl text-[22px] font-heading font-extrabold text-portal-text placeholder:text-portal-muted/40 outline-none focus:border-portal-accent transition-colors"
                 />
               </div>
             </div>
@@ -256,7 +256,7 @@ export default function TopUpModal({
                     className={`py-2 rounded-xl text-[13px] font-semibold border transition-all ${
                       amountNaira === amount
                         ? "bg-portal-accent text-white border-portal-accent"
-                        : "bg-portal-bg text-portal-text2 border-portal-border hover:border-portal-accent-border hover:bg-portal-bg2"
+                        : "bg-portal-accent-bg/50 text-portal-text2 border-portal-border hover:border-portal-accent-border hover:bg-portal-accent-bg/502"
                     }`}
                   >
                     ₦{amount.toLocaleString("en-NG")}
@@ -324,7 +324,7 @@ export default function TopUpModal({
               </p>
             </div>
 
-            <div className="bg-portal-bg rounded-xl p-4 space-y-3 mb-4">
+            <div className="bg-portal-accent-bg/50 rounded-xl p-4 space-y-3 mb-4">
               <div className="flex justify-between text-[13px]">
                 <span className="text-portal-muted">Reference</span>
                 <button
@@ -360,7 +360,7 @@ export default function TopUpModal({
                     setStep("enter-amount");
                     setAmountInput("");
                   }}
-                  className="flex-1 py-2.5 bg-portal-bg border border-portal-border text-portal-text2 rounded-xl text-[13px] font-semibold hover:bg-portal-bg2 transition-colors flex items-center justify-center gap-2"
+                  className="flex-1 py-2.5 bg-portal-accent-bg/50 border border-portal-border text-portal-text2 rounded-xl text-[13px] font-semibold hover:bg-portal-accent-bg/502 transition-colors flex items-center justify-center gap-2"
                 >
                   <Wallet className="w-4 h-4" />
                   Top Up Again

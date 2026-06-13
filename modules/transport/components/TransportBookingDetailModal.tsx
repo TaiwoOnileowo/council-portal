@@ -40,7 +40,7 @@ export default function TransportBookingDetailModal({
       maxWidth="max-w-[440px]"
     >
       <div className="px-5 py-4 space-y-4">
-        <div className="bg-portal-bg rounded-xl border border-portal-border px-4">
+        <div className="bg-portal-accent-bg/50 rounded-xl border border-portal-border px-4">
           <Row label="Name" value={booking.passengerName} />
           <Row label="Phone" value={booking.passengerPhone} />
           <Row label="Guardian phone" value={booking.parentsPhone} />
@@ -49,7 +49,7 @@ export default function TransportBookingDetailModal({
           <Row label="Room" value={booking.roomNumber} />
         </div>
 
-        <div className="bg-portal-bg rounded-xl border border-portal-border px-4">
+        <div className="bg-portal-accent-bg/50 rounded-xl border border-portal-border px-4">
           <Row label="Route" value={booking.routeName} />
           <Row
             label="Direction"
@@ -83,7 +83,7 @@ export default function TransportBookingDetailModal({
         </div>
 
         {booking.studentNotes && (
-          <div className="bg-portal-bg rounded-xl border border-portal-border p-4">
+          <div className="bg-portal-accent-bg/50 rounded-xl border border-portal-border p-4">
             <div className="flex items-center gap-1.5 mb-2">
               <MessageSquare className="w-3.5 h-3.5 text-portal-muted" />
               <p className="text-[11px] font-semibold uppercase tracking-wide text-portal-muted">

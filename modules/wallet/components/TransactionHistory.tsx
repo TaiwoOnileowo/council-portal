@@ -43,7 +43,7 @@ function TransactionRow({ tx }: { tx: WalletTransaction }) {
 
   return (
     <div className="flex items-center gap-3.5 px-5 py-3.5 border-b border-portal-border last:border-b-0">
-      <div className="w-9 h-9 rounded-[10px] bg-portal-bg border border-portal-border flex items-center justify-center flex-shrink-0">
+      <div className="w-9 h-9 rounded-[10px] bg-portal-accent-bg/50 border border-portal-border flex items-center justify-center flex-shrink-0">
         <Icon className="w-[17px] h-[17px] text-portal-text2" />
       </div>
       <div className="flex-1 min-w-0">

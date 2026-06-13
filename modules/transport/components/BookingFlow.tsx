@@ -7,6 +7,7 @@ import type {
   PublicVendor,
 } from "@/lib/actions/transport.action";
 import { formatAmount } from "@/lib/format";
+import { useModalStore } from "@/lib/stores/modal.store";
 import { inputClass } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
@@ -93,7 +94,6 @@ export default function BookingFlow({
   onClose,
   initialRoute,
   user,
-  onOpenTopUp,
 }: {
   vendor: PublicVendor;
   priceList: PublicPriceList;
@@ -101,8 +101,8 @@ export default function BookingFlow({
   onClose: () => void;
   initialRoute?: PublicRoute | null;
   user: { id: string; name: string; phone: string; email: string };
-  onOpenTopUp: (prefill: number, onSuccess: () => void) => void;
 }) {
+  const { openTopUp } = useModalStore();
   const isLeaving = priceList.direction === "LEAVING";
   const directionLabel = isLeaving ? "Leaving School" : "Returning to School";
 
@@ -272,7 +272,7 @@ export default function BookingFlow({
               {STEP_BACK[step] && !isProcessing && (
                 <button
                   onClick={() => setStep(STEP_BACK[step]!)}
-                  className="w-8 h-8 rounded-lg bg-portal-bg border border-portal-border flex items-center justify-center hover:bg-portal-bg2 transition-colors"
+                  className="w-8 h-8 rounded-lg bg-portal-accent-bg/50 border border-portal-border flex items-center justify-center hover:bg-portal-accent-bg/502 transition-colors"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
@@ -288,7 +288,7 @@ export default function BookingFlow({
               {!isProcessing && (
                 <button
                   onClick={handleClose}
-                  className="w-8 h-8 rounded-lg bg-portal-bg border border-portal-border flex items-center justify-center hover:bg-portal-bg2 transition-colors flex-shrink-0"
+                  className="w-8 h-8 rounded-lg bg-portal-accent-bg/50 border border-portal-border flex items-center justify-center hover:bg-portal-accent-bg/502 transition-colors flex-shrink-0"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -314,7 +314,7 @@ export default function BookingFlow({
                         placeholder="Search destinations..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        className="w-full pl-9 pr-3.5 py-2.5 bg-portal-bg border border-portal-border rounded-xl text-sm text-portal-text placeholder:text-portal-muted outline-none focus:border-portal-accent transition-colors"
+                        className="w-full pl-9 pr-3.5 py-2.5 bg-portal-accent-bg/50 border border-portal-border rounded-xl text-sm text-portal-text placeholder:text-portal-muted outline-none focus:border-portal-accent transition-colors"
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -327,7 +327,7 @@ export default function BookingFlow({
                         <button
                           key={route.id}
                           onClick={() => handleSelectRoute(route)}
-                          className="w-full flex items-center gap-3 px-3.5 py-3 bg-portal-bg rounded-xl hover:bg-portal-bg2 hover:border-portal-accent-border border border-transparent transition-all text-left"
+                          className="w-full flex items-center gap-3 px-3.5 py-3 bg-portal-accent-bg/50 rounded-xl hover:bg-portal-accent-bg/502 hover:border-portal-accent-border border border-transparent transition-all text-left"
                         >
                           <div className="w-9 h-9 rounded-lg bg-portal-accent-bg flex items-center justify-center flex-shrink-0">
                             <MapPin className="w-4 h-4 text-portal-accent" />
@@ -361,7 +361,7 @@ export default function BookingFlow({
                     transition={{ duration: 0.2 }}
                     className="p-5"
                   >
-                    <div className="bg-portal-bg rounded-xl p-4 mb-4">
+                    <div className="bg-portal-accent-bg/50 rounded-xl p-4 mb-4">
                       <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-portal-muted mb-3">
                         {directionLabel}
                       </p>
@@ -428,7 +428,7 @@ export default function BookingFlow({
                                 className={`w-full flex items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-left transition-colors ${
                                   isSelected
                                     ? "border-portal-accent bg-portal-accent/5"
-                                    : "border-portal-border bg-portal-bg hover:border-portal-accent/50"
+                                    : "border-portal-border bg-portal-accent-bg/50 hover:border-portal-accent/50"
                                 }`}
                               >
                                 <span
@@ -465,7 +465,7 @@ export default function BookingFlow({
                     )}
 
                     {priceList.luggagePolicy && (
-                      <div className="mb-4 flex gap-2.5 bg-portal-bg border border-portal-border rounded-xl px-3.5 py-3">
+                      <div className="mb-4 flex gap-2.5 bg-portal-accent-bg/50 border border-portal-border rounded-xl px-3.5 py-3">
                         <Info className="w-3.5 h-3.5 text-portal-muted flex-shrink-0 mt-0.5" />
                         <div>
                           <p className="text-[11px] font-semibold text-portal-text2 mb-0.5">
@@ -492,7 +492,7 @@ export default function BookingFlow({
                       </div>
                     )}
 
-                    <div className="bg-portal-bg rounded-xl p-4 mb-4 space-y-2">
+                    <div className="bg-portal-accent-bg/50 rounded-xl p-4 mb-4 space-y-2">
                       <div className="flex justify-between text-[13px]">
                         <span className="text-portal-text2">Fare</span>
                         <span className="font-semibold">
@@ -657,7 +657,7 @@ export default function BookingFlow({
                         hint={
                           isLeaving
                             ? "Exact address where you'll be dropped off"
-                            : "Exact address where the vendor should pick you up"
+                            : "Exact address where you stay"
                         }
                         error={errors.destinationAddress?.message}
                       >
@@ -683,7 +683,7 @@ export default function BookingFlow({
                           placeholder="Add a note for the vendor…"
                           maxLength={300}
                           rows={3}
-                          className="w-full px-3.5 py-2.5 bg-portal-bg border border-portal-border rounded-xl text-sm text-portal-text placeholder:text-portal-muted outline-none focus:border-portal-accent transition-colors resize-none"
+                          className="w-full px-3.5 py-2.5 bg-portal-accent-bg/50 border border-portal-border rounded-xl text-sm text-portal-text placeholder:text-portal-muted outline-none focus:border-portal-accent transition-colors resize-none"
                         />
                       </Field>
 
@@ -702,9 +702,10 @@ export default function BookingFlow({
                           <button
                             type="button"
                             onClick={() =>
-                              onOpenTopUp(shortfall, () =>
-                                submitBooking(getValues()),
-                              )
+                              openTopUp({
+                                prefilledAmount: shortfall,
+                                onSuccess: () => submitBooking(getValues()),
+                              })
                             }
                             className="flex-shrink-0 text-[12px] font-semibold text-amber-700 underline underline-offset-2 hover:text-amber-800"
                           >
@@ -759,7 +760,7 @@ export default function BookingFlow({
                       </p>
                     </div>
 
-                    <div className="bg-portal-bg rounded-xl p-4 space-y-3 mb-4">
+                    <div className="bg-portal-accent-bg/50 rounded-xl p-4 space-y-3 mb-4">
                       <div className="flex justify-between text-[13px]">
                         <span className="text-portal-muted">Booking Ref</span>
                         <button
@@ -809,7 +810,7 @@ export default function BookingFlow({
                     <div className="flex gap-3">
                       <button
                         onClick={handleClose}
-                        className="flex-1 py-2.5 bg-portal-bg border border-portal-border text-portal-text2 rounded-xl text-[13px] font-semibold hover:bg-portal-bg2 transition-colors"
+                        className="flex-1 py-2.5 bg-portal-accent-bg/50 border border-portal-border text-portal-text2 rounded-xl text-[13px] font-semibold hover:bg-portal-accent-bg/502 transition-colors"
                       >
                         Back to Vendors
                       </button>

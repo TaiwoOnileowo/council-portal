@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import ChangePassword from "@/modules/profile/components/ChangePassword";
+import ProfileDetails from "@/modules/profile/components/ProfileDetails";
 import VendorBankDetails from "@/modules/vendor/components/BankDetails";
-import VendorProfileDetails from "@/modules/vendor/components/VendorProfileDetails";
 import VendorBusinessProfile from "@/modules/vendor/components/VendorBusinessProfile";
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
@@ -47,8 +47,8 @@ export default async function VendorProfilePage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-5">
         <div className="space-y-5">
-          <VendorProfileDetails
-            vendor={{
+          <ProfileDetails
+            profile={{
               id: vendor.id,
               firstName: vendor.firstName,
               lastName: vendor.lastName,

@@ -57,7 +57,7 @@ export default function BookingDetailModal({ booking, open, onClose }: Props) {
         </div>
 
         {/* Vendor */}
-        <div className="flex items-center gap-3 mb-5 p-3.5 bg-portal-bg rounded-xl border border-portal-border">
+        <div className="flex items-center gap-3 mb-5 p-3.5 bg-portal-accent-bg/50 rounded-xl border border-portal-border">
           {booking.vendor.image ? (
             <Image
               src={booking.vendor.image}
@@ -78,7 +78,7 @@ export default function BookingDetailModal({ booking, open, onClose }: Props) {
           </div>
         </div>
 
-        <div className="bg-portal-bg rounded-xl border border-portal-border px-4 mb-5">
+        <div className="bg-portal-accent-bg/50 rounded-xl border border-portal-border px-4 mb-5">
           <Row
             label="Route"
             value={
@@ -137,7 +137,7 @@ export default function BookingDetailModal({ booking, open, onClose }: Props) {
         </div>
 
         {booking.studentNotes && (
-          <div className="bg-portal-bg rounded-xl border border-portal-border p-4 mb-5">
+          <div className="bg-portal-accent-bg/50 rounded-xl border border-portal-border p-4 mb-5">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1">
               Your Note to Vendor
             </p>
@@ -151,7 +151,7 @@ export default function BookingDetailModal({ booking, open, onClose }: Props) {
           booking.route.priceList.notes) && (
           <div className="space-y-3 mb-5">
             {booking.route.priceList.luggagePolicy && (
-              <div className="bg-portal-bg rounded-xl border border-portal-border p-4">
+              <div className="bg-portal-accent-bg/50 rounded-xl border border-portal-border p-4">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1">
                   Luggage Policy
                 </p>
@@ -161,7 +161,7 @@ export default function BookingDetailModal({ booking, open, onClose }: Props) {
               </div>
             )}
             {booking.route.priceList.notes && (
-              <div className="bg-portal-bg rounded-xl border border-portal-border p-4">
+              <div className="bg-portal-accent-bg/50 rounded-xl border border-portal-border p-4">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1">
                   Vendor Notes
                 </p>

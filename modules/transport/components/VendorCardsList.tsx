@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { motion } from "motion/react";
 import Image from "next/image";
 import type {
@@ -10,7 +10,6 @@ import type {
 } from "@/lib/actions/transport.action";
 import VendorDetailPopup from "./VendorDetailPopup";
 import BookingFlow from "./BookingFlow";
-import TopUpModal from "@/modules/wallet/components/TopUpModal";
 
 export function isVendorAvailable(vendor: PublicVendor): boolean {
   if (!vendor.isActive) return false;
@@ -37,13 +36,6 @@ export default function VendorCardsList({
     useState<PublicPriceList | null>(null);
   const [bookingRoute, setBookingRoute] = useState<PublicRoute | null>(null);
 
-  // Top-up modal state — lifted here so it renders outside BookingFlow's stacking context
-  const [topUpOpen, setTopUpOpen] = useState(false);
-  const [topUpPrefill, setTopUpPrefill] = useState(0);
-  const [topUpOnSuccess, setTopUpOnSuccess] = useState<(() => void) | null>(
-    null,
-  );
-
   function handleBookNow(
     vendor: PublicVendor,
     priceList: PublicPriceList,
@@ -53,20 +45,6 @@ export default function VendorCardsList({
     setBookingVendor(vendor);
     setBookingPriceList(priceList);
     setBookingRoute(route);
-  }
-
-  const handleOpenTopUp = useCallback(
-    (prefill: number, onSuccess: () => void) => {
-      setTopUpPrefill(prefill);
-      setTopUpOnSuccess(() => onSuccess);
-      setTopUpOpen(true);
-    },
-    [],
-  );
-
-  function handleTopUpClose() {
-    setTopUpOpen(false);
-    setTopUpOnSuccess(null);
   }
 
   return (
@@ -88,7 +66,7 @@ export default function VendorCardsList({
                 className="group bg-portal-surface border border-portal-border rounded-2xl p-5 cursor-pointer relative overflow-hidden hover:border-portal-accent-border hover:shadow-[0_8px_28px_rgba(0,0,0,0.07)] transition-all duration-220"
               >
                 {!available && (
-                  <div className="absolute top-3.5 left-3.5 flex items-center gap-1 text-[10px] font-semibold text-portal-muted bg-portal-bg border border-portal-border px-2 py-0.5 rounded-md">
+                  <div className="absolute top-3.5 left-3.5 flex items-center gap-1 text-[10px] font-semibold text-portal-muted bg-portal-accent-bg/50 border border-portal-border px-2 py-0.5 rounded-md">
                     Unavailable
                   </div>
                 )}
@@ -147,17 +125,8 @@ export default function VendorCardsList({
           }}
           initialRoute={bookingRoute}
           user={user}
-          onOpenTopUp={handleOpenTopUp}
         />
       )}
-
-      <TopUpModal
-        open={topUpOpen}
-        onClose={handleTopUpClose}
-        prefilledAmount={topUpPrefill}
-        onSuccess={topUpOnSuccess ?? undefined}
-        user={user}
-      />
     </>
   );
 }

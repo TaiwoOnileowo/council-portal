@@ -1,7 +1,11 @@
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 export default function DatePickerField({
   label,
@@ -27,15 +31,20 @@ export default function DatePickerField({
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="w-full flex items-center gap-2 px-3 py-2 text-[13px] border border-portal-border rounded-lg bg-portal-bg text-left focus:outline-none hover:border-portal-accent transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-2 text-[13px] border border-portal-border rounded-lg bg-portal-accent-bg/50 text-left focus:outline-none hover:border-portal-accent transition-colors"
           >
             <CalendarIcon className="w-3.5 h-3.5 text-portal-muted flex-shrink-0" />
-            <span className={selected ? "text-portal-text" : "text-portal-muted/50"}>
+            <span
+              className={selected ? "text-portal-text" : "text-portal-muted/50"}
+            >
               {selected ? format(selected, "dd MMM yyyy") : placeholder}
             </span>
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0 rounded-xl border-portal-border" align="start">
+        <PopoverContent
+          className="w-auto p-0 rounded-xl border-portal-border"
+          align="start"
+        >
           <Calendar
             className="[--cell-size:2.4rem]"
             mode="single"

@@ -1,10 +1,12 @@
 import Image from "next/image";
 
-export default function AuthLayout({ children }: { children: React.ReactNode }) {
+export default function AuthLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <div className="min-h-screen lg:h-screen flex flex-col lg:flex-row lg:overflow-hidden bg-portal-bg">
-
-      {/* Mobile / Tablet — top image banner */}
+    <div className="min-h-screen lg:h-screen flex flex-col lg:flex-row lg:overflow-hidden bg-portal-accent-bg/50">
       <div className="lg:hidden relative h-36 sm:h-48 flex-shrink-0">
         <div className="absolute inset-0 bg-black/50 z-10" />
         <Image
@@ -24,7 +26,6 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         </div>
       </div>
 
-      {/* Form panel */}
       <div className="flex-1 lg:max-w-[600px] overflow-y-auto">
         <div className="flex flex-col justify-center min-h-full px-5 py-8 sm:px-10 sm:py-10 lg:px-16 lg:py-12">
           <div className="w-full max-w-[480px] mx-auto lg:max-w-none lg:mx-0">
@@ -33,7 +34,6 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         </div>
       </div>
 
-      {/* Desktop — right image panel */}
       <div className="hidden lg:flex flex-1 relative items-center justify-center">
         <div className="absolute inset-0 bg-black/40" />
         <Image
@@ -60,7 +60,6 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <p className="text-portal-accent text-sm">Covenant University</p>
         </div>
       </div>
-
     </div>
   );
 }

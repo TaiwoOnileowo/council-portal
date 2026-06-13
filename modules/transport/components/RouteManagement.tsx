@@ -227,7 +227,7 @@ export default function RouteManagement() {
           <div className="flex gap-3 mt-2">
             <button
               onClick={() => setDiscardOpen(false)}
-              className="flex-1 py-2 text-[13px] font-medium border border-portal-border rounded-lg text-portal-text hover:bg-portal-bg transition-colors"
+              className="flex-1 py-2 text-[13px] font-medium border border-portal-border rounded-lg text-portal-text hover:bg-portal-accent-bg/50 transition-colors"
             >
               Keep editing
             </button>
@@ -267,11 +267,11 @@ export default function RouteManagement() {
                     ? "e.g. Mar 2026 Resumption"
                     : "e.g. Weekend Express"
                 }
-                className="w-full px-3 py-2 text-[14px] font-semibold border border-portal-border rounded-lg bg-portal-bg focus:outline-none focus:border-portal-accent placeholder:text-portal-muted/50 text-portal-text"
+                className="w-full px-3 py-2 text-[14px] font-semibold border border-portal-border rounded-lg bg-portal-accent-bg/50 focus:outline-none focus:border-portal-accent placeholder:text-portal-muted/50 text-portal-text"
               />
             </div>
             <DrawerClose asChild>
-              <button className="mt-6 w-7 h-7 rounded-md flex items-center justify-center text-portal-muted hover:bg-portal-bg transition-colors flex-shrink-0">
+              <button className="mt-6 w-7 h-7 rounded-md flex items-center justify-center text-portal-muted hover:bg-portal-accent-bg/50 transition-colors flex-shrink-0">
                 <X className="w-4 h-4" />
               </button>
             </DrawerClose>
@@ -280,7 +280,7 @@ export default function RouteManagement() {
           {/* data-vaul-no-drag prevents vaul from treating keyboard viewport changes as a dismiss gesture on mobile */}
           <div className="flex-1 overflow-y-auto" data-vaul-no-drag>
             <div className="border-b border-portal-border">
-              <div className="hidden sm:grid grid-cols-[1fr_120px_200px_36px_32px] gap-2 px-5 py-2.5 bg-portal-bg border-b border-portal-border">
+              <div className="hidden sm:grid grid-cols-[1fr_120px_200px_36px_32px] gap-2 px-5 py-2.5 bg-portal-accent-bg/50 border-b border-portal-border">
                 {["Route", "Price (₦)", "Capacity", "", ""].map((h, i) => (
                   <span
                     key={i}
@@ -306,7 +306,7 @@ export default function RouteManagement() {
                     {...register(`routes.${index}.name`)}
                     type="text"
                     placeholder="Route name"
-                    className="w-full px-2 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
+                    className="w-full px-2 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-accent-bg/50 focus:outline-none focus:border-portal-accent"
                   />
 
                   <div className="flex items-center gap-2 sm:contents">
@@ -324,7 +324,7 @@ export default function RouteManagement() {
                             )
                           }
                           placeholder="₦ 0"
-                          className="w-24 sm:w-full px-2 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
+                          className="w-24 sm:w-full px-2 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-accent-bg/50 focus:outline-none focus:border-portal-accent"
                         />
                       )}
                     />
@@ -354,7 +354,7 @@ export default function RouteManagement() {
                           type="number"
                           placeholder="Max"
                           min="1"
-                          className="w-14 px-1.5 py-1.5 text-[12px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
+                          className="w-14 px-1.5 py-1.5 text-[12px] border border-portal-border rounded-md bg-portal-accent-bg/50 focus:outline-none focus:border-portal-accent"
                         />
                       )}
                     </div>
@@ -467,7 +467,7 @@ export default function RouteManagement() {
                   {...register("luggagePolicy")}
                   placeholder="e.g. 1 big bag + 1 hand luggage."
                   rows={2}
-                  className="w-full px-3 py-2 text-[13px] border border-portal-border rounded-lg bg-portal-bg focus:outline-none focus:border-portal-accent resize-none"
+                  className="w-full px-3 py-2 text-[13px] border border-portal-border rounded-lg bg-portal-accent-bg/50 focus:outline-none focus:border-portal-accent resize-none"
                 />
               </div>
               <div>
@@ -481,7 +481,7 @@ export default function RouteManagement() {
                   {...register("notes")}
                   placeholder="e.g. Come early to the stand at the front of CAF."
                   rows={2}
-                  className="w-full px-3 py-2 text-[13px] border border-portal-border rounded-lg bg-portal-bg focus:outline-none focus:border-portal-accent resize-none"
+                  className="w-full px-3 py-2 text-[13px] border border-portal-border rounded-lg bg-portal-accent-bg/50 focus:outline-none focus:border-portal-accent resize-none"
                 />
               </div>
             </div>

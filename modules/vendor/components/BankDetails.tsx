@@ -182,7 +182,7 @@ export default function VendorBankDetails({ vendor }: Props) {
             </div>
           </div>
         ) : (
-          <div className="flex items-center gap-3 rounded-xl border border-dashed border-portal-border bg-portal-bg px-4 py-4">
+          <div className="flex items-center gap-3 rounded-xl border border-dashed border-portal-border bg-portal-accent-bg/50 px-4 py-4">
             <Landmark className="w-5 h-5 text-portal-muted flex-shrink-0" />
             <p className="text-[13px] text-portal-muted">
               No bank details added yet. Click{" "}
@@ -280,7 +280,7 @@ export default function VendorBankDetails({ vendor }: Props) {
               </div>
             </div>
           ) : (
-            <p className="text-[12.5px] text-portal-muted bg-portal-bg rounded-lg border border-portal-border px-3 py-2.5">
+            <p className="text-[12.5px] text-portal-muted bg-portal-accent-bg/50 rounded-lg border border-portal-border px-3 py-2.5">
               Enter your account number and click{" "}
               <span className="font-medium text-portal-text">Verify</span> to
               confirm your account details.

@@ -102,8 +102,8 @@ export default function WithdrawModal({
                 {formatAmount(amountNaira)} on the way
               </h3>
               <p className="text-[12px] text-portal-muted text-center">
-                Sent to {bankAccount?.name} {bankAccount?.mask}. It usually lands
-                within minutes.
+                Sent to {bankAccount?.name} {bankAccount?.mask}. It usually
+                lands within minutes.
               </p>
             </div>
             <button
@@ -122,8 +122,8 @@ export default function WithdrawModal({
             className="p-5"
           >
             <p className="text-[13px] text-portal-text2 mb-4">
-              Add your bank details before withdrawing. You can do that from your
-              profile.
+              Add your bank details before withdrawing. You can do that from
+              your profile.
             </p>
             <button
               onClick={onClose}
@@ -141,7 +141,7 @@ export default function WithdrawModal({
             transition={{ duration: 0.2 }}
             className="p-5"
           >
-            <div className="mb-4 bg-portal-bg rounded-xl px-3.5 py-3 flex items-center justify-between">
+            <div className="mb-4 bg-portal-accent-bg/50 rounded-xl px-3.5 py-3 flex items-center justify-between">
               <div>
                 <p className="text-[11px] text-portal-muted">Paying to</p>
                 <p className="text-[13px] font-semibold text-portal-text">
@@ -166,12 +166,16 @@ export default function WithdrawModal({
                   inputMode="numeric"
                   placeholder="0"
                   value={amountInput}
-                  onChange={(e) => setAmountInput(formatWithCommas(e.target.value))}
-                  className="w-full pl-8 pr-3.5 py-3 bg-portal-bg border border-portal-border rounded-xl text-[22px] font-heading font-extrabold text-portal-text placeholder:text-portal-muted/40 outline-none focus:border-portal-accent transition-colors"
+                  onChange={(e) =>
+                    setAmountInput(formatWithCommas(e.target.value))
+                  }
+                  className="w-full pl-8 pr-3.5 py-3 bg-portal-accent-bg/50 border border-portal-border rounded-xl text-[22px] font-heading font-extrabold text-portal-text placeholder:text-portal-muted/40 outline-none focus:border-portal-accent transition-colors"
                 />
               </div>
               <button
-                onClick={() => setAmountInput(availableNaira.toLocaleString("en-NG"))}
+                onClick={() =>
+                  setAmountInput(availableNaira.toLocaleString("en-NG"))
+                }
                 className="mt-2 text-[12px] font-semibold text-portal-accent hover:underline"
               >
                 Withdraw all — {formatAmount(availableNaira)}
@@ -179,7 +183,9 @@ export default function WithdrawModal({
             </div>
 
             {error && (
-              <p className="text-[12px] text-red-500 text-center mb-3">{error}</p>
+              <p className="text-[12px] text-red-500 text-center mb-3">
+                {error}
+              </p>
             )}
 
             <button

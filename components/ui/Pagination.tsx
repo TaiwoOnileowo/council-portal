@@ -39,7 +39,7 @@ function getPageItems(
 }
 
 const arrowCls =
-  "flex items-center justify-center w-8 h-8 rounded-full border border-portal-border bg-portal-surface text-portal-text hover:bg-portal-bg disabled:opacity-40 disabled:cursor-not-allowed transition-colors";
+  "flex items-center justify-center w-8 h-8 rounded-full border border-portal-border bg-portal-surface text-portal-text hover:bg-portal-accent-bg/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors";
 
 export default function Pagination({
   page,
@@ -88,7 +88,7 @@ export default function Pagination({
               className={`w-8 h-8 rounded-full text-[12.5px] font-semibold transition-colors ${
                 item === page
                   ? "bg-portal-green text-white"
-                  : "border border-portal-border bg-portal-surface text-portal-text hover:bg-portal-bg"
+                  : "border border-portal-border bg-portal-surface text-portal-text hover:bg-portal-accent-bg/50"
               }`}
             >
               {item + 1}

@@ -13,7 +13,7 @@ export default function TimeInput({
       <select
         value={hours12}
         onChange={(e) => onChange(to24(Number(e.target.value), minutes, isPM))}
-        className="w-12 px-1 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
+        className="w-12 px-1 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-accent-bg/50 focus:outline-none focus:border-portal-accent"
       >
         {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
           <option key={h} value={h}>
@@ -25,7 +25,7 @@ export default function TimeInput({
       <select
         value={minutes}
         onChange={(e) => onChange(to24(hours12, Number(e.target.value), isPM))}
-        className="w-14 px-1 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
+        className="w-14 px-1 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-accent-bg/50 focus:outline-none focus:border-portal-accent"
       >
         {[0, 15, 30, 45].map((m) => (
           <option key={m} value={m}>
@@ -40,7 +40,7 @@ export default function TimeInput({
           className={`px-2 py-1.5 text-[12px] font-semibold transition-colors ${
             !isPM
               ? "bg-portal-accent text-white"
-              : "bg-portal-bg text-portal-muted hover:bg-portal-bg2"
+              : "bg-portal-accent-bg/50 text-portal-muted hover:bg-portal-accent-bg/502"
           }`}
         >
           AM
@@ -51,7 +51,7 @@ export default function TimeInput({
           className={`px-2 py-1.5 text-[12px] font-semibold transition-colors ${
             isPM
               ? "bg-portal-accent text-white"
-              : "bg-portal-bg text-portal-muted hover:bg-portal-bg2"
+              : "bg-portal-accent-bg/50 text-portal-muted hover:bg-portal-accent-bg/502"
           }`}
         >
           PM

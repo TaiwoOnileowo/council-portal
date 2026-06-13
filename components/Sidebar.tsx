@@ -92,7 +92,7 @@ function NavGroup({ label, items, pathname }: NavGroupProps) {
                 "relative flex items-center gap-2.5 px-3 py-2 rounded-[10px] text-[13.5px] font-medium transition-all duration-200",
                 isActive
                   ? "bg-portal-accent-bg text-portal-accent font-semibold"
-                  : "text-portal-text2 hover:bg-portal-bg hover:text-portal-text",
+                  : "text-portal-text2 hover:bg-portal-accent-bg/50 hover:text-portal-text",
               )}
             >
               {isActive && (
@@ -163,7 +163,7 @@ export default function Sidebar({ variant }: SidebarProps) {
         </div>
         <button
           onClick={() => setMobileOpen(true)}
-          className="p-2 rounded-lg text-portal-muted hover:bg-portal-bg transition-colors"
+          className="p-2 rounded-lg text-portal-muted hover:bg-portal-accent-bg/50 transition-colors"
           aria-label="Open menu"
         >
           <Menu className="w-5 h-5" />
@@ -185,7 +185,7 @@ export default function Sidebar({ variant }: SidebarProps) {
       >
         <div className="px-4 pt-6 pb-5 relative">
           <button
-            className="lg:hidden absolute top-4 right-4 p-1.5 rounded-lg text-portal-muted hover:bg-portal-bg transition-colors"
+            className="lg:hidden absolute top-4 right-4 p-1.5 rounded-lg text-portal-muted hover:bg-portal-accent-bg/50 transition-colors"
             onClick={() => setMobileOpen(false)}
             aria-label="Close menu"
           >
@@ -221,7 +221,7 @@ export default function Sidebar({ variant }: SidebarProps) {
         </div>
 
         <div className="mt-auto border-t border-portal-border px-4 py-4">
-          <div className="flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl bg-portal-bg hover:bg-portal-bg2 transition-colors">
+          <div className="flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl bg-portal-accent-bg/50 hover:bg-portal-accent-bg/502 transition-colors">
             {user?.image ? (
               <Image
                 src={user.image}

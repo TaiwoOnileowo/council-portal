@@ -132,7 +132,9 @@ export default function BankStep({ value, onChange, onBack, onNext }: Props) {
           </button>
         </div>
         {fieldErrors.accountNumber && (
-          <p className="mt-1 text-xs text-red-500">{fieldErrors.accountNumber}</p>
+          <p className="mt-1 text-xs text-red-500">
+            {fieldErrors.accountNumber}
+          </p>
         )}
       </div>
 
@@ -151,10 +153,10 @@ export default function BankStep({ value, onChange, onBack, onNext }: Props) {
           </div>
         </div>
       ) : (
-        <div className="rounded-xl border border-portal-border bg-portal-bg px-4 py-3 text-[13px] text-portal-muted">
+        <div className="rounded-xl border border-portal-border bg-portal-accent-bg/50 px-4 py-3 text-[13px] text-portal-muted">
           Enter your account number and click{" "}
-          <span className="font-medium text-portal-text">Verify</span> to confirm
-          your account details.
+          <span className="font-medium text-portal-text">Verify</span> to
+          confirm your account details.
         </div>
       )}
 

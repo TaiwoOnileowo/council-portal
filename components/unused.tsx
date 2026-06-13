@@ -1,32 +1,31 @@
-
-            //   {tab === "reviews" && (
-            //     <div className="space-y-3">
-            //       {vendor.reviewsList.map((rev, i) => (
-            //         <div
-            //           key={i}
-            //           className="bg-portal-bg rounded-xl px-4 py-3.5"
-            //         >
-            //           <div className="flex items-center gap-2 mb-1.5">
-            //             <div className="w-7 h-7 rounded-full bg-portal-border2 flex items-center justify-center text-[11px] font-bold text-portal-text2">
-            //               {rev.name.charAt(0)}
-            //             </div>
-            //             <div className="flex-1">
-            //               <p className="text-[12px] font-semibold">
-            //                 {rev.name}
-            //               </p>
-            //               <p className="text-[10px] text-portal-muted">
-            //                 {rev.date}
-            //               </p>
-            //             </div>
-            //             <StarRating full={rev.rating} />
-            //           </div>
-            //           <p className="text-[12px] text-portal-text2 leading-relaxed ml-9">
-            //             {rev.comment}
-            //           </p>
-            //         </div>
-            //       ))}
-            //     </div>
-            //   )}
+//   {tab === "reviews" && (
+//     <div className="space-y-3">
+//       {vendor.reviewsList.map((rev, i) => (
+//         <div
+//           key={i}
+//           className="bg-portal-accent-bg/50 rounded-xl px-4 py-3.5"
+//         >
+//           <div className="flex items-center gap-2 mb-1.5">
+//             <div className="w-7 h-7 rounded-full bg-portal-border2 flex items-center justify-center text-[11px] font-bold text-portal-text2">
+//               {rev.name.charAt(0)}
+//             </div>
+//             <div className="flex-1">
+//               <p className="text-[12px] font-semibold">
+//                 {rev.name}
+//               </p>
+//               <p className="text-[10px] text-portal-muted">
+//                 {rev.date}
+//               </p>
+//             </div>
+//             <StarRating full={rev.rating} />
+//           </div>
+//           <p className="text-[12px] text-portal-text2 leading-relaxed ml-9">
+//             {rev.comment}
+//           </p>
+//         </div>
+//       ))}
+//     </div>
+//   )}
 //             function StarRating({
 //   full,
 //   size = "sm",

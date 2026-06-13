@@ -85,9 +85,7 @@ export default function VendorDetailPopup({
             onClick={(e) => e.stopPropagation()}
             className="bg-portal-surface rounded-2xl w-full max-w-[520px] max-h-[88vh] overflow-hidden flex flex-col shadow-2xl border border-portal-border"
           >
-            {/* Header */}
             <div className="flex items-start gap-4 px-5 pt-5 pb-4 border-b border-portal-border flex-shrink-0">
-              {/* Logo */}
               <div className="w-[54px] h-[54px] rounded-[14px] overflow-hidden flex-shrink-0 bg-portal-accent-bg flex items-center justify-center">
                 {vendor.image ? (
                   <Image
@@ -104,7 +102,6 @@ export default function VendorDetailPopup({
                 )}
               </div>
 
-              {/* Name + tagline */}
               <div className="flex-1 min-w-0">
                 <h2 className="font-heading text-[18px] font-extrabold leading-tight">
                   {vendor.transportName}
@@ -114,7 +111,6 @@ export default function VendorDetailPopup({
                     {vendor.tagline}
                   </p>
                 )}
-                {/* Availability */}
                 <div className="mt-1.5">
                   {isVendorAvailable(vendor) ? (
                     <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
@@ -122,7 +118,7 @@ export default function VendorDetailPopup({
                       Available now
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-portal-muted bg-portal-bg px-2 py-0.5 rounded-full border border-portal-border">
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-portal-muted bg-portal-accent-bg/50 px-2 py-0.5 rounded-full border border-portal-border">
                       <span className="w-1.5 h-1.5 rounded-full bg-portal-muted/60" />
                       Not available today
                     </span>
@@ -132,27 +128,24 @@ export default function VendorDetailPopup({
 
               <button
                 onClick={onClose}
-                className="w-8 h-8 rounded-full bg-portal-bg border border-portal-border flex items-center justify-center hover:bg-portal-bg2 transition-colors flex-shrink-0 mt-0.5"
+                className="w-8 h-8 rounded-full bg-portal-accent-bg/50 border border-portal-border flex items-center justify-center hover:bg-portal-accent-bg/502 transition-colors flex-shrink-0 mt-0.5"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Scrollable content */}
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-              {/* Description */}
               {vendor.description && (
                 <p className="text-[13px] text-portal-text2 leading-relaxed">
                   {vendor.description}
                 </p>
               )}
 
-              {/* Contact + Socials */}
               <div className="flex flex-wrap gap-2">
                 <a
                   href={`tel:${vendor.phone}`}
                   onClick={(e) => e.stopPropagation()}
-                  className="flex items-center gap-1.5 text-xs text-portal-text2 bg-portal-bg border border-portal-border px-3 py-1.5 rounded-lg hover:border-portal-accent-border transition-colors"
+                  className="flex items-center gap-1.5 text-xs text-portal-text2 bg-portal-accent-bg/50 border border-portal-border px-3 py-1.5 rounded-lg hover:border-portal-accent-border transition-colors"
                 >
                   <Phone className="w-3.5 h-3.5 text-portal-muted" />
                   {vendor.phone}
@@ -163,7 +156,7 @@ export default function VendorDetailPopup({
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()}
-                    className="flex items-center gap-1.5 text-xs text-portal-text2 bg-portal-bg border border-portal-border px-3 py-1.5 rounded-lg hover:border-portal-accent-border transition-colors"
+                    className="flex items-center gap-1.5 text-xs text-portal-text2 bg-portal-accent-bg/50 border border-portal-border px-3 py-1.5 rounded-lg hover:border-portal-accent-border transition-colors"
                   >
                     <Instagram className="w-3.5 h-3.5 text-portal-muted" />
                     {vendor.instagram}
@@ -175,7 +168,7 @@ export default function VendorDetailPopup({
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()}
-                    className="flex items-center gap-1.5 text-xs text-portal-text2 bg-portal-bg border border-portal-border px-3 py-1.5 rounded-lg hover:border-portal-accent-border transition-colors"
+                    className="flex items-center gap-1.5 text-xs text-portal-text2 bg-portal-accent-bg/50 border border-portal-border px-3 py-1.5 rounded-lg hover:border-portal-accent-border transition-colors"
                   >
                     {/* TikTok icon via SVG */}
                     <svg
@@ -193,7 +186,7 @@ export default function VendorDetailPopup({
               {/* Tabs */}
               {(leavingList || returningList) && (
                 <>
-                  <div className="flex gap-1 bg-portal-bg rounded-lg p-1">
+                  <div className="flex gap-1 bg-portal-accent-bg/50 rounded-lg p-1">
                     {leavingList && (
                       <button
                         onClick={() => setTab("leaving")}
@@ -239,7 +232,7 @@ export default function VendorDetailPopup({
                         </span>
                       )}
                       {activeList.luggagePolicy && (
-                        <span className="text-[11px] text-portal-muted bg-portal-bg border border-portal-border px-2 py-0.5 rounded-full">
+                        <span className="text-[11px] text-portal-muted bg-portal-accent-bg/50 border border-portal-border px-2 py-0.5 rounded-full">
                           {activeList.luggagePolicy}
                         </span>
                       )}
@@ -257,7 +250,7 @@ export default function VendorDetailPopup({
                         activeList.routes.map((route) => (
                           <div
                             key={route.id}
-                            className="flex items-center gap-3 px-3.5 py-3 bg-portal-bg rounded-xl hover:bg-portal-bg2 transition-colors"
+                            className="flex items-center gap-3 px-3.5 py-3 bg-portal-accent-bg/50 rounded-xl hover:bg-portal-accent-bg/502 transition-colors"
                           >
                             <MapPin className="w-4 h-4 text-portal-muted flex-shrink-0" />
                             <div className="flex-1 min-w-0">

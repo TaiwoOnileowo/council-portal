@@ -1,71 +1,67 @@
 "use client";
 
+import { useState } from "react";
+import { useForm, Controller, type Resolver } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  Pencil,
+  Check,
+  X,
+  Mail,
+  Phone,
+  GraduationCap,
+  BookOpen,
+  Building2,
+} from "lucide-react";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import { updateProfile } from "@/lib/actions/user.action";
+import { updateVendorProfile } from "@/lib/actions/vendor.action";
 import { queryKeys } from "@/lib/query-keys";
-import { inputClass } from "@/lib/utils";
 import {
   LEVELS,
   LevelValue,
   UpdateProfileInput,
   updateStudentProfileSchema,
 } from "@/modules/auth/auth.types";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useQueryClient } from "@tanstack/react-query";
-import {
-  BookOpen,
-  Building2,
-  Check,
-  GraduationCap,
-  Mail,
-  Pencil,
-  Phone,
-  X,
-} from "lucide-react";
-import { useState } from "react";
-import { Controller, useForm } from "react-hook-form";
-import { toast } from "sonner";
+import { updateVendorPersonalInfoSchema } from "@/modules/vendor/vendor.types";
+import { inputClass } from "@/lib/utils";
 
-type ProfileFields = {
+type BaseProfile = {
+  id: string;
   firstName: string;
   lastName: string;
   email: string;
   phone: string;
+};
+
+type StudentProfile = BaseProfile & {
   matricNumber: string;
   level: LevelValue;
   department: string;
 };
 
-type Props = {
-  user: Omit<ProfileFields, "level"> & { id: string; level: string };
-};
+type Props = { profile: BaseProfile | StudentProfile };
+
+function isStudent(p: BaseProfile | StudentProfile): p is StudentProfile {
+  return "matricNumber" in p;
+}
 
 const inputCls = (err?: string) => inputClass(err, "sm");
 
-export default function ProfileDetails({ user }: Props) {
+export default function ProfileDetails({ profile }: Props) {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
-  const [profile, setProfile] = useState<ProfileFields>({
-    firstName: user.firstName,
-    lastName: user.lastName,
-    email: user.email,
-    phone: user.phone,
-    matricNumber: user.matricNumber,
-    level: user.level as LevelValue,
-    department: user.department,
-  });
+  const [current, setCurrent] = useState(profile);
+  const student = isStudent(current);
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    control,
-    formState: { errors, isDirty, isSubmitting },
-  } = useForm<UpdateProfileInput>({
-    resolver: zodResolver(updateStudentProfileSchema),
-  });
+  const { register, handleSubmit, reset, control, formState: { errors, isDirty, isSubmitting } } =
+    useForm<UpdateProfileInput>({
+      resolver: zodResolver(student ? updateStudentProfileSchema : updateVendorPersonalInfoSchema) as unknown as Resolver<UpdateProfileInput>,
+    });
 
   function startEdit() {
-    reset({ ...profile });
+    reset(current);
     setEditing(true);
   }
 
@@ -75,18 +71,21 @@ export default function ProfileDetails({ user }: Props) {
   }
 
   async function onSubmit(data: UpdateProfileInput) {
-    const result = await updateProfile({ userId: user.id, ...data });
-
-    if (result?.error) {
-      toast.error(result.error);
-      return;
+    let result;
+    if (isStudent(current)) {
+      result = await updateProfile({ userId: current.id, ...data });
+    } else {
+      result = await updateVendorProfile(data);
     }
 
-    setProfile(data);
+    if (result?.error) { toast.error(result.error); return; }
+    setCurrent({ ...current, ...data });
     setEditing(false);
     queryClient.invalidateQueries({ queryKey: queryKeys.currentUser() });
     toast.success("Profile updated successfully");
   }
+
+  const e = errors;
 
   return (
     <div className="bg-portal-surface border border-portal-border rounded-2xl p-6">
@@ -123,7 +122,6 @@ export default function ProfileDetails({ user }: Props) {
         )}
       </div>
 
-      {/* Name row */}
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div>
           <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">
@@ -131,21 +129,11 @@ export default function ProfileDetails({ user }: Props) {
           </label>
           {editing ? (
             <>
-              <input
-                type="text"
-                {...register("firstName")}
-                className={inputCls(errors.firstName?.message)}
-              />
-              {errors.firstName && (
-                <p className="mt-1 text-xs text-red-500">
-                  {errors.firstName.message}
-                </p>
-              )}
+              <input type="text" {...register("firstName")} className={inputCls(e.firstName?.message)} />
+              {e.firstName && <p className="mt-1 text-xs text-red-500">{e.firstName.message}</p>}
             </>
           ) : (
-            <p className="text-[13.5px] font-medium text-portal-text py-2">
-              {profile.firstName}
-            </p>
+            <p className="text-[13.5px] font-medium text-portal-text py-2">{current.firstName}</p>
           )}
         </div>
         <div>
@@ -154,27 +142,16 @@ export default function ProfileDetails({ user }: Props) {
           </label>
           {editing ? (
             <>
-              <input
-                type="text"
-                {...register("lastName")}
-                className={inputCls(errors.lastName?.message)}
-              />
-              {errors.lastName && (
-                <p className="mt-1 text-xs text-red-500">
-                  {errors.lastName.message}
-                </p>
-              )}
+              <input type="text" {...register("lastName")} className={inputCls(e.lastName?.message)} />
+              {e.lastName && <p className="mt-1 text-xs text-red-500">{e.lastName.message}</p>}
             </>
           ) : (
-            <p className="text-[13.5px] font-medium text-portal-text py-2">
-              {profile.lastName}
-            </p>
+            <p className="text-[13.5px] font-medium text-portal-text py-2">{current.lastName}</p>
           )}
         </div>
       </div>
 
       <div className="space-y-4">
-        {/* Email */}
         <div>
           <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">
             Email Address
@@ -183,30 +160,18 @@ export default function ProfileDetails({ user }: Props) {
             <>
               <div className="flex items-center gap-2.5">
                 <Mail className="w-4 h-4 text-portal-muted flex-shrink-0" />
-                <input
-                  type="email"
-                  {...register("email")}
-                  placeholder="you@stu.cu.edu.ng"
-                  className={inputCls(errors.email?.message)}
-                />
+                <input type="email" {...register("email")} className={inputCls(e.email?.message)} />
               </div>
-              {errors.email && (
-                <p className="mt-1 text-xs text-red-500 pl-6">
-                  {errors.email.message}
-                </p>
-              )}
+              {e.email && <p className="mt-1 text-xs text-red-500 pl-6">{e.email.message}</p>}
             </>
           ) : (
             <div className="flex items-center gap-2.5 py-2">
               <Mail className="w-4 h-4 text-portal-muted flex-shrink-0" />
-              <p className="text-[13.5px] font-medium text-portal-text">
-                {profile.email}
-              </p>
+              <p className="text-[13.5px] font-medium text-portal-text">{current.email}</p>
             </div>
           )}
         </div>
 
-        {/* Phone */}
         <div>
           <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">
             Phone Number
@@ -222,136 +187,109 @@ export default function ProfileDetails({ user }: Props) {
                     <input
                       {...field}
                       type="tel"
-                      onChange={(e) =>
-                        field.onChange(
-                          e.target.value.replace(/\D/g, "").slice(0, 11),
-                        )
-                      }
-                      placeholder="08012345678"
+                      onChange={(ev) => field.onChange(ev.target.value.replace(/\D/g, "").slice(0, 11))}
                       inputMode="numeric"
                       maxLength={11}
-                      className={inputCls(errors.phone?.message)}
+                      placeholder="08012345678"
+                      className={inputCls(e.phone?.message)}
                     />
                   )}
                 />
               </div>
-              {errors.phone && (
-                <p className="mt-1 text-xs text-red-500 pl-6">
-                  {errors.phone.message}
-                </p>
-              )}
+              {e.phone && <p className="mt-1 text-xs text-red-500 pl-6">{e.phone.message}</p>}
             </>
           ) : (
             <div className="flex items-center gap-2.5 py-2">
               <Phone className="w-4 h-4 text-portal-muted flex-shrink-0" />
-              <p className="text-[13.5px] font-medium text-portal-text">
-                {profile.phone}
-              </p>
+              <p className="text-[13.5px] font-medium text-portal-text">{current.phone || "—"}</p>
             </div>
           )}
         </div>
 
-        {/* Matric Number */}
-        <div>
-          <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">
-            Matric Number
-          </label>
-          {editing ? (
-            <>
-              <div className="flex items-center gap-2.5">
-                <GraduationCap className="w-4 h-4 text-portal-muted flex-shrink-0" />
-                <input
-                  type="text"
-                  {...register("matricNumber")}
-                  placeholder="23CG03000"
-                  className={inputCls(errors.matricNumber?.message)}
-                />
-              </div>
-              {errors.matricNumber && (
-                <p className="mt-1 text-xs text-red-500 pl-6">
-                  {errors.matricNumber.message}
-                </p>
+        {student && (
+          <>
+            <div>
+              <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">
+                Matric Number
+              </label>
+              {editing ? (
+                <>
+                  <div className="flex items-center gap-2.5">
+                    <GraduationCap className="w-4 h-4 text-portal-muted flex-shrink-0" />
+                    <input
+                      type="text"
+                      {...register("matricNumber")}
+                      placeholder="23CG03000"
+                      className={inputCls(e.matricNumber?.message)}
+                    />
+                  </div>
+                  {e.matricNumber && <p className="mt-1 text-xs text-red-500 pl-6">{e.matricNumber.message}</p>}
+                </>
+              ) : (
+                <div className="flex items-center gap-2.5 py-2">
+                  <GraduationCap className="w-4 h-4 text-portal-muted flex-shrink-0" />
+                  <p className="text-[13.5px] font-medium text-portal-text">
+                    {(current as StudentProfile).matricNumber}
+                  </p>
+                </div>
               )}
-            </>
-          ) : (
-            <div className="flex items-center gap-2.5 py-2">
-              <GraduationCap className="w-4 h-4 text-portal-muted flex-shrink-0" />
-              <p className="text-[13.5px] font-medium text-portal-text">
-                {profile.matricNumber}
-              </p>
             </div>
-          )}
-        </div>
 
-        {/* Level */}
-        <div>
-          <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">
-            Level
-          </label>
-          {editing ? (
-            <>
-              <div className="flex items-center gap-2.5">
-                <BookOpen className="w-4 h-4 text-portal-muted flex-shrink-0" />
-                <select
-                  {...register("level")}
-                  className={inputCls(errors.level?.message)}
-                >
-                  <option value="" disabled>
-                    Select level
-                  </option>
-                  {LEVELS.map((l) => (
-                    <option key={l} value={l}>
-                      {l} Level
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {errors.level && (
-                <p className="mt-1 text-xs text-red-500 pl-6">
-                  {errors.level.message}
-                </p>
+            <div>
+              <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">
+                Level
+              </label>
+              {editing ? (
+                <>
+                  <div className="flex items-center gap-2.5">
+                    <BookOpen className="w-4 h-4 text-portal-muted flex-shrink-0" />
+                    <select {...register("level")} className={inputCls(e.level?.message)}>
+                      <option value="" disabled>Select level</option>
+                      {LEVELS.map((l) => (
+                        <option key={l} value={l}>{l} Level</option>
+                      ))}
+                    </select>
+                  </div>
+                  {e.level && <p className="mt-1 text-xs text-red-500 pl-6">{e.level.message}</p>}
+                </>
+              ) : (
+                <div className="flex items-center gap-2.5 py-2">
+                  <BookOpen className="w-4 h-4 text-portal-muted flex-shrink-0" />
+                  <p className="text-[13.5px] font-medium text-portal-text">
+                    {(current as StudentProfile).level} Level
+                  </p>
+                </div>
               )}
-            </>
-          ) : (
-            <div className="flex items-center gap-2.5 py-2">
-              <BookOpen className="w-4 h-4 text-portal-muted flex-shrink-0" />
-              <p className="text-[13.5px] font-medium text-portal-text">
-                {profile.level} Level
-              </p>
             </div>
-          )}
-        </div>
 
-        <div>
-          <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">
-            Department
-          </label>
-          {editing ? (
-            <>
-              <div className="flex items-center gap-2.5">
-                <Building2 className="w-4 h-4 text-portal-muted flex-shrink-0" />
-                <input
-                  type="text"
-                  {...register("department")}
-                  placeholder="Computer Engineering"
-                  className={inputCls(errors.department?.message)}
-                />
-              </div>
-              {errors.department && (
-                <p className="mt-1 text-xs text-red-500 pl-6">
-                  {errors.department.message}
-                </p>
+            <div>
+              <label className="block text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1.5">
+                Department
+              </label>
+              {editing ? (
+                <>
+                  <div className="flex items-center gap-2.5">
+                    <Building2 className="w-4 h-4 text-portal-muted flex-shrink-0" />
+                    <input
+                      type="text"
+                      {...register("department")}
+                      placeholder="Computer Engineering"
+                      className={inputCls(e.department?.message)}
+                    />
+                  </div>
+                  {e.department && <p className="mt-1 text-xs text-red-500 pl-6">{e.department.message}</p>}
+                </>
+              ) : (
+                <div className="flex items-center gap-2.5 py-2">
+                  <Building2 className="w-4 h-4 text-portal-muted flex-shrink-0" />
+                  <p className="text-[13.5px] font-medium text-portal-text">
+                    {(current as StudentProfile).department}
+                  </p>
+                </div>
               )}
-            </>
-          ) : (
-            <div className="flex items-center gap-2.5 py-2">
-              <Building2 className="w-4 h-4 text-portal-muted flex-shrink-0" />
-              <p className="text-[13.5px] font-medium text-portal-text">
-                {profile.department}
-              </p>
             </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
     </div>
   );

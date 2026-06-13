@@ -46,7 +46,7 @@ export default function ImageUpload({
         style={{ width: size, height: size }}
         onClick={() => fileInputRef.current?.click()}
         className={cn(
-          "relative border-2 border-dashed rounded-full border-portal-border bg-portal-bg flex items-center justify-center cursor-pointer hover:border-portal-accent transition-colors overflow-hidden",
+          "relative border-2 border-dashed rounded-full border-portal-border bg-portal-accent-bg/50 flex items-center justify-center cursor-pointer hover:border-portal-accent transition-colors overflow-hidden",
         )}
       >
         {value ? (

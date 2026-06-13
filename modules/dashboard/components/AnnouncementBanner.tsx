@@ -8,7 +8,7 @@ export default function AnnouncementBanner() {
   if (!visible) return null;
 
   return (
-    <div className="bg-portal-gold-bg border border-[#e8d5a0] rounded-xl px-4 py-3 flex items-center gap-3 mb-6">
+    <div className="bg-portal-accent-bg border border-portal-accent-border rounded-xl px-4 py-3 flex items-center gap-3 mb-6">
       <Megaphone className="w-4 h-4 text-portal-gold flex-shrink-0" />
       <p className="flex-1 text-[13.5px] text-portal-text2">
         <strong className="text-portal-text font-semibold">

@@ -15,13 +15,15 @@ export default function MobileCard({
   return (
     <button
       onClick={onClick}
-      className="w-full px-4 py-3.5 flex items-start justify-between gap-3 hover:bg-portal-bg transition-colors text-left"
+      className="w-full px-4 py-3.5 flex items-start justify-between gap-3 hover:bg-portal-accent-bg/50 transition-colors text-left"
     >
       <div className="min-w-0 flex-1">
         <p className="text-[13.5px] font-semibold text-portal-text truncate">
           {booking.passengerName}
         </p>
-        <p className="text-[11.5px] text-portal-muted mt-0.5">{booking.routeName}</p>
+        <p className="text-[11.5px] text-portal-muted mt-0.5">
+          {booking.routeName}
+        </p>
         <p className="text-[11px] text-portal-muted mt-0.5">
           {format(new Date(booking.createdAt), "MMM d, yyyy")}
         </p>
