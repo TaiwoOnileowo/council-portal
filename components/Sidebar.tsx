@@ -51,14 +51,12 @@ const SIDEBAR_CONFIG: Record<
     navGroups: [
       {
         label: "Menu",
-        items: [
-          { label: "Home", icon: Home, href: "/vendor-dashboard" },
-          { label: "Profile", icon: User, href: "/vendor-dashboard/profile" },
-        ],
+        items: [{ label: "Home", icon: Home, href: "/vendor-dashboard" }],
       },
       {
         label: "Account",
         items: [
+          { label: "Profile", icon: User, href: "/vendor-dashboard/profile" },
           { label: "Earnings", icon: Wallet, href: "/vendor-dashboard/wallet" },
         ],
       },

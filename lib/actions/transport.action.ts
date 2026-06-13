@@ -14,6 +14,7 @@ import type {
   TransportBooking,
   TransportBookingsResponse,
   BookingsFilters,
+  ExportFilters,
 } from "@/modules/transport/transport.types";
 import type {
   price_list as DbPriceList,
@@ -185,9 +186,6 @@ export async function getTransportBookings(
   if (session?.user?.role !== "VENDOR")
     return { ok: false, error: "Unauthorized" };
 
-  const statusFilter: BookingStatus[] =
-    filters.tab === "upcoming" ? ["CONFIRMED"] : ["CANCELLED", "FAILED"];
-
   const dateRange: { gte?: Date; lte?: Date } = {};
   if (filters.dateFrom) dateRange.gte = new Date(filters.dateFrom);
   if (filters.dateTo) {
@@ -200,7 +198,9 @@ export async function getTransportBookings(
   const searchWhere = search
     ? {
         OR: [
-          { passenger_name: { contains: search, mode: "insensitive" as const } },
+          {
+            passenger_name: { contains: search, mode: "insensitive" as const },
+          },
           { passenger_phone: { contains: search } },
           { reference: { contains: search, mode: "insensitive" as const } },
           { hall: { contains: search, mode: "insensitive" as const } },
@@ -212,7 +212,7 @@ export async function getTransportBookings(
   // Facet base: every filter except route, so per-route counts stay meaningful.
   const baseWhere = {
     vendor_id: session.user.id,
-    status: { in: statusFilter },
+    status: "CONFIRMED" as BookingStatus,
     ...(Object.keys(dateRange).length > 0 ? { created_at: dateRange } : {}),
     ...searchWhere,
   };
@@ -262,11 +262,12 @@ export async function getTransportBookings(
   ]);
 
   const routeCounts: Record<string, number> = {};
-  for (const row of routeCountRows) routeCounts[row.route_name] = row._count._all;
+  for (const row of routeCountRows)
+    routeCounts[row.route_name] = row._count._all;
 
   const total =
     filters.route !== "all"
-      ? routeCounts[filters.route] ?? 0
+      ? (routeCounts[filters.route] ?? 0)
       : Object.values(routeCounts).reduce((sum, n) => sum + n, 0);
 
   return {
@@ -448,7 +449,9 @@ export async function updatePriceList(
       const bookedIds = new Set(booked.map((b) => b.route_id));
       const deletable = removedIds.filter((rid) => !bookedIds.has(rid));
       if (deletable.length)
-        await tx.price_list_route.deleteMany({ where: { id: { in: deletable } } });
+        await tx.price_list_route.deleteMany({
+          where: { id: { in: deletable } },
+        });
       if (bookedIds.size)
         await tx.price_list_route.updateMany({
           where: { id: { in: [...bookedIds] } },
@@ -506,4 +509,41 @@ export async function updatePriceList(
   });
 
   return { ok: true, data: formatPriceList(updated) };
+}
+
+export async function countTransportBookingsForExport(
+  filters: ExportFilters,
+): Promise<{ ok: true; count: number } | { ok: false; error: string }> {
+  const session = await auth();
+  if (session?.user?.role !== "VENDOR")
+    return { ok: false, error: "Unauthorized" };
+
+  const bookingRange: { gte?: Date; lte?: Date } = {};
+  if (filters.bookingDateFrom) bookingRange.gte = new Date(filters.bookingDateFrom);
+  if (filters.bookingDateTo) {
+    const to = new Date(filters.bookingDateTo);
+    to.setHours(23, 59, 59, 999);
+    bookingRange.lte = to;
+  }
+
+  const departureRange: { gte?: Date; lte?: Date } = {};
+  if (filters.departureDateFrom) departureRange.gte = new Date(filters.departureDateFrom);
+  if (filters.departureDateTo) {
+    const to = new Date(filters.departureDateTo);
+    to.setHours(23, 59, 59, 999);
+    departureRange.lte = to;
+  }
+
+  const count = await db.booking.count({
+    where: {
+      vendor_id: session.user.id,
+      status: "CONFIRMED",
+      ...(filters.direction !== "all" ? { direction: filters.direction } : {}),
+      ...(filters.route !== "all" ? { route_name: filters.route } : {}),
+      ...(Object.keys(bookingRange).length > 0 ? { created_at: bookingRange } : {}),
+      ...(Object.keys(departureRange).length > 0 ? { departure_at: departureRange } : {}),
+    },
+  });
+
+  return { ok: true, count };
 }

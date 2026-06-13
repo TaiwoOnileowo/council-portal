@@ -1,13 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: ["@react-pdf/renderer"],
   images: {
-    remotePatterns: [
-      { hostname: "ui-avatars.com" },
-      { hostname: "images.unsplash.com" },
-      { hostname: "*.ufs.sh" },
-      { hostname: "utfs.io" },
-    ],
+    remotePatterns: [{ hostname: "*.ufs.sh" }, { hostname: "utfs.io" }],
   },
 };
 

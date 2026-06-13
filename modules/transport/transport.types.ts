@@ -161,3 +161,12 @@ export type StudentBookingsResponse = {
   vendors: { id: string; name: string }[];
   total: number;
 };
+
+export type ExportFilters = {
+  direction: "all" | "LEAVING" | "RETURNING";
+  route: string;
+  bookingDateFrom: string;
+  bookingDateTo: string;
+  departureDateFrom: string;
+  departureDateTo: string;
+};

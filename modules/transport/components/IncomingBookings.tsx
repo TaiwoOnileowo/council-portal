@@ -3,13 +3,14 @@
 import Pagination from "@/components/ui/Pagination";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import TransportBookingDetailModal from "@/modules/transport/components/BookingDetailModal";
+import ExportBookingsModal from "@/modules/transport/components/ExportBookingsModal";
 import { useTransportBookings } from "@/modules/transport/hooks/useTransportBookings";
 import {
   VENDOR_BOOKINGS_PAGE_SIZE,
   type TransportBooking,
 } from "@/modules/transport/transport.types";
 import { format } from "date-fns";
-import { ChevronDown, Loader2, Search, Users, X } from "lucide-react";
+import { ChevronDown, Download, ExternalLink, Loader2, Search, Users, X } from "lucide-react";
 import { useState } from "react";
 import DirectionBadge from "./DirectionBadge";
 import MobileCard from "./MobileCard";
@@ -24,6 +25,7 @@ export default function IncomingBookings() {
   const [dateTo, setDateTo] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [selected, setSelected] = useState<TransportBooking | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
   const [page, setPage] = useState(0);
 
   const search = useDebouncedValue(searchInput.trim(), 300);
@@ -50,6 +52,13 @@ export default function IncomingBookings() {
       <div className="mb-6">
         <div className="flex items-center justify-between mb-3.5">
           <h2 className="font-heading text-[17px] font-bold">Bookings</h2>
+          <button
+            onClick={() => setExportOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-portal-accent bg-portal-accent-bg border border-portal-accent-border rounded-lg hover:bg-portal-accent hover:text-white transition-all duration-200 print:hidden"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+            Export
+          </button>
         </div>
 
         <div className="flex items-center gap-1 bg-portal-accent-bg/502 rounded-xl p-1 mb-3 print:hidden">
@@ -279,9 +288,14 @@ export default function IncomingBookings() {
                           <DirectionBadge direction={booking.direction} />
                         </td>
                         <td className="px-4 py-3.5 text-[12.5px] text-portal-text2">
-                          {booking.departureAt
-                            ? format(new Date(booking.departureAt), "d MMM · h:mm a")
-                            : <span className="text-portal-muted/50">—</span>}
+                          {booking.departureAt ? (
+                            format(
+                              new Date(booking.departureAt),
+                              "d MMM · h:mm a",
+                            )
+                          ) : (
+                            <span className="text-portal-muted/50">—</span>
+                          )}
                         </td>
                         <td className="px-4 py-3.5 text-[12.5px] text-portal-text2">
                           {format(new Date(booking.createdAt), "MMM d, yyyy")}
@@ -325,6 +339,11 @@ export default function IncomingBookings() {
         booking={selected}
         open={!!selected}
         onClose={() => setSelected(null)}
+      />
+      <ExportBookingsModal
+        open={exportOpen}
+        onClose={() => setExportOpen(false)}
+        routes={routes}
       />
     </>
   );
