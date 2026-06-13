@@ -11,6 +11,7 @@ import {
 } from "@/modules/transport/transport.types";
 import type { Prisma } from "@/generated/prisma/client";
 import { COMMISSION_KOBO, COMMISSION_NAIRA, nairaToKobo } from "@/lib/money";
+import { vendorBalance } from "@/lib/actions/wallet.action";
 
 const studentBookingSelect = {
   id: true,
@@ -267,18 +268,13 @@ export async function payBookingFromWallet({
         },
       });
 
-      const vendorLatest = await tx.wallet.findFirst({
-        where: { vendor_id: vendorId },
-        orderBy: { created_at: "desc" },
-        select: { balance: true },
-      });
-      const vendorBalance = vendorLatest?.balance ?? 0;
+      const vBal = await vendorBalance(vendorId, tx);
 
       await tx.wallet.create({
         data: {
           vendor_id: vendorId,
           difference: vendorEarningKobo,
-          balance: vendorBalance + vendorEarningKobo,
+          balance: vBal + vendorEarningKobo,
           reason: `Earning — ${routeName} · ${reference}`,
           type: "earning",
           model_responsible: "Booking",

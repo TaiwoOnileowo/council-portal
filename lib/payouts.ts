@@ -1,28 +1,5 @@
 import { db } from "@/lib/db";
-import type { Prisma } from "@/generated/prisma/client";
-
-export async function vendorBalance(
-  vendorId: string,
-  client: Prisma.TransactionClient | typeof db = db,
-): Promise<number> {
-  const latest = await client.wallet.findFirst({
-    where: { vendor_id: vendorId },
-    orderBy: { created_at: "desc" },
-    select: { balance: true },
-  });
-  return latest?.balance ?? 0;
-}
-
-export async function vendorEffectiveBalance(vendorId: string): Promise<number> {
-  const [balance, pendingAgg] = await Promise.all([
-    vendorBalance(vendorId),
-    db.payout.aggregate({
-      where: { vendor_id: vendorId, status: { in: ["PENDING", "PROCESSING"] } },
-      _sum: { amount: true },
-    }),
-  ]);
-  return balance - (pendingAgg._sum.amount ?? 0);
-}
+import { vendorBalance } from "@/lib/actions/wallet.action";
 
 export async function reversePayout(
   reference: string,

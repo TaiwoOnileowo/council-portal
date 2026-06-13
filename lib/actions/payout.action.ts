@@ -3,7 +3,8 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { MIN_PAYOUT_KOBO, koboToNaira } from "@/lib/money";
-import { reversePayout, vendorBalance, vendorEffectiveBalance } from "@/lib/payouts";
+import { reversePayout } from "@/lib/payouts";
+import { vendorBalance, vendorEffectiveBalance } from "@/lib/actions/wallet.action";
 
 export type VendorWalletSummary = {
   balance: number; // available, in kobo
