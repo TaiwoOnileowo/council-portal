@@ -29,8 +29,8 @@ export default function ImageUpload({
     setUploading(true);
     try {
       const res = await uploadFiles("vendorProfileImage", { files: [file] });
-      if (res?.[0]?.ufsUrl) {
-        onChange(res[0].ufsUrl);
+      if (res?.[0]?.url) {
+        onChange(res[0].url);
         toast.success("Image uploaded!");
       }
     } catch {
