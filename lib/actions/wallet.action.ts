@@ -25,7 +25,18 @@ export async function getWalletBalance() {
   const session = await auth();
   if (!session?.user?.id) return { error: "Unauthorized" };
 
-  return { balance: await currentBalance(session.user.id) };
+  const isVendor = session.user.role === "VENDOR";
+  const where = isVendor
+    ? { vendor_id: session.user.id }
+    : { user_id: session.user.id };
+
+  const latest = await db.wallet.findFirst({
+    where,
+    orderBy: { created_at: "desc" },
+    select: { balance: true },
+  });
+
+  return { balance: latest?.balance ?? 0 };
 }
 
 export async function topUpWallet(amountKobo: number) {
@@ -141,8 +152,13 @@ export async function getTransactionHistory(
   const session = await auth();
   if (!session?.user?.id) return { ok: false, error: "Unauthorized" };
 
+  const isVendor = session.user.role === "VENDOR";
+  const scopeFilter = isVendor
+    ? { vendor_id: session.user.id }
+    : { user_id: session.user.id };
+
   const where: Prisma.walletWhereInput = {
-    user_id: session.user.id,
+    ...scopeFilter,
     ...(filters.type !== "all" ? { type: filters.type } : {}),
   };
 

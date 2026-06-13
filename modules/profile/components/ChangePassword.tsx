@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { motion } from "motion/react";
-import { Lock } from "lucide-react";
-import { toast } from "sonner";
 import { requestPasswordReset } from "@/lib/actions/password.action";
+import { Lock } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 
 interface ChangePasswordProps {
   email: string;
@@ -30,12 +29,7 @@ export default function ChangePassword({ email }: ChangePasswordProps) {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, delay: 0.18, ease: "easeOut" }}
-      className="bg-portal-surface border border-portal-border rounded-2xl p-6"
-    >
+    <div className="bg-portal-surface border border-portal-border rounded-2xl p-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className="w-[34px] h-[34px] rounded-[10px] bg-portal-accent-bg flex items-center justify-center">
@@ -70,15 +64,10 @@ export default function ChangePassword({ email }: ChangePasswordProps) {
       </div>
 
       {sent && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: "auto" }}
-          transition={{ duration: 0.25 }}
-          className="mt-4 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700"
-        >
+        <div className="mt-4 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
           Check your email for next steps. The link expires in 1 hour.
-        </motion.div>
+        </div>
       )}
-    </motion.div>
+    </div>
   );
 }

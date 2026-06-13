@@ -1,39 +1,56 @@
 "use client";
 
-import { useState } from "react";
-import { motion } from "motion/react";
-import { House, Loader2, Plus, RefreshCw, Rocket, Trash2, X } from "lucide-react";
-import { toast } from "sonner";
-import { useForm, useFieldArray, useWatch, Controller } from "react-hook-form";
-import { Drawer, DrawerContent, DrawerClose, DrawerTitle } from "@/components/ui/drawer";
+import DatePickerField from "@/components/ui/DatePickerField";
 import {
   Dialog,
   DialogContent,
-  DialogTitle,
   DialogDescription,
+  DialogTitle,
 } from "@/components/ui/dialog";
-import type { PriceList } from "@/modules/transport/transport.types";
 import {
-  useTransportPriceLists,
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerTitle,
+} from "@/components/ui/drawer";
+import Select from "@/components/ui/Select";
+import TimeInput from "@/components/ui/TimeInput";
+import Toggle from "@/components/ui/Toggle";
+import { formatWithCommas } from "@/lib/format";
+import {
   useCreatePriceList,
+  useTransportPriceLists,
   useUpdatePriceList,
 } from "@/modules/transport/hooks/useTransportPriceLists";
+import type { PriceList } from "@/modules/transport/transport.types";
 import {
   type DrawerFormValues,
   buildBody,
-  formValuesFromPriceList,
   emptyFormValues,
+  formValuesFromPriceList,
 } from "@/modules/transport/transport.utils";
-import { formatWithCommas } from "@/lib/format";
-import TimeInput from "@/components/ui/TimeInput";
-import Toggle from "@/components/ui/Toggle";
-import DatePickerField from "@/components/ui/DatePickerField";
-import Select from "@/components/ui/Select";
-import PriceListCard from "./PriceListCard";
+import {
+  House,
+  Loader2,
+  Plus,
+  RefreshCw,
+  Rocket,
+  Trash2,
+  X,
+} from "lucide-react";
+import { useState } from "react";
+import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
+import { toast } from "sonner";
 import AddCard from "./AddCard";
+import PriceListCard from "./PriceListCard";
 
 export default function RouteManagement() {
-  const { data: priceLists, isLoading, isError, refetch } = useTransportPriceLists();
+  const {
+    data: priceLists,
+    isLoading,
+    isError,
+    refetch,
+  } = useTransportPriceLists();
   const createMutation = useCreatePriceList();
   const updateMutation = useUpdatePriceList();
 
@@ -72,8 +89,10 @@ export default function RouteManagement() {
   const watchedSchedStart = useWatch({ control, name: "schedStart" });
   const watchedSchedEnd = useWatch({ control, name: "schedEnd" });
 
-  const leaving = (priceLists ?? []).find((p) => p.direction === "leaving") ?? null;
-  const returning = (priceLists ?? []).find((p) => p.direction === "returning") ?? null;
+  const leaving =
+    (priceLists ?? []).find((p) => p.direction === "leaving") ?? null;
+  const returning =
+    (priceLists ?? []).find((p) => p.direction === "returning") ?? null;
 
   function openNew(direction: "leaving" | "returning") {
     reset(emptyFormValues(direction));
@@ -101,7 +120,13 @@ export default function RouteManagement() {
   }
 
   function addRoute() {
-    appendRoute({ name: "", price: "", capacityType: "unlimited", capacityValue: "", active: true });
+    appendRoute({
+      name: "",
+      price: "",
+      capacityType: "unlimited",
+      capacityValue: "",
+      active: true,
+    });
   }
 
   function addDeparture() {
@@ -114,7 +139,8 @@ export default function RouteManagement() {
     watchedRoutes.length >= 1 &&
     watchedDepartureTimes.length >= 1 &&
     watchedDepartureTimes.every((d) => !!d?.date) &&
-    (watchedAvailType !== "scheduled" || (!!watchedSchedStart && !!watchedSchedEnd));
+    (watchedAvailType !== "scheduled" ||
+      (!!watchedSchedStart && !!watchedSchedEnd));
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
@@ -137,12 +163,10 @@ export default function RouteManagement() {
 
   return (
     <>
-      <motion.div
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.28, ease: "easeOut" }}
-      >
-        <h2 className="font-heading text-[17px] font-bold mb-5">Routes & Pricing</h2>
+      <div>
+        <h2 className="font-heading text-[17px] font-bold mb-5">
+          Routes & Pricing
+        </h2>
 
         {isLoading ? (
           <div className="flex items-center justify-center py-16 text-portal-muted">
@@ -182,14 +206,17 @@ export default function RouteManagement() {
                 Returning to School
               </h3>
               {returning ? (
-                <PriceListCard pl={returning} onEdit={() => openEdit(returning)} />
+                <PriceListCard
+                  pl={returning}
+                  onEdit={() => openEdit(returning)}
+                />
               ) : (
                 <AddCard onAdd={() => openNew("returning")} />
               )}
             </div>
           </>
         )}
-      </motion.div>
+      </div>
 
       <Dialog open={discardOpen} onOpenChange={setDiscardOpen}>
         <DialogContent className="max-w-sm">
@@ -214,7 +241,11 @@ export default function RouteManagement() {
         </DialogContent>
       </Dialog>
 
-      <Drawer open={drawerOpen} onOpenChange={handleDrawerOpenChange} direction="right">
+      <Drawer
+        open={drawerOpen}
+        onOpenChange={handleDrawerOpenChange}
+        direction="right"
+      >
         <DrawerContent
           style={{ width: "min(760px, 100vw)", maxWidth: "min(760px, 100vw)" }}
           className="bg-portal-surface flex flex-col overflow-hidden p-0 !h-[100dvh]"
@@ -288,7 +319,9 @@ export default function RouteManagement() {
                           inputMode="numeric"
                           value={priceField.value}
                           onChange={(e) =>
-                            priceField.onChange(formatWithCommas(e.target.value))
+                            priceField.onChange(
+                              formatWithCommas(e.target.value),
+                            )
                           }
                           placeholder="₦ 0"
                           className="w-24 sm:w-full px-2 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-bg focus:outline-none focus:border-portal-accent"
@@ -330,7 +363,10 @@ export default function RouteManagement() {
                       name={`routes.${index}.active`}
                       control={control}
                       render={({ field: activeField }) => (
-                        <Toggle on={activeField.value} onChange={activeField.onChange} />
+                        <Toggle
+                          on={activeField.value}
+                          onChange={activeField.onChange}
+                        />
                       )}
                     />
 
@@ -391,7 +427,10 @@ export default function RouteManagement() {
                           name={`departureTimes.${index}.time`}
                           control={control}
                           render={({ field: timeField }) => (
-                            <TimeInput value={timeField.value} onChange={timeField.onChange} />
+                            <TimeInput
+                              value={timeField.value}
+                              onChange={timeField.onChange}
+                            />
                           )}
                         />
                         <button
@@ -420,7 +459,9 @@ export default function RouteManagement() {
               <div>
                 <label className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-portal-muted mb-1.5">
                   Luggage Policy{" "}
-                  <span className="normal-case font-normal text-portal-muted/60">(optional)</span>
+                  <span className="normal-case font-normal text-portal-muted/60">
+                    (optional)
+                  </span>
                 </label>
                 <textarea
                   {...register("luggagePolicy")}
@@ -432,7 +473,9 @@ export default function RouteManagement() {
               <div>
                 <label className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-portal-muted mb-1.5">
                   Notes{" "}
-                  <span className="normal-case font-normal text-portal-muted/60">(optional)</span>
+                  <span className="normal-case font-normal text-portal-muted/60">
+                    (optional)
+                  </span>
                 </label>
                 <textarea
                   {...register("notes")}
@@ -459,7 +502,9 @@ export default function RouteManagement() {
                   <button
                     key={value}
                     type="button"
-                    onClick={() => setValue("availType", value, { shouldDirty: true })}
+                    onClick={() =>
+                      setValue("availType", value, { shouldDirty: true })
+                    }
                     className={`px-3 py-1.5 text-[12px] font-medium rounded-lg border transition-colors ${
                       watchedAvailType === value
                         ? "border-portal-accent text-portal-accent bg-portal-accent/5"
@@ -477,14 +522,22 @@ export default function RouteManagement() {
                     name="schedStart"
                     control={control}
                     render={({ field }) => (
-                      <DatePickerField label="Start Date" value={field.value} onChange={field.onChange} />
+                      <DatePickerField
+                        label="Start Date"
+                        value={field.value}
+                        onChange={field.onChange}
+                      />
                     )}
                   />
                   <Controller
                     name="schedEnd"
                     control={control}
                     render={({ field }) => (
-                      <DatePickerField label="End Date" value={field.value} onChange={field.onChange} />
+                      <DatePickerField
+                        label="End Date"
+                        value={field.value}
+                        onChange={field.onChange}
+                      />
                     )}
                   />
                 </div>

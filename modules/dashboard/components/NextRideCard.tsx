@@ -8,7 +8,6 @@ import {
 } from "@/modules/dashboard/dashboard.util";
 import { useNextBooking } from "@/modules/transport/hooks/useNextBooking";
 import { ArrowRight, Bus, MapPin } from "lucide-react";
-import { motion } from "motion/react";
 import Link from "next/link";
 
 export default function NextRideCard() {
@@ -26,12 +25,7 @@ export default function NextRideCard() {
 
   if (!nextRide) {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
-        className="rounded-2xl border border-portal-border bg-portal-surface p-6 mb-6 flex items-center gap-4"
-      >
+      <div className="rounded-2xl border border-portal-border bg-portal-surface p-6 mb-6 flex items-center gap-4">
         <div className="w-11 h-11 rounded-xl bg-portal-accent-bg flex items-center justify-center flex-shrink-0">
           <Bus className="w-5 h-5 text-portal-accent" />
         </div>
@@ -50,16 +44,12 @@ export default function NextRideCard() {
           Book a ride
           <ArrowRight className="w-3.5 h-3.5" />
         </Link>
-      </motion.div>
+      </div>
     );
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: "easeOut" }}
-      className="relative rounded-2xl border border-portal-border bg-portal-surface p-6 mb-6"
+    <div className="relative rounded-2xl border border-portal-border bg-portal-surface p-6 mb-6"
     >
       <div className="flex items-center justify-between mb-4">
         <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-portal-muted">
@@ -91,6 +81,6 @@ export default function NextRideCard() {
         </p>
       </div>
       <BorderBeam duration={15} size={100} />
-    </motion.div>
+    </div>
   );
 }

@@ -1,30 +1,29 @@
 "use client";
 
-import { useState } from "react";
-import { useForm, Controller } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { motion } from "motion/react";
-import {
-  Pencil,
-  Check,
-  X,
-  Mail,
-  Phone,
-  GraduationCap,
-  Building2,
-  BookOpen,
-} from "lucide-react";
-import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
 import { updateProfile } from "@/lib/actions/user.action";
 import { queryKeys } from "@/lib/query-keys";
-import {
-  updateStudentProfileSchema,
-  LEVELS,
-  UpdateProfileInput,
-  LevelValue,
-} from "@/modules/auth/auth.types";
 import { inputClass } from "@/lib/utils";
+import {
+  LEVELS,
+  LevelValue,
+  UpdateProfileInput,
+  updateStudentProfileSchema,
+} from "@/modules/auth/auth.types";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  BookOpen,
+  Building2,
+  Check,
+  GraduationCap,
+  Mail,
+  Pencil,
+  Phone,
+  X,
+} from "lucide-react";
+import { useState } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { toast } from "sonner";
 
 type ProfileFields = {
   firstName: string;
@@ -90,12 +89,7 @@ export default function ProfileDetails({ user }: Props) {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, delay: 0.14, ease: "easeOut" }}
-      className="bg-portal-surface border border-portal-border rounded-2xl p-6"
-    >
+    <div className="bg-portal-surface border border-portal-border rounded-2xl p-6">
       <div className="flex items-center justify-between mb-5">
         <h3 className="font-heading text-[15px] font-bold text-portal-text">
           Personal Information
@@ -359,6 +353,6 @@ export default function ProfileDetails({ user }: Props) {
           )}
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }

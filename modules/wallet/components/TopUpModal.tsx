@@ -204,7 +204,6 @@ export default function TopUpModal({
       description={step === "enter-amount" ? tagline : undefined}
     >
       <AnimatePresence mode="wait">
-        {/* Step 1: Enter Amount */}
         {step === "enter-amount" && (
           <motion.div
             key="step-amount"
@@ -284,7 +283,6 @@ export default function TopUpModal({
           </motion.div>
         )}
 
-        {/* Step 2: Processing */}
         {step === "processing" && (
           <motion.div
             key="step-processing"
@@ -304,7 +302,6 @@ export default function TopUpModal({
           </motion.div>
         )}
 
-        {/* Step 3: Success */}
         {step === "success" && (
           <motion.div
             key="step-success"

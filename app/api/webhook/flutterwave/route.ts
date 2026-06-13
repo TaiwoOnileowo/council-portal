@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { markPayoutSuccess, reversePayout } from "@/lib/payouts";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
@@ -18,12 +19,28 @@ export async function POST(req: NextRequest) {
   }
 
   const event = body.event as string | undefined;
-  if (event !== "charge.completed") {
+  const data = body.data as Record<string, unknown> | undefined;
+  if (!data) return NextResponse.json({ received: true });
+
+  if (event === "transfer.completed") {
+    const reference = data.reference as string | undefined;
+    const status = data.status as string | undefined;
+    if (!reference) return NextResponse.json({ received: true });
+
+    if (status === "SUCCESSFUL") {
+      await markPayoutSuccess(reference);
+    } else if (status === "FAILED") {
+      await reversePayout(
+        reference,
+        (data.complete_message as string | undefined) ?? "Transfer failed.",
+      );
+    }
     return NextResponse.json({ received: true });
   }
 
-  const data = body.data as Record<string, unknown> | undefined;
-  if (!data) return NextResponse.json({ received: true });
+  if (event !== "charge.completed") {
+    return NextResponse.json({ received: true });
+  }
 
   const txRef = data.tx_ref as string | undefined;
   const status = data.status as string | undefined;

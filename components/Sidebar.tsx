@@ -56,6 +56,12 @@ const SIDEBAR_CONFIG: Record<
           { label: "Profile", icon: User, href: "/vendor-dashboard/profile" },
         ],
       },
+      {
+        label: "Account",
+        items: [
+          { label: "Earnings", icon: Wallet, href: "/vendor-dashboard/wallet" },
+        ],
+      },
     ],
   },
 };

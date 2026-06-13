@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import ChangePassword from "@/modules/profile/components/ChangePassword";
-import VendorBankDetails from "@/modules/vendor/components/VendorBankDetails";
+import VendorBankDetails from "@/modules/vendor/components/BankDetails";
 import VendorProfileDetails from "@/modules/vendor/components/VendorProfileDetails";
 import VendorBusinessProfile from "@/modules/vendor/components/VendorBusinessProfile";
 import { db } from "@/lib/db";

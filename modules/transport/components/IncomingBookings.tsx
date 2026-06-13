@@ -1,6 +1,7 @@
 "use client";
 
 import Pagination from "@/components/ui/Pagination";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import TransportBookingDetailModal from "@/modules/transport/components/TransportBookingDetailModal";
 import { useTransportBookings } from "@/modules/transport/hooks/useTransportBookings";
 import {
@@ -9,9 +10,7 @@ import {
 } from "@/modules/transport/transport.types";
 import { format } from "date-fns";
 import { ChevronDown, Loader2, Search, Users, X } from "lucide-react";
-import { motion } from "motion/react";
 import { useState } from "react";
-import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import DirectionBadge from "./DirectionBadge";
 import MobileCard from "./MobileCard";
 import StatusBadge from "./StatusBadge";
@@ -48,12 +47,7 @@ export default function IncomingBookings() {
 
   return (
     <>
-      <motion.div
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.21, ease: "easeOut" }}
-        className="mb-6"
-      >
+      <div className="mb-6">
         <div className="flex items-center justify-between mb-3.5">
           <h2 className="font-heading text-[17px] font-bold">Bookings</h2>
         </div>
@@ -314,7 +308,7 @@ export default function IncomingBookings() {
             className="mt-3.5"
           />
         )}
-      </motion.div>
+      </div>
 
       <TransportBookingDetailModal
         booking={selected}

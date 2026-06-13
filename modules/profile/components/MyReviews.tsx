@@ -1,7 +1,5 @@
-"use client";
-
+import { MessageSquareText, Star } from "lucide-react";
 import { motion } from "motion/react";
-import { Star, MessageSquareText } from "lucide-react";
 import Image from "next/image";
 import { mockReviews } from "./profileData";
 
@@ -24,12 +22,7 @@ function StarRating({ rating }: { rating: number }) {
 
 export default function MyReviews() {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, delay: 0.22, ease: "easeOut" }}
-      className="bg-portal-surface border border-portal-border rounded-2xl p-6"
-    >
+    <div className="bg-portal-surface border border-portal-border rounded-2xl p-6">
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2.5">
           <div className="w-[34px] h-[34px] rounded-[10px] bg-portal-purple-bg flex items-center justify-center">
@@ -94,6 +87,6 @@ export default function MyReviews() {
           ))}
         </div>
       )}
-    </motion.div>
+    </div>
   );
 }

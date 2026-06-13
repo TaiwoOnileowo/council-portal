@@ -41,6 +41,13 @@ enum BookingStatus {
   FAILED
 }
 
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  SUCCESS
+  FAILED
+}
+
 model user {
   id              String           @id @default(uuid())
   first_name      String
@@ -82,12 +89,17 @@ model vendor_profile {
   is_active      Boolean        @default(true)
   price_lists    price_list[] // transport vertical
   bookings       booking[] // transport vertical — as provider
+  wallet         wallet[] // vendor earnings & payout ledger entries
+  payouts        payout[]
 }
 
 model wallet {
   id                String   @id @default(uuid())
-  user_id           String
-  user              user     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  // Exactly one of user_id / vendor_id is set per entry.
+  user_id           String? // set on STUDENT entries; null on vendor entries
+  user              user?    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  vendor_id         String? // set on VENDOR entries (earnings, payouts); null on student entries
+  vendor            vendor_profile? @relation(fields: [vendor_id], references: [user_id], onDelete: Cascade)
   balance           Int // running balance in kobo, after this entry is applied
   difference        Int // signed delta in kobo applied by this entry
   currency          String   @default("NGN")
@@ -101,6 +113,30 @@ model wallet {
   updated_at        DateTime @updatedAt
 
   @@index([user_id, created_at])
+  @@index([vendor_id, created_at])
+}
+
+model payout {
+  id              String         @id @default(uuid())
+  reference       String         @unique // our transfer reference passed to Flutterwave
+  vendor_id       String
+  vendor          vendor_profile @relation(fields: [vendor_id], references: [user_id], onDelete: Cascade)
+  amount          Int // payout amount in kobo
+  status          PayoutStatus   @default(PENDING)
+
+  // Bank snapshot (preserved even if vendor edits bank details later)
+  bank_code      String
+  bank_name      String
+  account_number String
+  account_name   String
+
+  flw_transfer_id String? // Flutterwave's transfer id
+  failure_reason  String?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([vendor_id, created_at])
 }
 
 model price_list {
@@ -157,7 +193,8 @@ model booking {
   direction           PriceListDirection
   route_name          String
   fare                Int // naira
-  service_fee         Int // naira
+  service_fee         Int // naira — customer-facing fee, currently always 0
+  commission          Int                @default(0) // naira — platform's cut, taken from the vendor's side
   student_notes       String? // optional note from student to vendor
   destination_address String? // student's off-campus drop-off / pickup address
   departure_at        DateTime? // snapshot of the departure the student chose

@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { motion } from "motion/react";
-import { Power } from "lucide-react";
-import { toast } from "sonner";
 import { updateVendorProfile } from "@/lib/actions/vendor.action";
+import { Power } from "lucide-react";
+import { motion } from "motion/react";
+import { useState } from "react";
+import { toast } from "sonner";
 
 type Props = {
   initialIsActive: boolean;
@@ -31,12 +31,7 @@ export default function AvailabilityToggle({ initialIsActive }: Props) {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: 0.07, ease: "easeOut" }}
-      className="bg-portal-surface border border-portal-border rounded-2xl px-5 py-4 mb-6 flex items-center justify-between"
-    >
+    <div className="bg-portal-surface border border-portal-border rounded-2xl px-5 py-4 mb-6 flex items-center justify-between">
       <div className="flex items-center gap-3">
         <div
           className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${
@@ -51,7 +46,9 @@ export default function AvailabilityToggle({ initialIsActive }: Props) {
         </div>
         <div>
           <p className="text-[14px] font-semibold text-portal-text">
-            {available ? "You're available for rides" : "You're currently offline"}
+            {available
+              ? "You're available for rides"
+              : "You're currently offline"}
           </p>
           <p className="text-[12px] text-portal-muted mt-0.5">
             {available
@@ -75,6 +72,6 @@ export default function AvailabilityToggle({ initialIsActive }: Props) {
           style={{ left: available ? "27px" : "3px" }}
         />
       </button>
-    </motion.div>
+    </div>
   );
 }

@@ -1,7 +1,4 @@
-"use client";
-
 import Image from "next/image";
-import { motion } from "motion/react";
 
 type Props = {
   firstName: string;
@@ -19,11 +16,7 @@ export default function VendorDashboardHeader({
   const initials = `${firstName[0]}${lastName[0]}`.toUpperCase();
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: "easeOut" }}
-    >
+    <div>
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3.5">
           {image ? (
@@ -53,6 +46,6 @@ export default function VendorDashboardHeader({
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
+import { MessageSquareText, Star } from "lucide-react";
 import { motion } from "motion/react";
-import { Star, MessageSquareText } from "lucide-react";
 
 function StarRating({ rating }: { rating: number }) {
   return (
@@ -34,18 +34,15 @@ type Props = {
 
 export default function VendorReviews({ reviews = [] }: Props) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, delay: 0.26, ease: "easeOut" }}
-      className="bg-portal-surface border border-portal-border rounded-2xl p-6"
-    >
+    <div className="bg-portal-surface border border-portal-border rounded-2xl p-6">
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2.5">
           <div className="w-[34px] h-[34px] rounded-[10px] bg-portal-purple-bg flex items-center justify-center">
             <MessageSquareText className="w-4 h-4 text-portal-purple" />
           </div>
-          <h3 className="font-heading text-[15px] font-bold text-portal-text">Reviews</h3>
+          <h3 className="font-heading text-[15px] font-bold text-portal-text">
+            Reviews
+          </h3>
         </div>
         <span className="text-[12px] text-portal-muted font-medium">
           {reviews.length} review{reviews.length !== 1 ? "s" : ""}
@@ -66,7 +63,11 @@ export default function VendorReviews({ reviews = [] }: Props) {
               key={review.id}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.35, delay: 0.3 + idx * 0.06, ease: "easeOut" }}
+              transition={{
+                duration: 0.35,
+                delay: 0.3 + idx * 0.06,
+                ease: "easeOut",
+              }}
               className="border border-portal-border rounded-xl p-4 hover:border-portal-border2 transition-colors"
             >
               <div className="flex items-center justify-between mb-2">
@@ -77,19 +78,25 @@ export default function VendorReviews({ reviews = [] }: Props) {
                     </span>
                   </div>
                   <div>
-                    <p className="text-[12.5px] font-semibold text-portal-text">{review.studentName}</p>
+                    <p className="text-[12.5px] font-semibold text-portal-text">
+                      {review.studentName}
+                    </p>
                     <StarRating rating={review.rating} />
                   </div>
                 </div>
-                <span className="text-[11px] text-portal-muted">{review.date}</span>
+                <span className="text-[11px] text-portal-muted">
+                  {review.date}
+                </span>
               </div>
               {review.comment && (
-                <p className="text-[12.5px] text-portal-text2 leading-relaxed">{review.comment}</p>
+                <p className="text-[12.5px] text-portal-text2 leading-relaxed">
+                  {review.comment}
+                </p>
               )}
             </motion.div>
           ))}
         </div>
       )}
-    </motion.div>
+    </div>
   );
 }

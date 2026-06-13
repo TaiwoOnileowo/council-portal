@@ -1,17 +1,10 @@
-import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import type { VendorCategory } from "@/generated/prisma/enums";
+import IncomingBookings from "@/modules/transport/components/IncomingBookings";
+import RouteManagement from "@/modules/transport/components/RouteManagement";
 import AvailabilityToggle from "@/modules/vendor/components/AvailabilityToggle";
 import VendorDashboardHeader from "@/modules/vendor/components/VendorDashboardHeader";
-import TransportDashboard from "@/modules/transport/components/TransportDashboard";
-
-// Each vendor category renders its own vertical dashboard section. Add a new
-// entry here when a category launches; the generic shell (header + availability)
-// is shared.
-const CATEGORY_DASHBOARD: Record<VendorCategory, React.ComponentType> = {
-  TRANSPORT: TransportDashboard,
-};
+import { redirect } from "next/navigation";
 
 export default async function VendorDashboardPage() {
   const session = await auth();
@@ -31,8 +24,6 @@ export default async function VendorDashboardPage() {
 
   if (!vendor || !vendor.vendor_profile) redirect("/vendor-gate");
 
-  const CategorySection = CATEGORY_DASHBOARD[vendor.vendor_profile.category];
-
   return (
     <>
       <VendorDashboardHeader
@@ -42,7 +33,8 @@ export default async function VendorDashboardPage() {
         image={vendor.image}
       />
       <AvailabilityToggle initialIsActive={vendor.vendor_profile.is_active} />
-      {CategorySection ? <CategorySection /> : null}
+      <IncomingBookings />
+      <RouteManagement />
     </>
   );
 }

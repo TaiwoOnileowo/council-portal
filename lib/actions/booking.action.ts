@@ -10,6 +10,7 @@ import {
   type StudentBookingsResponse,
 } from "@/modules/transport/transport.types";
 import type { Prisma } from "@/generated/prisma/client";
+import { COMMISSION_KOBO, COMMISSION_NAIRA, nairaToKobo } from "@/lib/money";
 
 const studentBookingSelect = {
   id: true,
@@ -201,12 +202,21 @@ export async function payBookingFromWallet({
   if (!session?.user?.id) return { error: "You must be signed in to book." };
 
   const userId = session.user.id;
-  const totalAmountKobo = (fare + serviceFee) * 100;
+  const totalAmountKobo = nairaToKobo(fare + serviceFee);
+  const vendorEarningKobo = nairaToKobo(fare) - COMMISSION_KOBO;
 
   const reference = `BK${Math.random().toString().slice(2, 10).padEnd(8, "0")}`;
 
+  // Lock both wallets in a deterministic order to serialize concurrent writes
+  // to the same running balance without risking a deadlock.
+  const lockKeys = [userId, vendorId].sort();
+
   try {
     const result = await db.$transaction(async (tx) => {
+      for (const key of lockKeys) {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${key}))`;
+      }
+
       const latest = await tx.wallet.findFirst({
         where: { user_id: userId },
         orderBy: { created_at: "desc" },
@@ -234,6 +244,7 @@ export async function payBookingFromWallet({
           route_name: routeName,
           fare,
           service_fee: serviceFee,
+          commission: COMMISSION_NAIRA,
           student_notes: studentNotes?.trim() || null,
           destination_address: destinationAddress.trim(),
           departure_at: departureAt ? new Date(departureAt) : null,
@@ -253,6 +264,26 @@ export async function payBookingFromWallet({
           model_responsible: "Booking",
           model_id: booking.id,
           reference,
+        },
+      });
+
+      const vendorLatest = await tx.wallet.findFirst({
+        where: { vendor_id: vendorId },
+        orderBy: { created_at: "desc" },
+        select: { balance: true },
+      });
+      const vendorBalance = vendorLatest?.balance ?? 0;
+
+      await tx.wallet.create({
+        data: {
+          vendor_id: vendorId,
+          difference: vendorEarningKobo,
+          balance: vendorBalance + vendorEarningKobo,
+          reason: `Earning — ${routeName}`,
+          type: "earning",
+          model_responsible: "Booking",
+          model_id: booking.id,
+          reference: `${reference}-V`,
         },
       });
 

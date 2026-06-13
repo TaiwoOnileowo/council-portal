@@ -1,13 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { Wallet, Plus } from "lucide-react";
-import { motion } from "motion/react";
-import { useQuery } from "@tanstack/react-query";
-import { useSession } from "next-auth/react";
+import { BorderBeam } from "@/components/ui/border-beam";
 import { getWalletBalance } from "@/lib/actions/wallet.action";
 import TopUpModal from "@/modules/wallet/components/TopUpModal";
-import { BorderBeam } from "@/components/ui/border-beam";
+import { useQuery } from "@tanstack/react-query";
+import { Plus, Wallet } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { useState } from "react";
 
 export function WalletChip() {
   const { data: session } = useSession();
@@ -28,12 +27,7 @@ export function WalletChip() {
 
   return (
     <>
-      <motion.div
-        className="relative flex items-center gap-2.5 rounded-xl border border-portal-border bg-portal-surface pl-3 pr-1.5 py-1.5"
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45, delay: 0.1, ease: "easeOut" }}
-      >
+      <div className="relative flex items-center gap-2.5 rounded-xl border border-portal-border bg-portal-surface pl-3 pr-1.5 py-1.5">
         <div className="w-7 h-7 rounded-lg bg-portal-accent-bg flex items-center justify-center flex-shrink-0">
           <Wallet className="w-[15px] h-[15px] text-portal-accent" />
         </div>
@@ -53,7 +47,7 @@ export function WalletChip() {
           Top Up
         </button>
         <BorderBeam duration={15} size={100} />
-      </motion.div>
+      </div>
 
       <TopUpModal
         open={topUpOpen}

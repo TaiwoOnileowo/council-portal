@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "motion/react";
 import { useCurrentUser } from "@/modules/auth/hooks/useCurrentUser";
 import { WalletChip } from "@/modules/wallet/components/WalletChip";
 
@@ -16,12 +15,7 @@ export default function TopBar() {
   const firstName = user?.firstName ?? "there";
 
   return (
-    <motion.div
-      className="flex items-center justify-between gap-4 mb-7"
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, ease: "easeOut" }}
-    >
+    <div className="flex items-center justify-between gap-4 mb-7">
       <div>
         <h1 className="font-heading text-[20px] sm:text-[26px] font-bold leading-tight text-portal-text">
           {getGreeting()},{" "}
@@ -32,6 +26,6 @@ export default function TopBar() {
         </h1>
       </div>
       <WalletChip />
-    </motion.div>
+    </div>
   );
 }

@@ -1,17 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { motion } from "motion/react";
-import { Pencil, Check, X, Loader2, ShieldCheck, Landmark } from "lucide-react";
-import { toast } from "sonner";
-import { useForm, Controller } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import BankSelector from "@/components/ui/BankSelector";
 import { verifyBankAccount } from "@/lib/actions/bank.action";
 import { updateVendorProfile } from "@/lib/actions/vendor.action";
-import { vendorBankSchema } from "@/modules/vendor/vendor.types";
-import { useBanks } from "@/modules/vendor/hooks/useBanks";
-import BankSelector from "@/components/ui/BankSelector";
 import { inputClass } from "@/lib/utils";
+import { useBanks } from "@/modules/vendor/hooks/useBanks";
+import { vendorBankSchema } from "@/modules/vendor/vendor.types";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Check, Landmark, Loader2, Pencil, ShieldCheck, X } from "lucide-react";
+import { useState } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { toast } from "sonner";
 
 type BankFields = {
   bankCode: string;
@@ -82,7 +81,10 @@ export default function VendorBankDetails({ vendor }: Props) {
     if (!watchedBankCode || !/^\d{10}$/.test(watchedAccountNumber)) return;
 
     setVerifying(true);
-    const result = await verifyBankAccount(watchedAccountNumber, watchedBankCode);
+    const result = await verifyBankAccount(
+      watchedAccountNumber,
+      watchedBankCode,
+    );
     setVerifying(false);
 
     if (result.error || !result.account) {
@@ -110,18 +112,15 @@ export default function VendorBankDetails({ vendor }: Props) {
   const hasDetails = saved.bankName && saved.accountNumber && saved.accountName;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, delay: 0.3, ease: "easeOut" }}
-      className="bg-portal-surface border border-portal-border rounded-2xl p-6"
-    >
+    <div className="bg-portal-surface border border-portal-border rounded-2xl p-6">
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2.5">
           <div className="w-[34px] h-[34px] rounded-[10px] bg-portal-accent-bg flex items-center justify-center">
             <Landmark className="w-4 h-4 text-portal-accent" />
           </div>
-          <h3 className="font-heading text-[15px] font-bold text-portal-text">Bank Details</h3>
+          <h3 className="font-heading text-[15px] font-bold text-portal-text">
+            Bank Details
+          </h3>
         </div>
         {!editing ? (
           <button
@@ -159,7 +158,9 @@ export default function VendorBankDetails({ vendor }: Props) {
               <p className="text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1">
                 Bank
               </p>
-              <p className="text-[13.5px] font-medium text-portal-text">{saved.bankName}</p>
+              <p className="text-[13.5px] font-medium text-portal-text">
+                {saved.bankName}
+              </p>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -174,7 +175,9 @@ export default function VendorBankDetails({ vendor }: Props) {
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-portal-muted mb-1">
                   Account Name
                 </p>
-                <p className="text-[13.5px] font-medium text-portal-text">{saved.accountName}</p>
+                <p className="text-[13.5px] font-medium text-portal-text">
+                  {saved.accountName}
+                </p>
               </div>
             </div>
           </div>
@@ -182,7 +185,9 @@ export default function VendorBankDetails({ vendor }: Props) {
           <div className="flex items-center gap-3 rounded-xl border border-dashed border-portal-border bg-portal-bg px-4 py-4">
             <Landmark className="w-5 h-5 text-portal-muted flex-shrink-0" />
             <p className="text-[13px] text-portal-muted">
-              No bank details added yet. Click <span className="font-medium text-portal-text">Add</span> to set up your payout account.
+              No bank details added yet. Click{" "}
+              <span className="font-medium text-portal-text">Add</span> to set
+              up your payout account.
             </p>
           </div>
         )
@@ -194,12 +199,18 @@ export default function VendorBankDetails({ vendor }: Props) {
             </label>
             <BankSelector
               size="sm"
-              value={watchedBankCode ? { code: watchedBankCode, name: watchedBankName } : null}
+              value={
+                watchedBankCode
+                  ? { code: watchedBankCode, name: watchedBankName }
+                  : null
+              }
               onChange={handleBankChange}
               error={errors.bankCode?.message}
             />
             {errors.bankCode && (
-              <p className="mt-1 text-xs text-red-500">{errors.bankCode.message}</p>
+              <p className="mt-1 text-xs text-red-500">
+                {errors.bankCode.message}
+              </p>
             )}
           </div>
 
@@ -219,7 +230,9 @@ export default function VendorBankDetails({ vendor }: Props) {
                     maxLength={10}
                     placeholder="0123456789"
                     onChange={(e) => {
-                      const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+                      const digits = e.target.value
+                        .replace(/\D/g, "")
+                        .slice(0, 10);
                       field.onChange(digits);
                       setValue("accountName", "");
                     }}
@@ -230,7 +243,11 @@ export default function VendorBankDetails({ vendor }: Props) {
               <button
                 type="button"
                 onClick={handleVerify}
-                disabled={verifying || !watchedBankCode || watchedAccountNumber.length !== 10}
+                disabled={
+                  verifying ||
+                  !watchedBankCode ||
+                  watchedAccountNumber.length !== 10
+                }
                 className="px-3 rounded-lg bg-portal-accent hover:bg-portal-accent2 text-white text-[12px] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 whitespace-nowrap"
               >
                 {verifying ? (
@@ -242,7 +259,9 @@ export default function VendorBankDetails({ vendor }: Props) {
               </button>
             </div>
             {errors.accountNumber && (
-              <p className="mt-1 text-xs text-red-500">{errors.accountNumber.message}</p>
+              <p className="mt-1 text-xs text-red-500">
+                {errors.accountNumber.message}
+              </p>
             )}
           </div>
 
@@ -255,14 +274,16 @@ export default function VendorBankDetails({ vendor }: Props) {
                 <p className="text-[11px] text-green-700 font-medium uppercase tracking-wide">
                   Account Verified
                 </p>
-                <p className="text-[14px] font-semibold text-portal-text">{watchedAccountName}</p>
+                <p className="text-[14px] font-semibold text-portal-text">
+                  {watchedAccountName}
+                </p>
               </div>
             </div>
           ) : (
             <p className="text-[12.5px] text-portal-muted bg-portal-bg rounded-lg border border-portal-border px-3 py-2.5">
               Enter your account number and click{" "}
-              <span className="font-medium text-portal-text">Verify</span> to confirm your
-              account details.
+              <span className="font-medium text-portal-text">Verify</span> to
+              confirm your account details.
             </p>
           )}
 
@@ -271,6 +292,6 @@ export default function VendorBankDetails({ vendor }: Props) {
           )}
         </div>
       )}
-    </motion.div>
+    </div>
   );
 }

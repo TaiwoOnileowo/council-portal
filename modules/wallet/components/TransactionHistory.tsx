@@ -1,23 +1,24 @@
 "use client";
 
-import { useState } from "react";
-import { motion } from "motion/react";
-import { ChevronDown } from "lucide-react";
 import Pagination from "@/components/ui/Pagination";
+import { formatAmount } from "@/lib/format";
 import { useTransactions } from "@/modules/wallet/hooks/useTransactions";
+import {
+  TRANSACTION_TYPE_FILTERS,
+  VENDOR_TRANSACTION_TYPE_FILTERS,
+  transactionTypeConfig,
+} from "@/modules/wallet/wallet.constant";
 import {
   WALLET_TX_PAGE_SIZE,
   type WalletTransaction,
 } from "@/modules/wallet/wallet.types";
 import {
-  TRANSACTION_TYPE_FILTERS,
-  transactionTypeConfig,
-} from "@/modules/wallet/wallet.constant";
-import { formatAmount } from "@/lib/format";
-import {
   formatSignedAmount,
   formatTransactionDate,
 } from "@/modules/wallet/wallet.util";
+import { ChevronDown } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { useState } from "react";
 
 function SkeletonRow() {
   return (
@@ -70,6 +71,12 @@ function TransactionRow({ tx }: { tx: WalletTransaction }) {
 }
 
 export default function TransactionHistory() {
+  const { data: session } = useSession();
+  const isVendor = session?.user?.role === "VENDOR";
+  const filters = isVendor
+    ? VENDOR_TRANSACTION_TYPE_FILTERS
+    : TRANSACTION_TYPE_FILTERS;
+
   const [page, setPage] = useState(0);
   const [type, setType] = useState("all");
 
@@ -82,11 +89,7 @@ export default function TransactionHistory() {
   const hasFilter = type !== "all";
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: "easeOut" }}
-    >
+    <div>
       <div className="flex items-center justify-between gap-3 mb-3.5">
         <h2 className="font-heading text-[17px] font-bold">
           Transaction History
@@ -101,7 +104,7 @@ export default function TransactionHistory() {
             }}
             className="appearance-none bg-portal-surface border border-portal-border rounded-lg text-[12px] text-portal-text pl-3 pr-7 py-1.5 cursor-pointer focus:outline-none focus:border-portal-accent"
           >
-            {TRANSACTION_TYPE_FILTERS.map((f) => (
+            {filters.map((f) => (
               <option key={f.value} value={f.value}>
                 {f.label}
               </option>
@@ -146,6 +149,6 @@ export default function TransactionHistory() {
           className="mt-3.5"
         />
       )}
-    </motion.div>
+    </div>
   );
 }

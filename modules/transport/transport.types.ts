@@ -1,5 +1,5 @@
 import { z } from "zod";
-
+import { MIN_ROUTE_PRICE_NAIRA } from "@/lib/money";
 
 export const priceListBodySchema = z.object({
   name: z
@@ -12,7 +12,13 @@ export const priceListBodySchema = z.object({
       z.object({
         id: z.string().optional(),
         name: z.string().min(1, "Route name is required"),
-        price: z.number().int().min(0, "Price must be 0 or more"),
+        price: z
+          .number()
+          .int()
+          .min(
+            MIN_ROUTE_PRICE_NAIRA,
+            `Price must be at least ₦${MIN_ROUTE_PRICE_NAIRA.toLocaleString("en-NG")}`,
+          ),
         capacity: z
           .number()
           .int()

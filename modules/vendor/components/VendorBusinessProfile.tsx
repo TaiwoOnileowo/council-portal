@@ -1,17 +1,19 @@
 "use client";
 
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { motion } from "motion/react";
-import { Pencil, Check, X, Instagram, Link } from "lucide-react";
-import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
+import ImageUpload from "@/components/ui/ImageUpload";
 import { updateVendorProfile } from "@/lib/actions/vendor.action";
 import { queryKeys } from "@/lib/query-keys";
-import { vendorStep2Schema, VendorStep2Fields } from "@/modules/vendor/vendor.types";
-import ImageUpload from "@/components/ui/ImageUpload";
 import { inputClass } from "@/lib/utils";
+import {
+  VendorStep2Fields,
+  vendorStep2Schema,
+} from "@/modules/vendor/vendor.types";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useQueryClient } from "@tanstack/react-query";
+import { Check, Instagram, Link, Pencil, X } from "lucide-react";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 
 type TransportFields = {
   transportName: string;
@@ -105,12 +107,7 @@ export default function VendorBusinessProfile({ vendor }: Props) {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, delay: 0.22, ease: "easeOut" }}
-      className="bg-portal-surface border border-portal-border rounded-2xl p-6"
-    >
+    <div className="bg-portal-surface border border-portal-border rounded-2xl p-6">
       <div className="flex items-center justify-between mb-5">
         <h3 className="font-heading text-[15px] font-bold text-portal-text">
           Business Profile
@@ -189,7 +186,9 @@ export default function VendorBusinessProfile({ vendor }: Props) {
               />
               <div className="flex justify-between mt-1">
                 {errors.transportName ? (
-                  <p className="text-xs text-red-500">{errors.transportName.message}</p>
+                  <p className="text-xs text-red-500">
+                    {errors.transportName.message}
+                  </p>
                 ) : (
                   <span />
                 )}
@@ -223,7 +222,9 @@ export default function VendorBusinessProfile({ vendor }: Props) {
               />
               <div className="flex justify-between mt-1">
                 {errors.tagline ? (
-                  <p className="text-xs text-red-500">{errors.tagline.message}</p>
+                  <p className="text-xs text-red-500">
+                    {errors.tagline.message}
+                  </p>
                 ) : (
                   <span />
                 )}
@@ -259,7 +260,9 @@ export default function VendorBusinessProfile({ vendor }: Props) {
               />
               <div className="flex justify-between mt-1">
                 {errors.description ? (
-                  <p className="text-xs text-red-500">{errors.description.message}</p>
+                  <p className="text-xs text-red-500">
+                    {errors.description.message}
+                  </p>
                 ) : (
                   <span />
                 )}
@@ -356,6 +359,6 @@ export default function VendorBusinessProfile({ vendor }: Props) {
           )}
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }

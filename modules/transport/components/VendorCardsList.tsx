@@ -71,12 +71,7 @@ export default function VendorCardsList({
 
   return (
     <>
-      <motion.div
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.21, ease: "easeOut" }}
-        className="mb-7"
-      >
+      <div className="mb-7">
         <div className="flex items-center justify-between mb-3.5">
           <h2 className="font-heading text-[17px] font-bold">All Vendors</h2>
         </div>
@@ -129,7 +124,7 @@ export default function VendorCardsList({
             );
           })}
         </div>
-      </motion.div>
+      </div>
 
       {detailVendor && (
         <VendorDetailPopup

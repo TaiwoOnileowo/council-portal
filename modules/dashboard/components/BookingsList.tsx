@@ -1,22 +1,21 @@
 "use client";
 
-import { useState } from "react";
-import { motion } from "motion/react";
-import { ChevronDown, ChevronRight, Search, X } from "lucide-react";
-import { useBookings } from "@/modules/transport/hooks/useBookings";
-import {
-  STUDENT_BOOKINGS_PAGE_SIZE,
-  type StudentBooking,
-} from "@/modules/transport/transport.types";
-import { useDebouncedValue } from "@/hooks/useDebouncedValue";
-import BookingDetailModal from "@/modules/dashboard/components/BookingDetailModal";
 import Pagination from "@/components/ui/Pagination";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { formatAmount } from "@/lib/format";
+import BookingDetailModal from "@/modules/dashboard/components/BookingDetailModal";
 import { bookingStatusConfig } from "@/modules/dashboard/dashboard.constant";
 import {
   formatBookingDate,
   formatDeparture,
 } from "@/modules/dashboard/dashboard.util";
-import { formatAmount } from "@/lib/format";
+import { useBookings } from "@/modules/transport/hooks/useBookings";
+import {
+  STUDENT_BOOKINGS_PAGE_SIZE,
+  type StudentBooking,
+} from "@/modules/transport/transport.types";
+import { ChevronDown, ChevronRight, Search, X } from "lucide-react";
+import { useState } from "react";
 
 function SkeletonRow() {
   return (
@@ -57,11 +56,7 @@ export default function BookingsList() {
 
   return (
     <>
-      <motion.div
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
-      >
+      <div>
         <div className="flex items-center justify-between mb-3.5">
           <h2 className="font-heading text-[17px] font-bold">My Bookings</h2>
         </div>
@@ -195,7 +190,7 @@ export default function BookingsList() {
             className="mt-3.5"
           />
         )}
-      </motion.div>
+      </div>
 
       <BookingDetailModal
         booking={selected}

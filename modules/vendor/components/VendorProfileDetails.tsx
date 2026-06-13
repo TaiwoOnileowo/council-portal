@@ -80,12 +80,7 @@ export default function VendorProfileDetails({ vendor }: Props) {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, delay: 0.14, ease: "easeOut" }}
-      className="bg-portal-surface border border-portal-border rounded-2xl p-6"
-    >
+    <div className="bg-portal-surface border border-portal-border rounded-2xl p-6">
       <div className="flex items-center justify-between mb-5">
         <h3 className="font-heading text-[15px] font-bold text-portal-text">
           Personal Information
@@ -241,6 +236,6 @@ export default function VendorProfileDetails({ vendor }: Props) {
           </div>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }

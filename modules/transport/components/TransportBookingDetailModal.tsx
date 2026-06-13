@@ -1,16 +1,9 @@
 "use client";
 
-import {
-  MapPin,
-  Phone,
-  Home,
-  Calendar,
-  Clock,
-  MessageSquare,
-} from "lucide-react";
-import { format } from "date-fns";
 import Modal from "@/components/ui/Modal";
 import type { TransportBooking } from "@/modules/transport/transport.types";
+import { format } from "date-fns";
+import { MessageSquare } from "lucide-react";
 
 type Props = {
   booking: TransportBooking | null;
@@ -18,7 +11,7 @@ type Props = {
   onClose: () => void;
 };
 
-function Row({ label, value }: { label: string; value: React.ReactNode }) {
+function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-start justify-between gap-4 py-3 border-b border-portal-border last:border-b-0">
       <span className="text-[12.5px] text-portal-muted flex-shrink-0">
@@ -48,58 +41,16 @@ export default function TransportBookingDetailModal({
     >
       <div className="px-5 py-4 space-y-4">
         <div className="bg-portal-bg rounded-xl border border-portal-border px-4">
-          <Row
-            label="Name"
-            value={
-              <span className="font-semibold">{booking.passengerName}</span>
-            }
-          />
-          <Row
-            label="Phone"
-            value={
-              <a
-                href={`tel:${booking.passengerPhone}`}
-                className="inline-flex items-center gap-1.5 text-portal-accent hover:underline"
-              >
-                <Phone className="w-3.5 h-3.5 flex-shrink-0" />
-                {booking.passengerPhone}
-              </a>
-            }
-          />
-          <Row
-            label="Guardian phone"
-            value={
-              <a
-                href={`tel:${booking.parentsPhone}`}
-                className="inline-flex items-center gap-1.5 text-portal-accent hover:underline"
-              >
-                <Phone className="w-3.5 h-3.5 flex-shrink-0" />
-                {booking.parentsPhone}
-              </a>
-            }
-          />
-          <Row
-            label="Hall"
-            value={
-              <span className="inline-flex items-center gap-1.5">
-                <Home className="w-3.5 h-3.5 text-portal-muted flex-shrink-0" />
-                {booking.hall}
-              </span>
-            }
-          />
+          <Row label="Name" value={booking.passengerName} />
+          <Row label="Phone" value={booking.passengerPhone} />
+          <Row label="Guardian phone" value={booking.parentsPhone} />
+
+          <Row label="Hall" value={booking.hall} />
           <Row label="Room" value={booking.roomNumber} />
         </div>
 
         <div className="bg-portal-bg rounded-xl border border-portal-border px-4">
-          <Row
-            label="Route"
-            value={
-              <span className="inline-flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5 text-portal-muted flex-shrink-0" />
-                {booking.routeName}
-              </span>
-            }
-          />
+          <Row label="Route" value={booking.routeName} />
           <Row
             label="Direction"
             value={
@@ -114,36 +65,20 @@ export default function TransportBookingDetailModal({
                 ? "Drop-off address"
                 : "Pickup address"
             }
-            value={
-              booking.destinationAddress ? (
-                <span className="inline-flex items-start gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-portal-muted flex-shrink-0 mt-0.5" />
-                  {booking.destinationAddress}
-                </span>
-              ) : (
-                <span className="text-portal-muted">—</span>
-              )
-            }
+            value={booking.destinationAddress ?? "-"}
           />
           {booking.departureAt && (
             <Row
               label="Departure"
-              value={
-                <span className="inline-flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-portal-muted flex-shrink-0" />
-                  {format(new Date(booking.departureAt), "EEE d MMM · h:mm a")}
-                </span>
-              }
+              value={format(
+                new Date(booking.departureAt),
+                "EEE d MMM · h:mm a",
+              )}
             />
           )}
           <Row
             label="Booked on"
-            value={
-              <span className="inline-flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-portal-muted flex-shrink-0" />
-                {format(new Date(booking.createdAt), "MMM d, yyyy")}
-              </span>
-            }
+            value={format(new Date(booking.createdAt), "MMM d, yyyy")}
           />
         </div>
 

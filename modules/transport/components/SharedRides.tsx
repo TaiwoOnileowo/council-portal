@@ -1,7 +1,7 @@
 "use client";
 
+import { Armchair, ArrowRight } from "lucide-react";
 import { motion } from "motion/react";
-import { ArrowRight, Armchair } from "lucide-react";
 
 const rides = [
   {
@@ -32,12 +32,7 @@ const rides = [
 
 export default function SharedRides() {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: 0.28, ease: "easeOut" }}
-      className="mb-7"
-    >
+    <div className="mb-7">
       <div className="flex items-center justify-between mb-3.5">
         <h2 className="font-heading text-[17px] font-bold">
           Available Shared Rides
@@ -87,6 +82,6 @@ export default function SharedRides() {
           </motion.div>
         ))}
       </div>
-    </motion.div>
+    </div>
   );
 }
