@@ -3,7 +3,8 @@
 import { auth, signIn, signOut } from "@/auth";
 import { Level } from "@/generated/prisma/enums";
 import { db } from "@/lib/db";
-import { hashPassword } from "@/lib/password";
+import { hashPassword, verifyPassword } from "@/lib/password";
+import type { AuthMode } from "@/modules/auth/auth.constant";
 import {
   credentialsSchema,
   signUpSchema,
@@ -199,7 +200,8 @@ export async function updateProfile({
     return { error: parsed.error.issues[0].message };
   }
 
-  const { firstName, lastName, email, phone, matricNumber, department, level } = parsed.data;
+  const { firstName, lastName, email, phone, matricNumber, department, level } =
+    parsed.data;
   const dbLevel = `L${level}` as Level;
 
   try {
@@ -229,6 +231,85 @@ export async function updateProfile({
   }
 }
 
-export async function signOutUser() {
-  await signOut();
+export async function signOutUser(redirectTo = "/gate") {
+  await signOut({ redirectTo });
+}
+
+export type GateSignInResult =
+  | { success: true; isAdmin: boolean; role: string }
+  | { error: string; redirectTo?: string; redirectLabel?: string };
+
+export async function signInUser({
+  email,
+  password,
+  mode,
+}: {
+  email: string;
+  password: string;
+  mode: AuthMode;
+}): Promise<GateSignInResult> {
+  const parsed = credentialsSchema.safeParse({ email, password });
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+  const user = await db.user.findUnique({
+    where: { email: parsed.data.email },
+    include: { admin_profile: true },
+  });
+
+  if (!user || !user.password_hash)
+    return { error: "Invalid email or password" };
+
+  const isValid = await verifyPassword(
+    parsed.data.password,
+    user.password_hash,
+  );
+  if (!isValid) return { error: "Invalid email or password" };
+
+  const isAdmin = !!user.admin_profile;
+
+  if (mode === "student" && user.role === "VENDOR") {
+    return {
+      error: "This email is registered as a vendor account.",
+      redirectTo: "/vendor-gate",
+      redirectLabel: "Log in at Vendor Portal",
+    };
+  }
+
+  if (mode === "vendor" && user.role !== "VENDOR") {
+    return {
+      error: "No vendor account found for this email.",
+      redirectTo: isAdmin ? "/admin-gate" : "/gate",
+      redirectLabel: isAdmin
+        ? "Log in at Admin Portal"
+        : "Log in at Student Portal",
+    };
+  }
+
+  if (mode === "admin" && !isAdmin) {
+    return {
+      error: "This account doesn't have admin access.",
+      redirectTo: user.role === "VENDOR" ? "/vendor-gate" : "/gate",
+      redirectLabel:
+        user.role === "VENDOR"
+          ? "Log in at Vendor Portal"
+          : "Log in at Student Portal",
+    };
+  }
+
+  try {
+    await signIn("credentials", {
+      email: parsed.data.email,
+      password: parsed.data.password,
+      redirect: false,
+    });
+    return { success: true, isAdmin, role: user.role };
+  } catch (error: unknown) {
+    if (error instanceof CallbackRouteError) {
+      const cause = error.cause?.err;
+      const message =
+        cause instanceof Error ? cause.message : "Invalid credentials";
+      return { error: message };
+    }
+    return { error: "Something went wrong. Please try again." };
+  }
 }

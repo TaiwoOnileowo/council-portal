@@ -30,7 +30,7 @@ export const VENDOR_SIGNUP_STEP_2_FIELDS = [
   "tiktok",
   "instagram",
 ] as const;
-export type AuthMode = "student" | "vendor";
+export type AuthMode = "student" | "vendor" | "admin";
 
 export const AUTH_MODE: Record<
   AuthMode,
@@ -45,5 +45,10 @@ export const AUTH_MODE: Record<
     emailPlaceholder: "yourname@vendor.council.ng",
     redirect: "/vendor-dashboard",
     gate: "/vendor-gate",
+  },
+  admin: {
+    emailPlaceholder: "admin@council.ng",
+    redirect: "/admin",
+    gate: "/admin-gate",
   },
 };

@@ -4,65 +4,14 @@ import { useQueryClient } from "@tanstack/react-query";
 import { signOutUser } from "@/lib/actions/user.action";
 import { useCurrentUser } from "@/modules/auth/hooks/useCurrentUser";
 import { cn } from "@/lib/utils";
-import { Bus, Home, LogOut, Menu, User, Wallet, X } from "lucide-react";
+import { SIDEBAR_CONFIG } from "@/lib/sidebar.constant";
+import type { SidebarNavGroup, SidebarVariant } from "@/lib/sidebar.constant";
+import { LogOut, Menu, X } from "lucide-react";
 import { motion } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-
-interface SidebarNavItem {
-  label: string;
-  icon: React.ElementType;
-  href: string;
-  badge?: string | number | null;
-}
-
-interface SidebarNavGroup {
-  label: string;
-  items: SidebarNavItem[];
-}
-
-export type SidebarVariant = "student" | "vendor";
-
-const SIDEBAR_CONFIG: Record<
-  SidebarVariant,
-  { subtitle: string; navGroups: SidebarNavGroup[] }
-> = {
-  student: {
-    subtitle: "Student Portal",
-    navGroups: [
-      { label: "Menu", items: [{ label: "Home", icon: Home, href: "/" }] },
-      {
-        label: "Services",
-        items: [{ label: "Transport", icon: Bus, href: "/transport" }],
-      },
-      {
-        label: "Account",
-        items: [
-          { label: "Profile", icon: User, href: "/profile" },
-          { label: "Wallet", icon: Wallet, href: "/wallet" },
-        ],
-      },
-    ],
-  },
-  vendor: {
-    subtitle: "Vendor Portal",
-    navGroups: [
-      {
-        label: "Menu",
-        items: [{ label: "Home", icon: Home, href: "/vendor-dashboard" }],
-      },
-      {
-        label: "Account",
-        items: [
-          { label: "Profile", icon: User, href: "/vendor-dashboard/profile" },
-          { label: "Earnings", icon: Wallet, href: "/vendor-dashboard/wallet" },
-        ],
-      },
-    ],
-  },
-};
 
 interface SidebarProps {
   variant: SidebarVariant;
@@ -80,7 +29,9 @@ function NavGroup({ label, items, pathname }: NavGroupProps) {
       </p>
       <div className="space-y-0.5">
         {items.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive =
+            pathname === item.href ||
+            (!!item.matchPrefix && pathname.startsWith(item.href + "/"));
           const Icon = item.icon;
           return (
             <Link
@@ -122,7 +73,7 @@ function NavGroup({ label, items, pathname }: NavGroupProps) {
 }
 
 export default function Sidebar({ variant }: SidebarProps) {
-  const { subtitle, navGroups } = SIDEBAR_CONFIG[variant];
+  const config = SIDEBAR_CONFIG[variant];
   const { data: user } = useCurrentUser();
   const queryClient = useQueryClient();
   const pathname = usePathname();
@@ -136,10 +87,10 @@ export default function Sidebar({ variant }: SidebarProps) {
 
   async function handleLogout() {
     queryClient.clear();
-    await signOutUser();
+    await signOutUser(config.auth);
   }
 
-  const displayName = user?.fullName ?? (user?.student ? "Student" : "Vendor");
+  const displayName = user?.fullName ?? "User";
   const secondaryLine = user?.student
     ? `${user.student.matricNumber} · ${user.student.level}L`
     : (user?.email ?? "");
@@ -202,12 +153,14 @@ export default function Sidebar({ variant }: SidebarProps) {
               <div className="font-heading text-sm font-bold leading-tight text-portal-text">
                 CU Student Council
               </div>
-              <div className="text-[11px] text-portal-muted">{subtitle}</div>
+              <div className="text-[11px] text-portal-muted">
+                {config.subtitle}
+              </div>
             </div>
           </div>
 
           <nav className="flex-1 overflow-y-auto">
-            {navGroups.map((group) => (
+            {config.navGroups.map((group) => (
               <NavGroup
                 key={group.label}
                 label={group.label}
@@ -219,7 +172,7 @@ export default function Sidebar({ variant }: SidebarProps) {
         </div>
 
         <div className="mt-auto border-t border-portal-border px-4 py-4">
-          <div className="flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl bg-portal-accent-bg/50 hover:bg-portal-accent-bg/502 transition-colors">
+          <div className="flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl bg-portal-accent-bg/50 hover:bg-portal-bg2 transition-colors">
             {user?.image ? (
               <Image
                 src={user.image}

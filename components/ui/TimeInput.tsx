@@ -40,7 +40,7 @@ export default function TimeInput({
           className={`px-2 py-1.5 text-[12px] font-semibold transition-colors ${
             !isPM
               ? "bg-portal-accent text-white"
-              : "bg-portal-accent-bg/50 text-portal-muted hover:bg-portal-accent-bg/502"
+              : "bg-portal-accent-bg/50 text-portal-muted hover:bg-portal-bg2"
           }`}
         >
           AM
@@ -51,7 +51,7 @@ export default function TimeInput({
           className={`px-2 py-1.5 text-[12px] font-semibold transition-colors ${
             isPM
               ? "bg-portal-accent text-white"
-              : "bg-portal-accent-bg/50 text-portal-muted hover:bg-portal-accent-bg/502"
+              : "bg-portal-accent-bg/50 text-portal-muted hover:bg-portal-bg2"
           }`}
         >
           PM

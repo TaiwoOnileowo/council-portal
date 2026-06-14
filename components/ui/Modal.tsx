@@ -64,7 +64,7 @@ export default function Modal({
               </div>
               <button
                 onClick={onClose}
-                className="w-8 h-8 rounded-lg bg-portal-accent-bg/50 border border-portal-border flex items-center justify-center hover:bg-portal-accent-bg/502 transition-colors flex-shrink-0 ml-3"
+                className="w-8 h-8 rounded-lg bg-portal-accent-bg/50 border border-portal-border flex items-center justify-center hover:bg-portal-bg2 transition-colors flex-shrink-0 ml-3"
               >
                 <X className="w-4 h-4" />
               </button>

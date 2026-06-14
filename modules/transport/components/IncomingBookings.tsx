@@ -61,7 +61,7 @@ export default function IncomingBookings() {
           </button>
         </div>
 
-        <div className="flex items-center gap-1 bg-portal-accent-bg/502 rounded-xl p-1 mb-3 print:hidden">
+        <div className="flex items-center gap-1 bg-portal-bg2 rounded-xl p-1 mb-3 print:hidden">
           {(["upcoming", "past"] as Tab[]).map((t) => (
             <button
               key={t}

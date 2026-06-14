@@ -60,8 +60,15 @@ model user {
   updated_at      DateTime         @updatedAt
   student_profile student_profile?
   vendor_profile  vendor_profile?
+  admin_profile   admin_profile?
   wallet          wallet[] // append-only ledger entries
   bookings        booking[] // as passenger
+}
+
+model admin_profile {
+  user_id    String   @id
+  user       user     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  created_at DateTime @default(now())
 }
 
 model student_profile {

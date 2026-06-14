@@ -16,6 +16,7 @@ declare module "next-auth" {
       email: string;
       image: string | null | undefined;
       role: Role;
+      isAdmin: boolean;
     };
   }
   interface User {
@@ -26,6 +27,7 @@ declare module "next-auth" {
     email?: string | null;
     image?: string | null;
     role?: Role;
+    isAdmin?: boolean;
   }
 }
 
@@ -42,7 +44,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           const { email, password } =
             await credentialsSchema.parseAsync(credentials);
 
-          const user = await db.user.findUnique({ where: { email } });
+          const user = await db.user.findUnique({
+            where: { email },
+            include: { admin_profile: true },
+          });
 
           if (!user || !user.password_hash) {
             throw new Error("Invalid email or password");
@@ -62,6 +67,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             email: user.email,
             image: user.image,
             role: user.role,
+            isAdmin: !!user.admin_profile,
           };
         } catch (error) {
           if (error instanceof ZodError) {
@@ -79,6 +85,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.role = user.role;
         token.firstName = user.firstName;
         token.lastName = user.lastName;
+        token.isAdmin = user.isAdmin ?? false;
       }
       return token;
     },
@@ -87,6 +94,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.user.role = token.role as Role;
       session.user.firstName = token.firstName as string;
       session.user.lastName = token.lastName as string;
+      session.user.isAdmin = token.isAdmin as boolean;
       return session;
     },
   },

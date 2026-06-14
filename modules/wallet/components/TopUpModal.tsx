@@ -77,7 +77,9 @@ export default function TopUpModal({
         paymentStatusRef.current = "idle";
         return;
       }
-      queryClient.invalidateQueries({ queryKey: queryKeys.wallet.all(currentUser?.id ?? "") });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.wallet.all(currentUser?.id ?? ""),
+      });
       setStep("success");
       paymentStatusRef.current = "idle";
 
@@ -257,7 +259,7 @@ export default function TopUpModal({
                     className={`py-2 rounded-xl text-[13px] font-semibold border transition-all ${
                       amountNaira === amount
                         ? "bg-portal-accent text-white border-portal-accent"
-                        : "bg-portal-accent-bg/50 text-portal-text2 border-portal-border hover:border-portal-accent-border hover:bg-portal-accent-bg/502"
+                        : "bg-portal-accent-bg/50 text-portal-text2 border-portal-border hover:border-portal-accent-border hover:bg-portal-bg2"
                     }`}
                   >
                     ₦{amount.toLocaleString("en-NG")}
@@ -361,7 +363,7 @@ export default function TopUpModal({
                     setStep("enter-amount");
                     setAmountInput("");
                   }}
-                  className="flex-1 py-2.5 bg-portal-accent-bg/50 border border-portal-border text-portal-text2 rounded-xl text-[13px] font-semibold hover:bg-portal-accent-bg/502 transition-colors flex items-center justify-center gap-2"
+                  className="flex-1 py-2.5 bg-portal-accent-bg/50 border border-portal-border text-portal-text2 rounded-xl text-[13px] font-semibold hover:bg-portal-bg2 transition-colors flex items-center justify-center gap-2"
                 >
                   <Wallet className="w-4 h-4" />
                   Top Up Again

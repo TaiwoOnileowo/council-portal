@@ -119,7 +119,7 @@ export default function VendorDetailPopup({
 
               <button
                 onClick={onClose}
-                className="w-8 h-8 rounded-full bg-portal-accent-bg/50 border border-portal-border flex items-center justify-center hover:bg-portal-accent-bg/502 transition-colors flex-shrink-0 mt-0.5"
+                className="w-8 h-8 rounded-full bg-portal-accent-bg/50 border border-portal-border flex items-center justify-center hover:bg-portal-bg2 transition-colors flex-shrink-0 mt-0.5"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -134,7 +134,10 @@ export default function VendorDetailPopup({
 
               <div className="flex flex-wrap gap-2">
                 <button
-                  onClick={(e) => { e.stopPropagation(); copyPhone(); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    copyPhone();
+                  }}
                   className="flex items-center gap-1.5 text-xs text-portal-text2 bg-portal-accent-bg/50 border border-portal-border px-3 py-1.5 rounded-lg hover:border-portal-accent-border transition-colors"
                 >
                   <Phone className="w-3.5 h-3.5 text-portal-muted" />
@@ -245,7 +248,7 @@ export default function VendorDetailPopup({
                         activeList.routes.map((route) => (
                           <div
                             key={route.id}
-                            className="flex items-center gap-3 px-3.5 py-3 bg-portal-accent-bg/50 rounded-xl hover:bg-portal-accent-bg/502 transition-colors"
+                            className="flex items-center gap-3 px-3.5 py-3 bg-portal-accent-bg/50 rounded-xl hover:bg-portal-bg2 transition-colors"
                           >
                             <MapPin className="w-4 h-4 text-portal-muted flex-shrink-0" />
                             <div className="flex-1 min-w-0">

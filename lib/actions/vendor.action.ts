@@ -3,7 +3,7 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
-import { isApprovedVendor } from "@/modules/vendor/vendor.constants";
+import { isApprovedVendor } from "@/modules/vendor/vendor.constant";
 import { signInWithCredentials } from "@/lib/actions/user.action";
 import {
   vendorSignUpSchema,

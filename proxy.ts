@@ -1,50 +1,7 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import type { Session } from "next-auth";
-
-type PublicRoute = {
-  // Matches the request pathname.
-  pattern: RegExp;
-  // Human-readable note on why this route bypasses the session gate.
-  description: string;
-  // Optional gate: runs only when a route needs a session-aware decision.
-  // Return a path to redirect to, or null/undefined to let the request through.
-  resolve?: (session: Session | null) => string | null | undefined;
-};
-
-const PUBLIC_ROUTES: PublicRoute[] = [
-  {
-    pattern: /^\/api\/auth(\/.*)?$/,
-    description: "NextAuth internals — always allowed",
-  },
-  {
-    pattern: /^\/api\/webhook(\/.*)?$/,
-    description:
-      "Inbound webhooks (e.g. flutterwave) — auth handled in handler",
-  },
-  {
-    pattern: /^\/api\/uploadthing(\/.*)?$/,
-    description: "UploadThing upload endpoint — auth handled in handler",
-  },
-  {
-    pattern: /^\/new-keys(\/.*)?$/,
-    description: "Password reset — user is unauthenticated by definition",
-  },
-  {
-    pattern: /^\/gate(\/.*)?$/,
-    description: "Login gate — bounce authenticated non-vendors home",
-    resolve: (session) =>
-      session && session.user.role !== "VENDOR" ? "/" : null,
-  },
-  {
-    pattern: /^\/vendor-gate(\/.*)?$/,
-    description:
-      "Vendor login gate — bounce authenticated vendors to dashboard",
-    resolve: (session) =>
-      session && session.user.role === "VENDOR" ? "/vendor-dashboard" : null,
-  },
-];
+import { PUBLIC_ROUTES } from "@/lib/proxy.constant";
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -63,7 +20,6 @@ export async function proxy(req: NextRequest) {
       : NextResponse.next();
   }
 
-  // Every other route requires a session
   const session = await auth();
 
   if (!session) {

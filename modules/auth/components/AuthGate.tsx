@@ -11,15 +11,14 @@ import VendorSignUpForm from "./VendorSignUpForm";
 type View = "login" | "signup" | "forgot";
 
 interface ModeConfig {
-  signupTabLabel: string;
   headings: Record<View, string>;
   subtitles?: Partial<Record<View, string>>;
-  Signup: React.ComponentType;
+  Signup?: React.ComponentType;
+  loginOnly?: boolean;
 }
 
 const CONFIG: Record<AuthMode, ModeConfig> = {
   student: {
-    signupTabLabel: "Create account",
     headings: {
       login: "Your keys please...",
       signup: "New face at the gate?",
@@ -28,7 +27,6 @@ const CONFIG: Record<AuthMode, ModeConfig> = {
     Signup: SignUpForm,
   },
   vendor: {
-    signupTabLabel: "Sign up",
     headings: {
       login: "Welcome back",
       signup: "Join as a vendor",
@@ -40,13 +38,23 @@ const CONFIG: Record<AuthMode, ModeConfig> = {
     },
     Signup: VendorSignUpForm,
   },
+  admin: {
+    loginOnly: true,
+    headings: {
+      login: "Admin access",
+      signup: "",
+      forgot: "Forgot your password?",
+    },
+    subtitles: {
+      login: "Your keys please...",
+    },
+  },
 };
 
 export default function AuthGate({ mode }: { mode: AuthMode }) {
   const [view, setView] = useState<View>("login");
   const cfg = CONFIG[mode];
   const subtitle = cfg.subtitles?.[view];
-  const Signup = cfg.Signup;
 
   return (
     <>
@@ -68,18 +76,22 @@ export default function AuthGate({ mode }: { mode: AuthMode }) {
 
       {view !== "forgot" ? (
         <AuthTabs
-          tabs={[
-            {
-              label: "Log in",
-              active: view === "login",
-              onClick: () => setView("login"),
-            },
-            {
-              label: cfg.signupTabLabel,
-              active: view === "signup",
-              onClick: () => setView("signup"),
-            },
-          ]}
+          tabs={
+            cfg.loginOnly
+              ? [{ label: "Log in", active: true }]
+              : [
+                  {
+                    label: "Log in",
+                    active: view === "login",
+                    onClick: () => setView("login"),
+                  },
+                  {
+                    label: "Sign up",
+                    active: view === "signup",
+                    onClick: () => setView("signup"),
+                  },
+                ]
+          }
         />
       ) : (
         <AuthTabs tabs={[{ label: "Forgot password", active: true }]} />
@@ -88,7 +100,7 @@ export default function AuthGate({ mode }: { mode: AuthMode }) {
       {view === "login" && (
         <AuthLoginForm mode={mode} onForgotPassword={() => setView("forgot")} />
       )}
-      {view === "signup" && <Signup />}
+      {view === "signup" && cfg.Signup && <cfg.Signup />}
       {view === "forgot" && (
         <ForgotPasswordForm
           isVendor={mode === "vendor"}

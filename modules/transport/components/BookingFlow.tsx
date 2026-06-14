@@ -232,8 +232,12 @@ export default function BookingFlow({
         return;
       }
 
-      queryClient.invalidateQueries({ queryKey: queryKeys.wallet.all(user.id) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.bookings.all(user.id) });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.wallet.all(user.id),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.bookings.all(user.id),
+      });
       setBookingRef(result.reference);
       setStep("success");
     } catch {
@@ -273,7 +277,7 @@ export default function BookingFlow({
               {STEP_BACK[step] && !isProcessing && (
                 <button
                   onClick={() => setStep(STEP_BACK[step]!)}
-                  className="w-8 h-8 rounded-lg bg-portal-accent-bg/50 border border-portal-border flex items-center justify-center hover:bg-portal-accent-bg/502 transition-colors"
+                  className="w-8 h-8 rounded-lg bg-portal-accent-bg/50 border border-portal-border flex items-center justify-center hover:bg-portal-bg2 transition-colors"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
@@ -289,7 +293,7 @@ export default function BookingFlow({
               {!isProcessing && (
                 <button
                   onClick={handleClose}
-                  className="w-8 h-8 rounded-lg bg-portal-accent-bg/50 border border-portal-border flex items-center justify-center hover:bg-portal-accent-bg/502 transition-colors flex-shrink-0"
+                  className="w-8 h-8 rounded-lg bg-portal-accent-bg/50 border border-portal-border flex items-center justify-center hover:bg-portal-bg2 transition-colors flex-shrink-0"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -328,7 +332,7 @@ export default function BookingFlow({
                         <button
                           key={route.id}
                           onClick={() => handleSelectRoute(route)}
-                          className="w-full flex items-center gap-3 px-3.5 py-3 bg-portal-accent-bg/50 rounded-xl hover:bg-portal-accent-bg/502 hover:border-portal-accent-border border border-transparent transition-all text-left"
+                          className="w-full flex items-center gap-3 px-3.5 py-3 bg-portal-accent-bg/50 rounded-xl hover:bg-portal-bg2 hover:border-portal-accent-border border border-transparent transition-all text-left"
                         >
                           <div className="w-9 h-9 rounded-lg bg-portal-accent-bg flex items-center justify-center flex-shrink-0">
                             <MapPin className="w-4 h-4 text-portal-accent" />
@@ -811,7 +815,7 @@ export default function BookingFlow({
                     <div className="flex gap-3">
                       <button
                         onClick={handleClose}
-                        className="flex-1 py-2.5 bg-portal-accent-bg/50 border border-portal-border text-portal-text2 rounded-xl text-[13px] font-semibold hover:bg-portal-accent-bg/502 transition-colors"
+                        className="flex-1 py-2.5 bg-portal-accent-bg/50 border border-portal-border text-portal-text2 rounded-xl text-[13px] font-semibold hover:bg-portal-bg2 transition-colors"
                       >
                         Back to Vendors
                       </button>

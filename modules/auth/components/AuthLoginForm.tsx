@@ -6,10 +6,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff } from "lucide-react";
-import { signInWithCredentials } from "@/lib/actions/user.action";
+import { ArrowRight, Eye, EyeOff } from "lucide-react";
+import Link from "next/link";
+import { signInUser } from "@/lib/actions/user.action";
 import { credentialsSchema, CredentialsInput } from "@/modules/auth/auth.types";
-import { AUTH_MODE, type AuthMode } from "@/modules/auth/auth.constant";
+import { type AuthMode } from "@/modules/auth/auth.constant";
 
 export type { AuthMode };
 
@@ -18,6 +19,8 @@ interface AuthLoginFormProps {
   onForgotPassword?: () => void;
 }
 
+type WrongGate = { message: string; to: string; label: string };
+
 export default function AuthLoginForm({
   mode,
   onForgotPassword,
@@ -25,6 +28,7 @@ export default function AuthLoginForm({
   const router = useRouter();
   const queryClient = useQueryClient();
   const [showPassword, setShowPassword] = useState(false);
+  const [wrongGate, setWrongGate] = useState<WrongGate | null>(null);
 
   const {
     register,
@@ -36,19 +40,35 @@ export default function AuthLoginForm({
   });
 
   async function onSubmit(data: CredentialsInput) {
-    const result = await signInWithCredentials({
+    setWrongGate(null);
+
+    const result = await signInUser({
       email: data.email,
       password: data.password,
+      mode,
     });
 
-    if (result?.error) {
-      toast.error(result.error);
-      setError("root", { message: result.error });
+    if ("error" in result) {
+      if (result.redirectTo) {
+        setWrongGate({
+          message: result.error,
+          to: result.redirectTo,
+          label: result.redirectLabel!,
+        });
+      } else {
+        toast.error(result.error);
+        setError("root", { message: result.error });
+      }
       return;
     }
+
     queryClient.clear();
     toast.success("Logged in successfully");
-    router.push(AUTH_MODE[mode].redirect);
+
+    if (result.isAdmin) router.push("/admin");
+    else if (result.role === "VENDOR") router.push("/vendor-dashboard");
+    else router.push("/");
+
     router.refresh();
   }
 
@@ -61,7 +81,6 @@ export default function AuthLoginForm({
         <input
           type="email"
           {...register("email")}
-          placeholder={AUTH_MODE[mode].emailPlaceholder}
           autoComplete="email"
           className="w-full rounded-lg border border-portal-border bg-white px-4 py-3 text-[15px] text-portal-text placeholder:text-portal-muted outline-none focus:border-portal-accent focus:ring-1 focus:ring-portal-accent transition"
         />
@@ -95,7 +114,20 @@ export default function AuthLoginForm({
         )}
       </div>
 
-      {errors.root?.message && (
+      {wrongGate && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+          <p className="text-sm text-amber-800">{wrongGate.message}</p>
+          <Link
+            href={wrongGate.to}
+            className="mt-1.5 inline-flex items-center gap-1 text-sm font-semibold text-portal-accent hover:underline"
+          >
+            {wrongGate.label}
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+      )}
+
+      {errors.root?.message && !wrongGate && (
         <p className="rounded-lg bg-red-50 border border-red-200 px-4 py-2.5 text-sm text-red-600">
           {errors.root.message}
         </p>
@@ -109,15 +141,17 @@ export default function AuthLoginForm({
         {isSubmitting ? "Logging in..." : "Log in"}
       </button>
 
-      <p className="text-center">
-        <button
-          type="button"
-          onClick={onForgotPassword}
-          className="text-sm text-portal-text2 hover:text-portal-accent transition-colors"
-        >
-          I forgot my password
-        </button>
-      </p>
+      {onForgotPassword && (
+        <p className="text-center">
+          <button
+            type="button"
+            onClick={onForgotPassword}
+            className="text-sm text-portal-text2 hover:text-portal-accent transition-colors"
+          >
+            I forgot my password
+          </button>
+        </p>
+      )}
     </form>
   );
 }
