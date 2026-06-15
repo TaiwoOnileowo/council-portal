@@ -65,8 +65,8 @@ export default function AuthLoginForm({
     queryClient.clear();
     toast.success("Logged in successfully");
 
-    if (result.isAdmin) router.push("/admin");
-    else if (result.role === "VENDOR") router.push("/vendor-dashboard");
+    if (mode === "admin") router.push("/admin");
+    else if (mode === "vendor") router.push("/vendor-dashboard");
     else router.push("/");
 
     router.refresh();

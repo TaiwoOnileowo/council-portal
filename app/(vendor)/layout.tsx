@@ -8,7 +8,7 @@ export default async function VendorLayout({
   children: React.ReactNode;
 }) {
   const session = await auth();
-  if (session?.user?.role !== "VENDOR") redirect("/vendor-gate");
+  if (session?.user?.scope !== "vendor") redirect("/vendor-gate");
 
   return (
     <div className="flex min-h-screen bg-portal-accent-bg/50">

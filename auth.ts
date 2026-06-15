@@ -17,6 +17,7 @@ declare module "next-auth" {
       image: string | null | undefined;
       role: Role;
       isAdmin: boolean;
+      scope: string;
     };
   }
   interface User {
@@ -28,6 +29,7 @@ declare module "next-auth" {
     image?: string | null;
     role?: Role;
     isAdmin?: boolean;
+    scope?: string;
   }
 }
 
@@ -38,11 +40,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       credentials: {
         email: {},
         password: {},
+        mode: {},
       },
       authorize: async (credentials) => {
         try {
           const { email, password } =
             await credentialsSchema.parseAsync(credentials);
+          const scope = (credentials?.mode as string) || "student";
 
           const user = await db.user.findUnique({
             where: { email },
@@ -68,6 +72,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             image: user.image,
             role: user.role,
             isAdmin: !!user.admin_profile,
+            scope,
           };
         } catch (error) {
           if (error instanceof ZodError) {
@@ -86,6 +91,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.firstName = user.firstName;
         token.lastName = user.lastName;
         token.isAdmin = user.isAdmin ?? false;
+        token.scope = user.scope ?? "student";
       }
       return token;
     },
@@ -95,6 +101,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.user.firstName = token.firstName as string;
       session.user.lastName = token.lastName as string;
       session.user.isAdmin = token.isAdmin as boolean;
+      session.user.scope = token.scope as string;
       return session;
     },
   },

@@ -9,7 +9,11 @@ export default async function PortalLayout({
 }) {
   const session = await auth();
 
-  if (session?.user?.role === "VENDOR") redirect("/vendor-dashboard");
+  if (session?.user?.scope !== "student") {
+    if (session?.user?.scope === "admin") redirect("/admin");
+    else if (session?.user?.scope === "vendor") redirect("/vendor-dashboard");
+    else redirect("/gate");
+  }
 
   return (
     <div className="flex min-h-screen bg-portal-accent-bg/50 ">

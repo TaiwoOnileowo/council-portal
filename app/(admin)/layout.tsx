@@ -8,7 +8,7 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const session = await auth();
-  if (!session?.user?.isAdmin) redirect("/gate");
+  if (!session?.user?.isAdmin || session.user.scope !== "admin") redirect("/admin-gate");
 
   return (
     <div className="flex min-h-screen bg-portal-accent-bg/50">

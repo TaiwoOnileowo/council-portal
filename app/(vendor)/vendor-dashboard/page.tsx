@@ -33,7 +33,7 @@ export default async function VendorDashboardPage() {
         image={vendor.image}
       />
       <AvailabilityToggle initialIsActive={vendor.vendor_profile.is_active} />
-      <IncomingBookings />
+      <IncomingBookings vendorId={session.user.id} />
       <RouteManagement />
     </>
   );

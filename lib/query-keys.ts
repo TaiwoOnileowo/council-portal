@@ -21,6 +21,9 @@ export const queryKeys = {
   banks: {
     all: () => ["banks", "NG"] as const,
   },
+  transport: {
+    vendors: () => ["transport", "vendors"] as const,
+  },
   vendor: {
     bookings: (userId: string, filters?: object) =>
       filters

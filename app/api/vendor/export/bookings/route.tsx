@@ -11,7 +11,7 @@ import React from "react";
 
 const logoPath = path.join(process.cwd(), "public", "logo.png");
 
-function buildWhere(vendorId: string, filters: ExportFilters) {
+function buildWhere(vendorId: string | undefined, filters: ExportFilters) {
   const bookingRange: { gte?: Date; lte?: Date } = {};
   if (filters.bookingDateFrom)
     bookingRange.gte = new Date(filters.bookingDateFrom);
@@ -31,7 +31,7 @@ function buildWhere(vendorId: string, filters: ExportFilters) {
   }
 
   return {
-    vendor_id: vendorId,
+    ...(vendorId ? { vendor_id: vendorId } : {}),
     status: "CONFIRMED" as const,
     ...(filters.direction !== "all" ? { direction: filters.direction } : {}),
     ...(filters.route !== "all" ? { route_name: filters.route } : {}),
@@ -44,7 +44,7 @@ function buildWhere(vendorId: string, filters: ExportFilters) {
   };
 }
 
-async function fetchBookings(vendorId: string, filters: ExportFilters) {
+async function fetchBookings(vendorId: string | undefined, filters: ExportFilters) {
   return db.booking.findMany({
     where: buildWhere(vendorId, filters),
     orderBy: [
@@ -115,12 +115,14 @@ function generateCSV(
 
 export async function GET(req: Request) {
   const session = await auth();
-  if (session?.user?.role !== "VENDOR")
+  if (session?.user?.role !== "VENDOR" && !session?.user?.isAdmin)
     return new Response("Unauthorized", { status: 401 });
 
   const { searchParams } = new URL(req.url);
 
+  const vendorId = searchParams.get("vendorId") ?? undefined;
   const filters: ExportFilters = {
+    vendorId,
     direction: (searchParams.get("direction") ??
       "all") as ExportFilters["direction"],
     route: searchParams.get("route") ?? "all",
@@ -130,17 +132,25 @@ export async function GET(req: Request) {
     departureDateTo: searchParams.get("departureDateTo") ?? "",
   };
 
+  const countOnly = searchParams.get("count") === "true";
+  if (countOnly) {
+    const count = await db.booking.count({ where: buildWhere(vendorId, filters) });
+    return Response.json({ count });
+  }
+
   const formatParam = searchParams.get("format") ?? "pdf";
 
   const [bookings, vendor] = await Promise.all([
-    fetchBookings(session.user.id, filters),
-    db.vendor_profile.findUnique({
-      where: { user_id: session.user.id },
-      select: { business_name: true },
-    }),
+    fetchBookings(vendorId, filters),
+    vendorId
+      ? db.vendor_profile.findUnique({
+          where: { user_id: vendorId },
+          select: { business_name: true },
+        })
+      : Promise.resolve(null),
   ]);
 
-  const businessName = vendor?.business_name ?? "Vendor";
+  const businessName = vendor?.business_name ?? "All Vendors";
   const datestamp = format(new Date(), "yyyy-MM-dd");
 
   if (formatParam === "csv") {

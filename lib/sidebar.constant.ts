@@ -1,17 +1,11 @@
-import type { ElementType } from "react";
 import {
-  BookOpen,
   Bus,
-  GraduationCap,
   Handshake,
-  Home,
   LayoutDashboard,
-  Store,
-  TrendingUp,
-  User,
   UserStar,
   Wallet,
 } from "lucide-react";
+import type { ElementType } from "react";
 
 export interface SidebarNavItem {
   label: string;
@@ -32,11 +26,12 @@ export type SidebarVariant = "student" | "vendor" | "admin";
 
 export const SIDEBAR_CONFIG: Record<
   SidebarVariant,
-  { subtitle: string; auth: string; navGroups: SidebarNavGroup[] }
+  { subtitle: string; auth: string; home: string; navGroups: SidebarNavGroup[] }
 > = {
   student: {
     subtitle: "Student Portal",
     auth: "/gate",
+    home: "/",
     navGroups: [
       {
         label: "Menu",
@@ -58,6 +53,7 @@ export const SIDEBAR_CONFIG: Record<
   vendor: {
     subtitle: "Vendor Portal",
     auth: "/vendor-gate",
+    home: "/vendor-dashboard",
     navGroups: [
       {
         label: "Menu",
@@ -81,6 +77,7 @@ export const SIDEBAR_CONFIG: Record<
   admin: {
     subtitle: "Admin Portal",
     auth: "/admin-gate",
+    home: "/admin",
     navGroups: [
       {
         label: "Menu",

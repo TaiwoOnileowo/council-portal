@@ -42,9 +42,7 @@ export const priceListBodySchema = z.object({
     z.object({ type: z.literal("inactive") }),
     z.object({
       type: z.literal("scheduled"),
-      startDate: z
-        .string()
-        .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format"),
+      startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format"),
       endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format"),
     }),
   ]),
@@ -81,7 +79,6 @@ export type PriceList = {
   availability: PriceListAvailability;
 };
 
-
 export type TransportBooking = {
   id: string;
   reference: string;
@@ -111,14 +108,15 @@ export type TransportBookingsResponse = {
 };
 
 export type BookingsFilters = {
-  tab: "upcoming" | "past";
+  vendorId?: string;
   route: string;
   dateFrom: string;
   dateTo: string;
+  departureDateFrom?: string;
+  departureDateTo?: string;
   search: string;
   page: number;
 };
-
 
 export type StudentBooking = {
   id: string;
@@ -163,6 +161,7 @@ export type StudentBookingsResponse = {
 };
 
 export type ExportFilters = {
+  vendorId?: string;
   direction: "all" | "LEAVING" | "RETURNING";
   route: string;
   bookingDateFrom: string;

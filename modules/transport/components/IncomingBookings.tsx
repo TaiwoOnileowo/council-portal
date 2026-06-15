@@ -5,12 +5,20 @@ import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import TransportBookingDetailModal from "@/modules/transport/components/BookingDetailModal";
 import ExportBookingsModal from "@/modules/transport/components/ExportBookingsModal";
 import { useTransportBookings } from "@/modules/transport/hooks/useTransportBookings";
+import { useTransportVendors } from "@/modules/transport/hooks/useTransportVendors";
 import {
   VENDOR_BOOKINGS_PAGE_SIZE,
   type TransportBooking,
 } from "@/modules/transport/transport.types";
 import { format } from "date-fns";
-import { ChevronDown, Download, ExternalLink, Loader2, Search, Users, X } from "lucide-react";
+import {
+  ChevronDown,
+  ExternalLink,
+  Loader2,
+  Search,
+  Users,
+  X,
+} from "lucide-react";
 import { useState } from "react";
 import DirectionBadge from "./DirectionBadge";
 import MobileCard from "./MobileCard";
@@ -18,8 +26,9 @@ import StatusBadge from "./StatusBadge";
 
 type Tab = "upcoming" | "past";
 
-export default function IncomingBookings() {
+export default function IncomingBookings({ vendorId }: { vendorId?: string }) {
   const [tab, setTab] = useState<Tab>("upcoming");
+  const { data: allVendors } = useTransportVendors();
   const [route, setRoute] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -30,15 +39,27 @@ export default function IncomingBookings() {
 
   const search = useDebouncedValue(searchInput.trim(), 300);
 
+  const today = new Date().toISOString().split("T")[0];
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  const yesterday = d.toISOString().split("T")[0];
+  const departureDateFrom = vendorId && tab === "upcoming" ? today : "";
+  const departureDateTo = vendorId && tab === "past" ? yesterday : "";
+
   const { data, isLoading, isError, isFetching } = useTransportBookings({
-    tab,
+    vendorId,
     route,
     dateFrom,
     dateTo,
+    departureDateFrom,
+    departureDateTo,
     search,
     page,
   });
 
+  const vendors = vendorId
+    ? undefined
+    : allVendors?.map((v) => ({ id: v.id, name: v.transportName }));
   const bookings = data?.bookings ?? [];
   const routes = data?.routes ?? [];
   const routeCounts = data?.routeCounts ?? {};
@@ -61,24 +82,26 @@ export default function IncomingBookings() {
           </button>
         </div>
 
-        <div className="flex items-center gap-1 bg-portal-bg2 rounded-xl p-1 mb-3 print:hidden">
-          {(["upcoming", "past"] as Tab[]).map((t) => (
-            <button
-              key={t}
-              onClick={() => {
-                setTab(t);
-                setPage(0);
-              }}
-              className={`flex-1 py-1.5 text-[12.5px] font-medium rounded-lg transition-colors capitalize ${
-                tab === t
-                  ? "bg-portal-surface text-portal-text shadow-sm"
-                  : "text-portal-muted hover:text-portal-text2"
-              }`}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
+        {vendorId && (
+          <div className="flex items-center gap-1 bg-portal-bg2 rounded-xl p-1 mb-3 print:hidden">
+            {(["upcoming", "past"] as Tab[]).map((t) => (
+              <button
+                key={t}
+                onClick={() => {
+                  setTab(t);
+                  setPage(0);
+                }}
+                className={`flex-1 py-1.5 text-[12.5px] font-medium rounded-lg transition-colors capitalize ${
+                  tab === t
+                    ? "bg-portal-surface text-portal-text shadow-sm"
+                    : "text-portal-muted hover:text-portal-text2"
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 mb-3 print:hidden">
           <div className="relative flex-1 sm:min-w-[260px]">
@@ -166,7 +189,7 @@ export default function IncomingBookings() {
             <Users className="w-3.5 h-3.5 text-portal-muted" />
             <p className="text-[12px] text-portal-muted">
               <span className="font-semibold text-portal-text">{total}</span>{" "}
-              {tab === "upcoming" ? "upcoming" : "past"} booking
+              {vendorId ? (tab === "upcoming" ? "upcoming" : "past") + " " : ""}booking
               {total !== 1 ? "s" : ""}
               {route !== "all" && (
                 <>
@@ -228,9 +251,11 @@ export default function IncomingBookings() {
               <p className="text-[13px] text-portal-muted">
                 {search || route !== "all" || dateFrom || dateTo
                   ? "No bookings match your filters"
-                  : tab === "upcoming"
-                    ? "No upcoming bookings"
-                    : "No past bookings"}
+                  : vendorId
+                    ? tab === "upcoming"
+                      ? "No upcoming bookings"
+                      : "No past bookings"
+                    : "No bookings yet"}
               </p>
             </div>
           ) : (
@@ -344,6 +369,7 @@ export default function IncomingBookings() {
         open={exportOpen}
         onClose={() => setExportOpen(false)}
         routes={routes}
+        vendors={vendors}
       />
     </>
   );

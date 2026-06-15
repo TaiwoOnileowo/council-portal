@@ -74,7 +74,7 @@ export async function signInWithCredentials({
   }
 
   try {
-    await signIn("credentials", { email, password, redirect: false });
+    await signIn("credentials", { email, password, mode: "student", redirect: false });
     return { success: true };
   } catch (error: unknown) {
     // NextAuth v5 wraps authorize() errors in CallbackRouteError.
@@ -236,7 +236,7 @@ export async function signOutUser(redirectTo = "/gate") {
 }
 
 export type GateSignInResult =
-  | { success: true; isAdmin: boolean; role: string }
+  | { success: true }
   | { error: string; redirectTo?: string; redirectLabel?: string };
 
 export async function signInUser({
@@ -300,9 +300,10 @@ export async function signInUser({
     await signIn("credentials", {
       email: parsed.data.email,
       password: parsed.data.password,
+      mode,
       redirect: false,
     });
-    return { success: true, isAdmin, role: user.role };
+    return { success: true };
   } catch (error: unknown) {
     if (error instanceof CallbackRouteError) {
       const cause = error.cause?.err;

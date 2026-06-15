@@ -3,7 +3,6 @@
 import Modal from "@/components/ui/Modal";
 import Select, { type SelectOption } from "@/components/ui/Select";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
-import { countTransportBookingsForExport } from "@/lib/actions/transport.action";
 import type { ExportFilters } from "@/modules/transport/transport.types";
 import { Download, FileSpreadsheet, FileText, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -16,6 +15,7 @@ function getDefaultFilters(): ExportFilters {
   from.setDate(from.getDate() - 30);
   const fmt = (d: Date) => d.toISOString().split("T")[0];
   return {
+    vendorId: undefined,
     direction: "all",
     route: "all",
     bookingDateFrom: fmt(from),
@@ -35,10 +35,12 @@ export default function ExportBookingsModal({
   open,
   onClose,
   routes,
+  vendors,
 }: {
   open: boolean;
   onClose: () => void;
   routes: string[];
+  vendors?: { id: string; name: string }[];
 }) {
   const [filters, setFilters] = useState<ExportFilters>(getDefaultFilters);
   const [exportFormat, setExportFormat] = useState<Format>("pdf");
@@ -58,9 +60,20 @@ export default function ExportBookingsModal({
   useEffect(() => {
     if (!open) return;
     let active = true;
-    countTransportBookingsForExport(debouncedFilters).then((res) => {
-      if (active && res.ok) setCount(res.count);
+    const params = new URLSearchParams({
+      ...(debouncedFilters.vendorId ? { vendorId: debouncedFilters.vendorId } : {}),
+      direction: debouncedFilters.direction,
+      route: debouncedFilters.route,
+      bookingDateFrom: debouncedFilters.bookingDateFrom,
+      bookingDateTo: debouncedFilters.bookingDateTo,
+      departureDateFrom: debouncedFilters.departureDateFrom,
+      departureDateTo: debouncedFilters.departureDateTo,
+      count: "true",
     });
+    fetch(`/api/vendor/export/bookings?${params}`)
+      .then((r) => r.json())
+      .then((data: { count: number }) => { if (active) setCount(data.count); })
+      .catch(() => {});
     return () => {
       active = false;
     };
@@ -72,6 +85,14 @@ export default function ExportBookingsModal({
       ...routes.map((r) => ({ value: r, label: r })),
     ],
     [routes],
+  );
+
+  const vendorOptions = useMemo<SelectOption[]>(
+    () => [
+      { value: "", label: "All vendors" },
+      ...(vendors ?? []).map((v) => ({ value: v.id, label: v.name })),
+    ],
+    [vendors],
   );
 
   function handleClose() {
@@ -87,6 +108,7 @@ export default function ExportBookingsModal({
     setIsExporting(true);
     try {
       const params = new URLSearchParams({
+        ...(filters.vendorId ? { vendorId: filters.vendorId } : {}),
         direction: filters.direction,
         route: filters.route,
         bookingDateFrom: filters.bookingDateFrom,
@@ -171,6 +193,21 @@ export default function ExportBookingsModal({
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-portal-muted">
             Filters
           </p>
+
+          {vendors && (
+            <div>
+              <label className="text-[11px] text-portal-muted mb-1 block">
+                Vendor
+              </label>
+              <Select
+                size="sm"
+                options={vendorOptions}
+                value={filters.vendorId ?? ""}
+                onChange={(v) => set("vendorId", v || undefined)}
+                searchable={vendorOptions.length > 6}
+              />
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>

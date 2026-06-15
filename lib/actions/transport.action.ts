@@ -14,7 +14,6 @@ import type {
   TransportBooking,
   TransportBookingsResponse,
   BookingsFilters,
-  ExportFilters,
 } from "@/modules/transport/transport.types";
 import type {
   price_list as DbPriceList,
@@ -182,16 +181,21 @@ export async function getTransportBookings(
 ): Promise<
   { ok: true; data: TransportBookingsResponse } | { ok: false; error: string }
 > {
-  const session = await auth();
-  if (session?.user?.role !== "VENDOR")
-    return { ok: false, error: "Unauthorized" };
-
   const dateRange: { gte?: Date; lte?: Date } = {};
   if (filters.dateFrom) dateRange.gte = new Date(filters.dateFrom);
   if (filters.dateTo) {
     const to = new Date(filters.dateTo);
     to.setHours(23, 59, 59, 999);
     dateRange.lte = to;
+  }
+
+  const departureDateRange: { gte?: Date; lte?: Date } = {};
+  if (filters.departureDateFrom)
+    departureDateRange.gte = new Date(filters.departureDateFrom);
+  if (filters.departureDateTo) {
+    const to = new Date(filters.departureDateTo);
+    to.setHours(23, 59, 59, 999);
+    departureDateRange.lte = to;
   }
 
   const search = filters.search.trim();
@@ -211,9 +215,12 @@ export async function getTransportBookings(
 
   // Facet base: every filter except route, so per-route counts stay meaningful.
   const baseWhere = {
-    vendor_id: session.user.id,
+    ...(filters.vendorId ? { vendor_id: filters.vendorId } : {}),
     status: "CONFIRMED" as BookingStatus,
     ...(Object.keys(dateRange).length > 0 ? { created_at: dateRange } : {}),
+    ...(Object.keys(departureDateRange).length > 0
+      ? { departure_at: departureDateRange }
+      : {}),
     ...searchWhere,
   };
 
@@ -254,7 +261,7 @@ export async function getTransportBookings(
       _count: { _all: true },
     }),
     db.booking.findMany({
-      where: { vendor_id: session.user.id },
+      where: filters.vendorId ? { vendor_id: filters.vendorId } : {},
       select: { route_name: true },
       distinct: ["route_name"],
       orderBy: { route_name: "asc" },
@@ -511,39 +518,3 @@ export async function updatePriceList(
   return { ok: true, data: formatPriceList(updated) };
 }
 
-export async function countTransportBookingsForExport(
-  filters: ExportFilters,
-): Promise<{ ok: true; count: number } | { ok: false; error: string }> {
-  const session = await auth();
-  if (session?.user?.role !== "VENDOR")
-    return { ok: false, error: "Unauthorized" };
-
-  const bookingRange: { gte?: Date; lte?: Date } = {};
-  if (filters.bookingDateFrom) bookingRange.gte = new Date(filters.bookingDateFrom);
-  if (filters.bookingDateTo) {
-    const to = new Date(filters.bookingDateTo);
-    to.setHours(23, 59, 59, 999);
-    bookingRange.lte = to;
-  }
-
-  const departureRange: { gte?: Date; lte?: Date } = {};
-  if (filters.departureDateFrom) departureRange.gte = new Date(filters.departureDateFrom);
-  if (filters.departureDateTo) {
-    const to = new Date(filters.departureDateTo);
-    to.setHours(23, 59, 59, 999);
-    departureRange.lte = to;
-  }
-
-  const count = await db.booking.count({
-    where: {
-      vendor_id: session.user.id,
-      status: "CONFIRMED",
-      ...(filters.direction !== "all" ? { direction: filters.direction } : {}),
-      ...(filters.route !== "all" ? { route_name: filters.route } : {}),
-      ...(Object.keys(bookingRange).length > 0 ? { created_at: bookingRange } : {}),
-      ...(Object.keys(departureRange).length > 0 ? { departure_at: departureRange } : {}),
-    },
-  });
-
-  return { ok: true, count };
-}
