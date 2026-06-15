@@ -6,10 +6,12 @@ import StatusBadge from "./StatusBadge";
 export default function MobileCard({
   booking,
   showStatus,
+  showVendorInfo,
   onClick,
 }: {
   booking: TransportBooking;
   showStatus: boolean;
+  showVendorInfo?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -21,6 +23,11 @@ export default function MobileCard({
         <p className="text-[13.5px] font-semibold text-portal-text truncate">
           {booking.passengerName}
         </p>
+        {showVendorInfo && (
+          <p className="text-[11px] font-medium text-portal-accent mt-0.5">
+            {booking.vendorName}
+          </p>
+        )}
         <p className="text-[11.5px] text-portal-muted mt-0.5">
           {booking.routeName}
         </p>
@@ -35,6 +42,11 @@ export default function MobileCard({
       </div>
       <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
         <DirectionBadge direction={booking.direction} />
+        {showVendorInfo && (
+          <span className="text-[11.5px] font-medium text-portal-text2">
+            ₦{booking.fare.toLocaleString()}
+          </span>
+        )}
         {showStatus && <StatusBadge status={booking.status} />}
       </div>
     </button>

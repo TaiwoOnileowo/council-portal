@@ -86,7 +86,7 @@ export const SIDEBAR_CONFIG: Record<
       {
         label: "Management",
         items: [
-          { label: "Students", icon: UserStar, href: "/admin/users" },
+          { label: "Students", icon: UserStar, href: "/admin/students" },
           {
             label: "Vendors",
             icon: Handshake,
@@ -98,7 +98,7 @@ export const SIDEBAR_CONFIG: Record<
 
       {
         label: "Finance",
-        items: [{ label: "Earnings", icon: Wallet, href: "/admin/earnings" }],
+        items: [{ label: "Earnings", icon: Wallet, href: "/admin/wallet" }],
       },
     ],
   },

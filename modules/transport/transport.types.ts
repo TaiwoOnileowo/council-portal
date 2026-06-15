@@ -88,8 +88,10 @@ export type TransportBooking = {
   hall: string;
   roomNumber: string;
   routeName: string;
+  vendorName: string;
   direction: "LEAVING" | "RETURNING";
   fare: number;
+  commission: number;
   studentNotes: string | null;
   destinationAddress: string | null;
   departureAt: string | null;

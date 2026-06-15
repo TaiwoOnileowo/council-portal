@@ -16,8 +16,7 @@ import {
   ExternalLink,
   Loader2,
   Search,
-  Users,
-  X,
+  X
 } from "lucide-react";
 import { useState } from "react";
 import DirectionBadge from "./DirectionBadge";
@@ -29,6 +28,7 @@ type Tab = "upcoming" | "past";
 export default function IncomingBookings({ vendorId }: { vendorId?: string }) {
   const [tab, setTab] = useState<Tab>("upcoming");
   const { data: allVendors } = useTransportVendors();
+  const [filterVendorId, setFilterVendorId] = useState("");
   const [route, setRoute] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -47,7 +47,7 @@ export default function IncomingBookings({ vendorId }: { vendorId?: string }) {
   const departureDateTo = vendorId && tab === "past" ? yesterday : "";
 
   const { data, isLoading, isError, isFetching } = useTransportBookings({
-    vendorId,
+    vendorId: vendorId ?? (filterVendorId || undefined),
     route,
     dateFrom,
     dateTo,
@@ -75,7 +75,7 @@ export default function IncomingBookings({ vendorId }: { vendorId?: string }) {
           <h2 className="font-heading text-[17px] font-bold">Bookings</h2>
           <button
             onClick={() => setExportOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-portal-accent bg-portal-accent-bg border border-portal-accent-border rounded-lg hover:bg-portal-accent hover:text-white transition-all duration-200 print:hidden"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-portal-accent bg-portal-accent-bg border border-portal-accent-border rounded-lg hover:bg-portal-accent hover:text-white transition-all duration-200 "
           >
             <ExternalLink className="w-3.5 h-3.5" />
             Export
@@ -83,7 +83,7 @@ export default function IncomingBookings({ vendorId }: { vendorId?: string }) {
         </div>
 
         {vendorId && (
-          <div className="flex items-center gap-1 bg-portal-bg2 rounded-xl p-1 mb-3 print:hidden">
+          <div className="flex items-center gap-1 bg-portal-bg2 rounded-xl p-1 mb-3 ">
             {(["upcoming", "past"] as Tab[]).map((t) => (
               <button
                 key={t}
@@ -103,7 +103,7 @@ export default function IncomingBookings({ vendorId }: { vendorId?: string }) {
           </div>
         )}
 
-        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 mb-3 print:hidden">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 mb-3 ">
           <div className="relative flex-1 sm:min-w-[260px]">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-portal-muted pointer-events-none" />
             <input
@@ -149,6 +149,27 @@ export default function IncomingBookings({ vendorId }: { vendorId?: string }) {
             <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-portal-muted pointer-events-none" />
           </div>
 
+          {!vendorId && allVendors && allVendors.length > 0 && (
+            <div className="relative">
+              <select
+                value={filterVendorId}
+                onChange={(e) => {
+                  setFilterVendorId(e.target.value);
+                  setPage(0);
+                }}
+                className="w-full sm:w-auto appearance-none bg-portal-surface border border-portal-border rounded-lg text-[12px] text-portal-text pl-3 pr-7 py-1.5 cursor-pointer focus:outline-none focus:border-portal-accent"
+              >
+                <option value="">All vendors</option>
+                {allVendors.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.transportName}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-portal-muted pointer-events-none" />
+            </div>
+          )}
+
           <div className="flex items-center gap-2 flex-wrap">
             <input
               type="date"
@@ -186,11 +207,9 @@ export default function IncomingBookings({ vendorId }: { vendorId?: string }) {
 
         {!isLoading && !isError && (
           <div className="flex items-center gap-2 mb-3 px-1">
-            <Users className="w-3.5 h-3.5 text-portal-muted" />
             <p className="text-[12px] text-portal-muted">
               <span className="font-semibold text-portal-text">{total}</span>{" "}
-              {vendorId ? (tab === "upcoming" ? "upcoming" : "past") + " " : ""}booking
-              {total !== 1 ? "s" : ""}
+              total
               {route !== "all" && (
                 <>
                   {" · "}
@@ -218,7 +237,7 @@ export default function IncomingBookings({ vendorId }: { vendorId?: string }) {
           </div>
         )}
 
-        <div className="hidden print:block mb-4">
+        <div className="hidden  mb-4">
           <h1 className="text-lg font-bold">
             {route === "all" ? "All Bookings" : route}
           </h1>
@@ -260,13 +279,18 @@ export default function IncomingBookings({ vendorId }: { vendorId?: string }) {
             </div>
           ) : (
             <>
-              <div className="hidden md:block print:block overflow-x-auto">
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-portal-border bg-portal-accent-bg/50">
                       <th className="text-left text-[11px] font-semibold text-portal-muted uppercase tracking-wide px-5 py-3">
                         Student
                       </th>
+                      {!vendorId && (
+                        <th className="text-left text-[11px] font-semibold text-portal-muted uppercase tracking-wide px-4 py-3">
+                          Vendor
+                        </th>
+                      )}
                       <th className="text-left text-[11px] font-semibold text-portal-muted uppercase tracking-wide px-4 py-3">
                         Route
                       </th>
@@ -279,6 +303,16 @@ export default function IncomingBookings({ vendorId }: { vendorId?: string }) {
                       <th className="text-left text-[11px] font-semibold text-portal-muted uppercase tracking-wide px-4 py-3">
                         Booked On
                       </th>
+                      {!vendorId && (
+                        <>
+                          <th className="text-left text-[11px] font-semibold text-portal-muted uppercase tracking-wide px-4 py-3">
+                            Fare
+                          </th>
+                          <th className="text-left text-[11px] font-semibold text-portal-muted uppercase tracking-wide px-4 py-3">
+                            Commission
+                          </th>
+                        </>
+                      )}
                       {tab === "past" && (
                         <th className="text-left text-[11px] font-semibold text-portal-muted uppercase tracking-wide px-4 py-3">
                           Status
@@ -306,6 +340,11 @@ export default function IncomingBookings({ vendorId }: { vendorId?: string }) {
                             {booking.reference}
                           </p>
                         </td>
+                        {!vendorId && (
+                          <td className="px-4 py-3.5 text-[12.5px] text-portal-text2">
+                            {booking.vendorName}
+                          </td>
+                        )}
                         <td className="px-4 py-3.5 text-[13px] text-portal-text">
                           {booking.routeName}
                         </td>
@@ -325,6 +364,16 @@ export default function IncomingBookings({ vendorId }: { vendorId?: string }) {
                         <td className="px-4 py-3.5 text-[12.5px] text-portal-text2">
                           {format(new Date(booking.createdAt), "MMM d, yyyy")}
                         </td>
+                        {!vendorId && (
+                          <>
+                            <td className="px-4 py-3.5 text-[12.5px] text-portal-text2">
+                              ₦{booking.fare.toLocaleString()}
+                            </td>
+                            <td className="px-4 py-3.5 text-[12.5px] text-portal-text2">
+                              ₦{booking.commission.toLocaleString()}
+                            </td>
+                          </>
+                        )}
                         {tab === "past" && (
                           <td className="px-4 py-3.5">
                             <StatusBadge status={booking.status} />
@@ -336,12 +385,13 @@ export default function IncomingBookings({ vendorId }: { vendorId?: string }) {
                 </table>
               </div>
 
-              <div className="md:hidden print:hidden divide-y divide-portal-border">
+              <div className="md:hidden divide-y divide-portal-border">
                 {bookings.map((booking) => (
                   <MobileCard
                     key={booking.id}
                     booking={booking}
                     showStatus={tab === "past"}
+                    showVendorInfo={!vendorId}
                     onClick={() => setSelected(booking)}
                   />
                 ))}
