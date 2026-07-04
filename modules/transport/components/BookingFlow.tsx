@@ -34,8 +34,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 
-const SERVICE_FEE = 0;
-
 const HALLS = [
   "Joseph Hall",
   "Paul Hall",
@@ -95,6 +93,7 @@ export default function BookingFlow({
   onClose,
   initialRoute,
   user,
+  serviceFee,
 }: {
   vendor: PublicVendor;
   priceList: PublicPriceList;
@@ -102,6 +101,7 @@ export default function BookingFlow({
   onClose: () => void;
   initialRoute?: PublicRoute | null;
   user: { id: string; name: string; phone: string; email: string };
+  serviceFee: number;
 }) {
   const { openTopUp } = useModalStore();
   const isLeaving = priceList.direction === "LEAVING";
@@ -190,7 +190,7 @@ export default function BookingFlow({
   }
 
   const basePrice = selectedRoute?.price ?? 0;
-  const totalAmount = basePrice + SERVICE_FEE;
+  const totalAmount = basePrice + serviceFee;
   const pickup = isLeaving
     ? "Covenant University"
     : (selectedRoute?.name ?? "");
@@ -216,7 +216,6 @@ export default function BookingFlow({
         roomNumber: values.roomNumber.trim().toUpperCase(),
         routeName: selectedRoute.name,
         fare: basePrice,
-        serviceFee: SERVICE_FEE,
         studentNotes: values.studentNotes,
         destinationAddress: values.destinationAddress,
         departureAt: selectedDeparture ?? undefined,
@@ -507,7 +506,7 @@ export default function BookingFlow({
                       {/* <div className="flex justify-between text-[13px]">
                         <span className="text-portal-text2">Service fee</span>
                         <span className="font-semibold">
-                          &#x20A6;{SERVICE_FEE.toLocaleString()}
+                          &#x20A6;{serviceFee.toLocaleString()}
                         </span>
                       </div> */}
                       <div className="flex justify-between text-[14px] pt-2 border-t border-portal-border">

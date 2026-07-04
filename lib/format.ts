@@ -2,6 +2,10 @@ export function formatAmount(naira: number) {
   return `₦${naira.toLocaleString("en-NG")}`;
 }
 
+export function formatBalance(kobo: number | null) {
+  return kobo != null ? formatAmount(kobo / 100) : "₦—";
+}
+
 export function formatWithCommas(value: string) {
   const digits = value.replace(/\D/g, "");
   if (!digits) return "";

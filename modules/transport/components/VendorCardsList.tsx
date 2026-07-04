@@ -15,9 +15,11 @@ import BookingFlow from "./BookingFlow";
 export default function VendorCardsList({
   vendors,
   user,
+  serviceFee,
 }: {
   vendors: PublicVendor[];
   user: { id: string; name: string; phone: string; email: string };
+  serviceFee: number;
 }) {
   const [detailVendor, setDetailVendor] = useState<PublicVendor | null>(null);
   const [bookingVendor, setBookingVendor] = useState<PublicVendor | null>(null);
@@ -114,6 +116,7 @@ export default function VendorCardsList({
           }}
           initialRoute={bookingRoute}
           user={user}
+          serviceFee={serviceFee}
         />
       )}
     </>

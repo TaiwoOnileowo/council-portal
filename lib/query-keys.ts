@@ -21,6 +21,9 @@ export const queryKeys = {
   banks: {
     all: () => ["banks", "NG"] as const,
   },
+  virtualAccount: {
+    all: (userId: string) => ["virtual-account", userId] as const,
+  },
   transport: {
     vendors: () => ["transport", "vendors"] as const,
   },

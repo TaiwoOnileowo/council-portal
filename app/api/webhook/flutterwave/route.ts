@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { markPayoutSuccess, reversePayout } from "@/lib/payouts";
+import { creditWallet } from "@/lib/actions/wallet.action";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
@@ -46,16 +47,48 @@ export async function POST(req: NextRequest) {
   const status = data.status as string | undefined;
   const amount = data.amount as number | undefined;
   const currency = data.currency as string | undefined;
-  const meta = data.meta as Record<string, unknown> | undefined;
-  const userId = meta?.userId as string | undefined;
 
-  if (
-    !txRef ||
-    !userId ||
-    status !== "successful" ||
-    currency !== "NGN" ||
-    !amount
-  ) {
+  if (!txRef || status !== "successful" || currency !== "NGN" || !amount) {
+    return NextResponse.json({ received: true });
+  }
+
+  const amountKobo = Math.round(amount * 100);
+
+  // Static virtual account credit — Flutterwave echoes back the tx_ref we
+  // supplied when the account was created, not a per-transfer one, so we
+  // look up the owner by that instead of by meta.userId.
+  if (txRef.startsWith("VA-")) {
+    const virtualAccount = await db.virtual_account.findUnique({
+      where: { tx_ref: txRef },
+    });
+    if (!virtualAccount) {
+      console.error(
+        "[flutterwave webhook] unattributed virtual account transfer",
+        {
+          txRef,
+          flwRef: data.flw_ref,
+          amount,
+        },
+      );
+      return NextResponse.json({ received: true });
+    }
+
+    const flwRef =
+      (data.flw_ref as string | undefined) || String(data.id ?? "");
+    if (!flwRef) return NextResponse.json({ received: true });
+
+    const owner = virtualAccount.vendor_id
+      ? { vendorId: virtualAccount.vendor_id }
+      : { userId: virtualAccount.user_id! };
+
+    await creditWallet(owner, {
+      amountKobo,
+      reason: "Wallet top-up — bank transfer",
+      type: "topup",
+      modelResponsible: "VirtualAccount",
+      reference: flwRef,
+    });
+
     return NextResponse.json({ received: true });
   }
 
@@ -63,35 +96,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ received: true });
   }
 
-  // Idempotency — already processed
-  const existing = await db.wallet.findUnique({ where: { reference: txRef } });
-  if (existing) return NextResponse.json({ received: true });
+  const meta = data.meta as Record<string, unknown> | undefined;
+  const userId = meta?.userId as string | undefined;
+  if (!userId) return NextResponse.json({ received: true });
 
-  const amountKobo = Math.round(amount * 100);
-
-  try {
-    await db.$transaction(async (tx) => {
-      const latest = await tx.wallet.findFirst({
-        where: { user_id: userId },
-        orderBy: { created_at: "desc" },
-        select: { balance: true },
-      });
-      const balance = latest?.balance ?? 0;
-      await tx.wallet.create({
-        data: {
-          user_id: userId,
-          difference: amountKobo,
-          balance: balance + amountKobo,
-          reason: "Wallet top-up",
-          type: "topup",
-          model_responsible: "Payment",
-          reference: txRef,
-        },
-      });
-    });
-  } catch {
-    // Unique constraint — already handled via inline callback
-  }
+  await creditWallet(
+    { userId },
+    {
+      amountKobo,
+      reason: "Wallet top-up",
+      type: "topup",
+      modelResponsible: "Payment",
+      reference: txRef,
+    },
+  );
 
   return NextResponse.json({ received: true });
 }

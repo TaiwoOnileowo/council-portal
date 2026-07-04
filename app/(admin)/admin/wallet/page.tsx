@@ -1,5 +1,5 @@
 import TransactionHistory from "@/modules/wallet/components/TransactionHistory";
-import { WalletBalancePanel } from "@/modules/wallet/components/WalletBalancePanel";
+import { WalletBalancePanel } from "@/modules/wallet/components/WalletCard";
 
 const AdminEarningsPage = () => {
   return (

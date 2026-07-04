@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sendVerificationEmail } from "@/lib/sendpulse";
 import { cacheGet, cacheSet, cacheIncr } from "@/lib/cache";
-
-const OTP_TTL = 600;
-const RATE_WINDOW = 300;
-const MAX_SENDS = 5;
+import { getSetting } from "@/lib/settings";
 
 const otpKey = (email: string) => `otp:${email}:code`;
 const rateKey = (email: string) => `otp:${email}:sends`;
@@ -37,8 +34,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const {
+    ttlSeconds: otpTtl,
+    rateWindowSeconds: rateWindow,
+    maxSends,
+  } = await getSetting("otp_config");
+
   const sends = await cacheGet<number>(rateKey(email));
-  if (sends !== null && sends >= MAX_SENDS) {
+  if (sends !== null && sends >= maxSends) {
     return NextResponse.json(
       {
         error:
@@ -49,8 +52,8 @@ export async function POST(req: NextRequest) {
   }
 
   const code = generateCode();
-  await cacheSet(otpKey(email), code, OTP_TTL);
-  await cacheIncr(rateKey(email), RATE_WINDOW);
+  await cacheSet(otpKey(email), code, otpTtl);
+  await cacheIncr(rateKey(email), rateWindow);
 
   try {
     await sendVerificationEmail(email, firstName, code);
@@ -64,7 +67,7 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
     success: true,
-    remainingSends: MAX_SENDS - ((sends ?? 0) + 1),
+    remainingSends: maxSends - ((sends ?? 0) + 1),
     fromEmail: process.env.SENDPULSE_FROM_EMAIL ?? "",
   });
 }

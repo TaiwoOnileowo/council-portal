@@ -10,8 +10,9 @@ import {
   type StudentBookingsResponse,
 } from "@/modules/transport/transport.types";
 import type { Prisma } from "@/generated/prisma/client";
-import { COMMISSION_KOBO, COMMISSION_NAIRA, nairaToKobo } from "@/lib/money";
+import { nairaToKobo } from "@/lib/money";
 import { vendorBalance } from "@/lib/actions/wallet.action";
+import { getSetting } from "@/lib/settings";
 
 const studentBookingSelect = {
   id: true,
@@ -175,7 +176,6 @@ export async function payBookingFromWallet({
   roomNumber,
   routeName,
   fare,
-  serviceFee,
   studentNotes,
   destinationAddress,
   departureAt,
@@ -190,7 +190,6 @@ export async function payBookingFromWallet({
   roomNumber: string;
   routeName: string;
   fare: number;
-  serviceFee: number;
   studentNotes?: string;
   destinationAddress: string;
   departureAt?: string;
@@ -202,9 +201,14 @@ export async function payBookingFromWallet({
   const session = await auth();
   if (!session?.user?.id) return { error: "You must be signed in to book." };
 
+  const {
+    serviceFeeNaira: serviceFee,
+    commissionNaira,
+  } = await getSetting("booking_pricing_config");
+
   const userId = session.user.id;
   const totalAmountKobo = nairaToKobo(fare + serviceFee);
-  const vendorEarningKobo = nairaToKobo(fare) - COMMISSION_KOBO;
+  const vendorEarningKobo = nairaToKobo(fare) - nairaToKobo(commissionNaira);
 
   const reference = `BK${Math.random().toString().slice(2, 10).padEnd(8, "0")}`;
 
@@ -245,7 +249,7 @@ export async function payBookingFromWallet({
           route_name: routeName,
           fare,
           service_fee: serviceFee,
-          commission: COMMISSION_NAIRA,
+          commission: commissionNaira,
           student_notes: studentNotes?.trim() || null,
           destination_address: destinationAddress.trim(),
           departure_at: departureAt ? new Date(departureAt) : null,

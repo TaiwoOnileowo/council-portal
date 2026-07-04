@@ -1,10 +1,4 @@
-import {
-  Bus,
-  Handshake,
-  LayoutDashboard,
-  UserStar,
-  Wallet,
-} from "lucide-react";
+import { Bus, Handshake, LayoutDashboard, UserStar, Wallet } from "lucide-react";
 import type { ElementType } from "react";
 
 export interface SidebarNavItem {

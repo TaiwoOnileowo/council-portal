@@ -2,10 +2,11 @@
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { MIN_PAYOUT_KOBO, koboToNaira } from "@/lib/money";
+import { nairaToKobo, koboToNaira } from "@/lib/money";
 import { reversePayout, payoutLockKey } from "@/lib/payouts";
 import { vendorBalance } from "@/lib/actions/wallet.action";
 import { cacheSetIfNotExists, cacheDel } from "@/lib/cache";
+import { getSetting } from "@/lib/settings";
 
 export type VendorWalletSummary = {
   balance: number; // available, in kobo
@@ -111,9 +112,11 @@ export async function requestPayout(
   if (!Number.isInteger(amountKobo) || amountKobo <= 0) {
     return { error: "Invalid amount." };
   }
-  if (amountKobo < MIN_PAYOUT_KOBO) {
+  const { minPayoutNaira } = await getSetting("booking_pricing_config");
+  const minPayoutKobo = nairaToKobo(minPayoutNaira);
+  if (amountKobo < minPayoutKobo) {
     return {
-      error: `Minimum withdrawal is ₦${koboToNaira(MIN_PAYOUT_KOBO).toLocaleString("en-NG")}.`,
+      error: `Minimum withdrawal is ₦${koboToNaira(minPayoutKobo).toLocaleString("en-NG")}.`,
     };
   }
 

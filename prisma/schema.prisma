@@ -12,6 +12,7 @@ enum Role {
   ADMIN
   VENDOR
 }
+
 enum VendorCategory {
   TRANSPORT
 }
@@ -63,6 +64,15 @@ model user {
   admin_profile   admin_profile?
   wallet          wallet[] // append-only ledger entries
   bookings        booking[] // as passenger
+  virtual_account virtual_account?
+}
+
+model app_setting {
+  id         String   @id @default(uuid())
+  key        String   @unique
+  value      Json
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 }
 
 model admin_profile {
@@ -80,63 +90,81 @@ model student_profile {
 }
 
 model vendor_profile {
-  user_id        String         @id
-  user           user           @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  category       VendorCategory @default(TRANSPORT)
-  business_name  String
-  tagline        String?
-  description    String?
-  tiktok         String?
-  instagram      String?
-  bank_code      String?
-  bank_name      String?
-  account_number String?
-  account_name   String?
-  is_active      Boolean        @default(true)
-  price_lists    price_list[] // transport vertical
-  bookings       booking[] // transport vertical — as provider
-  wallet         wallet[] // vendor earnings & payout ledger entries
-  payouts        payout[]
+  user_id         String           @id
+  user            user             @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  category        VendorCategory   @default(TRANSPORT)
+  business_name   String
+  tagline         String?
+  description     String?
+  tiktok          String?
+  instagram       String?
+  bank_code       String?
+  bank_name       String?
+  account_number  String?
+  account_name    String?
+  is_active       Boolean          @default(true)
+  price_lists     price_list[] // transport vertical
+  bookings        booking[] // transport vertical — as provider
+  wallet          wallet[] // vendor earnings & payout ledger entries
+  payouts         payout[]
+  virtual_account virtual_account?
 }
 
 model wallet {
-  id                String   @id @default(uuid())
+  id                String          @id @default(uuid())
   // Exactly one of user_id / vendor_id is set per entry.
   user_id           String? // set on STUDENT entries; null on vendor entries
-  user              user?    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user              user?           @relation(fields: [user_id], references: [id], onDelete: Cascade)
   vendor_id         String? // set on VENDOR entries (earnings, payouts); null on student entries
   vendor            vendor_profile? @relation(fields: [vendor_id], references: [user_id], onDelete: Cascade)
   balance           Int // running balance in kobo, after this entry is applied
   difference        Int // signed delta in kobo applied by this entry
-  currency          String   @default("NGN")
+  currency          String          @default("NGN")
   reason            String // free-text, e.g. "Wallet top-up", "Transport booking — Daniel Hall"
   type              String? // category, e.g. "topup", "booking", "refund"
   model_responsible String? // originating model, e.g. "Payment", "Booking", "Refund"
   model_id          String? // id of the originating record
-  reference         String?  @unique // idempotency key (Flutterwave tx_ref, booking reference)
-  domain            String   @default("live")
-  created_at        DateTime @default(now())
-  updated_at        DateTime @updatedAt
+  reference         String?         @unique // idempotency key (Flutterwave tx_ref, booking reference)
+  domain            String          @default("live")
+  created_at        DateTime        @default(now())
+  updated_at        DateTime        @updatedAt
 
   @@index([user_id, created_at])
   @@index([vendor_id, created_at])
 }
 
+model virtual_account {
+  id             String          @id @default(uuid())
+  // Exactly one of user_id / vendor_id is set per account.
+  user_id        String?         @unique // set for STUDENT accounts
+  user           user?           @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  vendor_id      String?         @unique // set for VENDOR accounts
+  vendor         vendor_profile? @relation(fields: [vendor_id], references: [user_id], onDelete: Cascade)
+  provider       String          @default("flutterwave")
+  account_number String
+  bank_name      String
+  bank_code      String?
+  tx_ref         String          @unique // reference supplied at (re)provisioning; Flutterwave echoes it back on every inbound transfer to this account
+  is_active      Boolean         @default(true)
+  created_at     DateTime        @default(now())
+  updated_at     DateTime        @updatedAt
+}
+
 model payout {
-  id              String         @id @default(uuid())
-  reference       String         @unique // our transfer reference passed to Flutterwave
-  vendor_id       String
-  vendor          vendor_profile @relation(fields: [vendor_id], references: [user_id], onDelete: Cascade)
-  amount          Int // payout amount in kobo
-  status          PayoutStatus   @default(PENDING)
+  id        String         @id @default(uuid())
+  reference String         @unique // our transfer reference passed to Flutterwave
+  vendor_id String
+  vendor    vendor_profile @relation(fields: [vendor_id], references: [user_id], onDelete: Cascade)
+  amount    Int // payout amount in kobo
+  status    PayoutStatus   @default(PENDING)
 
   bank_code      String
   bank_name      String
   account_number String
   account_name   String
 
-  transfer_id String?
-  failure_reason  String?
+  transfer_id    String?
+  failure_reason String?
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt

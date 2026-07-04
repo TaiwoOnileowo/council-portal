@@ -1,10 +1,15 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { getPublicTransports } from "@/lib/actions/transport.action";
+import { getSetting } from "@/lib/settings";
 import VendorCardsList from "./VendorCardsList";
 
 export default async function VendorCards() {
-  const [vendors, session] = await Promise.all([getPublicTransports(), auth()]);
+  const [vendors, session, pricingConfig] = await Promise.all([
+    getPublicTransports(),
+    auth(),
+    getSetting("booking_pricing_config"),
+  ]);
 
   let user: { id: string; name: string; phone: string; email: string } = {
     id: "",
@@ -26,5 +31,11 @@ export default async function VendorCards() {
       };
   }
 
-  return <VendorCardsList vendors={vendors} user={user} />;
+  return (
+    <VendorCardsList
+      vendors={vendors}
+      user={user}
+      serviceFee={pricingConfig.serviceFeeNaira}
+    />
+  );
 }

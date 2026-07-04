@@ -33,6 +33,11 @@ export const PUBLIC_ROUTES: PublicRoute[] = [
     description: "UploadThing upload endpoint — auth handled in handler",
   },
   {
+    pattern: /^\/api\/internal(\/.*)?$/,
+    description:
+      "Engineer-only internal APIs (e.g. settings) — secret-authenticated in handler, not session-based",
+  },
+  {
     pattern: /^\/new-keys(\/.*)?$/,
     description: "Password reset — user is unauthenticated by definition",
   },

@@ -1,7 +1,6 @@
 "use client";
 
 import { useCurrentUser } from "@/modules/auth/hooks/useCurrentUser";
-import { WalletChip } from "@/modules/wallet/components/WalletChip";
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -25,7 +24,6 @@ export default function TopBar() {
           </span>
         </h1>
       </div>
-      <WalletChip />
     </div>
   );
 }
