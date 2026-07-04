@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [{ hostname: "*.ufs.sh" }, { hostname: "utfs.io" }],
   },
+  devIndicators: false,
 };
 
 export default nextConfig;

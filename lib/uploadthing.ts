@@ -1,7 +1,6 @@
 import { genUploader } from "uploadthing/client";
 import type { OurFileRouter } from "@/app/api/uploadthing/core";
 
-export const uploadFiles = genUploader<OurFileRouter>({
+export const { uploadFiles } = genUploader<OurFileRouter>({
   url: "/api/uploadthing",
-  package: "uploadthing",
 });
