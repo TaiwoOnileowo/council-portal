@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { sendBookingConfirmationEmail } from "@/lib/sendpulse";
 import {
+  bookingCheckoutMetadataSchema,
   STUDENT_BOOKINGS_PAGE_SIZE,
   type StudentBooking,
   type StudentBookingsFilters,
@@ -13,6 +14,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { nairaToKobo } from "@/lib/money";
 import { vendorBalance } from "@/lib/actions/wallet.action";
 import { getSetting } from "@/lib/settings";
+import { startPayment, getPaymentByReference } from "@/lib/payments";
 
 const studentBookingSelect = {
   id: true,
@@ -320,4 +322,198 @@ export async function payBookingFromWallet({
   } catch {
     return { error: "Failed to complete booking. Please try again." };
   }
+}
+
+export async function startBookingCheckout({
+  vendorId,
+  routeId,
+  direction,
+  passengerName,
+  passengerPhone,
+  parentsPhone,
+  hall,
+  roomNumber,
+  routeName,
+  fare,
+  studentNotes,
+  destinationAddress,
+  departureAt,
+}: {
+  vendorId: string;
+  routeId: string;
+  direction: "LEAVING" | "RETURNING";
+  passengerName: string;
+  passengerPhone: string;
+  parentsPhone: string;
+  hall: string;
+  roomNumber: string;
+  routeName: string;
+  fare: number;
+  studentNotes?: string;
+  destinationAddress: string;
+  departureAt?: string;
+}): Promise<
+  { authorizationUrl: string; reference: string } | { error: string }
+> {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "You must be signed in to book." };
+
+  const { serviceFeeNaira: serviceFee, commissionNaira } =
+    await getSetting("booking_pricing_config");
+
+  const user = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { email: true, first_name: true, last_name: true },
+  });
+  if (!user) return { error: "User not found." };
+
+  const reference = `BK${Math.random().toString().slice(2, 10).padEnd(8, "0")}`;
+
+  return startPayment({
+    reference,
+    amountKobo: nairaToKobo(fare + serviceFee),
+    userId: session.user.id,
+    destination: "booking",
+    email: user.email,
+    name: `${user.first_name} ${user.last_name}`,
+    redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL}/transport?booking_ref=${reference}`,
+    metadata: {
+      vendorId,
+      routeId,
+      direction,
+      passengerName,
+      passengerPhone,
+      parentsPhone,
+      hall,
+      roomNumber,
+      routeName,
+      fare,
+      serviceFee,
+      commissionNaira,
+      studentNotes: studentNotes?.trim() || null,
+      destinationAddress: destinationAddress.trim(),
+      departureAt: departureAt ?? null,
+    },
+  });
+}
+
+// Creates the booking record and credits the vendor's earning — the
+// counterpart to payBookingFromWallet's in-transaction logic, minus the
+// student wallet debit since the money already came from the processor.
+// Reuses the payment's own reference as the booking's reference, so the
+// confirmation page never needs to look up a second identifier.
+export async function finalizeBookingCheckout(payment: {
+  reference: string;
+  user_id: string;
+  metadata: Prisma.JsonValue;
+}): Promise<void> {
+  const parsed = bookingCheckoutMetadataSchema.safeParse(payment.metadata);
+  if (!parsed.success) {
+    console.error(
+      "[booking-checkout] invalid metadata",
+      payment.reference,
+      parsed.error,
+    );
+    return;
+  }
+  const m = parsed.data;
+  const vendorEarningKobo = nairaToKobo(m.fare) - nairaToKobo(m.commissionNaira);
+
+  try {
+    const booking = await db.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${m.vendorId}))`;
+
+      const booking = await tx.booking.create({
+        data: {
+          reference: payment.reference,
+          status: "CONFIRMED",
+          passenger_name: m.passengerName,
+          passenger_phone: m.passengerPhone,
+          parents_phone: m.parentsPhone,
+          hall: m.hall,
+          room_number: m.roomNumber,
+          direction: m.direction,
+          route_name: m.routeName,
+          fare: m.fare,
+          service_fee: m.serviceFee,
+          commission: m.commissionNaira,
+          student_notes: m.studentNotes,
+          destination_address: m.destinationAddress,
+          departure_at: m.departureAt ? new Date(m.departureAt) : null,
+          user_id: payment.user_id,
+          vendor_id: m.vendorId,
+          route_id: m.routeId,
+        },
+      });
+
+      const vBal = await vendorBalance(m.vendorId, tx);
+
+      await tx.wallet.create({
+        data: {
+          vendor_id: m.vendorId,
+          difference: vendorEarningKobo,
+          balance: vBal + vendorEarningKobo,
+          reason: `Earning — ${m.routeName} · ${payment.reference}`,
+          type: "earning",
+          model_responsible: "Booking",
+          model_id: booking.id,
+          reference: `${payment.reference}-V`,
+        },
+      });
+
+      return booking;
+    });
+
+    await db.payment.updateMany({
+      where: { reference: payment.reference },
+      data: { destination_id: booking.id },
+    });
+
+    const [user, vendor] = await Promise.all([
+      db.user.findUnique({
+        where: { id: payment.user_id },
+        select: { email: true, first_name: true },
+      }),
+      db.vendor_profile.findUnique({
+        where: { user_id: m.vendorId },
+        select: { business_name: true },
+      }),
+    ]);
+
+    if (user?.email && vendor) {
+      sendBookingConfirmationEmail(user.email, user.first_name, {
+        reference: payment.reference,
+        vendorName: vendor.business_name,
+        routeName: m.routeName,
+        direction: m.direction,
+        hall: m.hall,
+        roomNumber: m.roomNumber,
+        totalAmount: m.fare + m.serviceFee,
+      }).catch((err) => console.error("[booking-email]", err));
+    }
+  } catch (err) {
+    console.error(
+      "[booking-checkout] failed to finalize",
+      payment.reference,
+      err,
+    );
+  }
+}
+
+export type BookingCheckoutStatus =
+  | { status: "SUCCESS" | "PENDING" | "FAILED" }
+  | { error: string };
+
+export async function checkBookingCheckoutStatus(
+  reference: string,
+): Promise<BookingCheckoutStatus> {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Unauthorized" };
+
+  const payment = await getPaymentByReference(reference);
+  if (!payment || payment.user_id !== session.user.id) {
+    return { error: "Payment not found." };
+  }
+
+  return { status: payment.status };
 }

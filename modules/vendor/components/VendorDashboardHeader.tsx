@@ -1,4 +1,5 @@
 import Image from "next/image";
+import PageHeader from "@/components/ui/PageHeader";
 
 type Props = {
   firstName: string;
@@ -16,36 +17,28 @@ export default function VendorDashboardHeader({
   const initials = `${firstName[0]}${lastName[0]}`.toUpperCase();
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3.5">
-          {image ? (
-            <Image
-              src={image}
-              alt={businessName}
-              width={44}
-              height={44}
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: "50%",
-              }}
-            />
-          ) : (
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-[15px] font-extrabold text-blue-700 flex-shrink-0">
-              {initials}
-            </div>
-          )}
-          <div>
-            <h1 className="font-heading text-[20px] sm:text-[24px] font-extrabold text-portal-text">
-              {businessName}
-            </h1>
-            <p className="text-[12.5px] text-portal-muted mt-0.5">
-              {firstName} {lastName}
-            </p>
+    <PageHeader
+      title={businessName}
+      subtitle={`${firstName} ${lastName}`}
+      avatar={
+        image ? (
+          <Image
+            src={image}
+            alt={businessName}
+            width={44}
+            height={44}
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: "50%",
+            }}
+          />
+        ) : (
+          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-[15px] font-extrabold text-blue-700 flex-shrink-0">
+            {initials}
           </div>
-        </div>
-      </div>
-    </div>
+        )
+      }
+    />
   );
 }

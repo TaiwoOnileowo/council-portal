@@ -1,3 +1,4 @@
+import PageHeader from "@/components/ui/PageHeader";
 import TransactionHistory from "@/modules/wallet/components/TransactionHistory";
 import { WalletBalancePanel } from "@/modules/wallet/components/WalletCard";
 import TopUpConfirmation from "@/modules/wallet/components/TopUpConfirmation";
@@ -5,17 +6,17 @@ import TopUpConfirmation from "@/modules/wallet/components/TopUpConfirmation";
 export default async function WalletPage({
   searchParams,
 }: {
-  searchParams: Promise<{ topup_ref?: string }>;
+  searchParams: Promise<{ topup_ref?: string; status?: string }>;
 }) {
-  const { topup_ref: topUpRef } = await searchParams;
+  const { topup_ref: topUpRef, status } = await searchParams;
 
   return (
     <div className="space-y-7">
       <div>
-        <h1 className="font-heading text-[20px] sm:text-[26px] font-bold leading-tight text-portal-text mb-5">
-          Wallet
-        </h1>
-        {topUpRef && <TopUpConfirmation reference={topUpRef} />}
+        <PageHeader title="Wallet" size="md" />
+        {topUpRef && (
+          <TopUpConfirmation reference={topUpRef} initialStatus={status} />
+        )}
         <WalletBalancePanel />
       </div>
       <TransactionHistory />

@@ -1,21 +1,25 @@
 "use client";
 
-import { payBookingFromWallet } from "@/lib/actions/booking.action";
+import {
+  payBookingFromWallet,
+  startBookingCheckout,
+} from "@/lib/actions/booking.action";
 import type {
   PublicPriceList,
   PublicRoute,
   PublicVendor,
 } from "@/lib/actions/transport.action";
-import { formatAmount } from "@/lib/format";
+import { formatAmount, formatBalance } from "@/lib/format";
+import { nairaToKobo } from "@/lib/money";
 import { queryKeys } from "@/lib/query-keys";
 import { useModalStore } from "@/lib/stores/modal.store";
+import { useWalletBalance } from "@/modules/wallet/hooks/useWalletBalance";
 import { inputClass } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
   AlertCircle,
-  ArrowRight,
   Bus,
   CalendarClock,
   Check,
@@ -25,12 +29,10 @@ import {
   Copy,
   Info,
   Loader2,
-  MapPin,
-  Search,
   X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -68,19 +70,9 @@ const passengerSchema = z.object({
 
 type PassengerValues = z.infer<typeof passengerSchema>;
 
-type Step =
-  | "pick-destination"
-  | "ride-summary"
-  | "passenger-details"
-  | "success";
-
-const STEP_BACK: Partial<Record<Step, Step>> = {
-  "ride-summary": "pick-destination",
-  "passenger-details": "ride-summary",
-};
+type Step = "ride-summary" | "passenger-details" | "success";
 
 const STEP_TITLE: Record<Step, string> = {
-  "pick-destination": "Pick Destination",
   "ride-summary": "Ride Summary",
   "passenger-details": "Your Details",
   success: "Booking Confirmed!",
@@ -89,40 +81,47 @@ const STEP_TITLE: Record<Step, string> = {
 export default function BookingFlow({
   vendor,
   priceList,
+  route,
   open,
   onClose,
-  initialRoute,
+  onBack,
   user,
   serviceFee,
 }: {
   vendor: PublicVendor;
   priceList: PublicPriceList;
+  route: PublicRoute;
   open: boolean;
   onClose: () => void;
-  initialRoute?: PublicRoute | null;
+  onBack: () => void;
   user: { id: string; name: string; phone: string; email: string };
   serviceFee: number;
 }) {
   const { openTopUp } = useModalStore();
+  const { balanceKobo } = useWalletBalance();
   const isLeaving = priceList.direction === "LEAVING";
   const directionLabel = isLeaving ? "Leaving School" : "Returning to School";
 
   const queryClient = useQueryClient();
 
-  const [step, setStep] = useState<Step>(
-    initialRoute ? "ride-summary" : "pick-destination",
-  );
-  const [search, setSearch] = useState("");
-  const [selectedRoute, setSelectedRoute] = useState<PublicRoute | null>(
-    initialRoute ?? null,
-  );
+  const [step, setStep] = useState<Step>("ride-summary");
   const [bookingRef, setBookingRef] = useState("");
   const [copied, setCopied] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [shortfall, setShortfall] = useState<number | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<"wallet" | "online">(
+    "wallet",
+  );
+  // BookingFlow fully unmounts/remounts per booking attempt (the parent only
+  // renders it while a vendor/priceList/route is selected), so this prop is
+  // stable for the component's whole lifetime — a lazy initializer instead
+  // of a sync effect.
   const [selectedDeparture, setSelectedDeparture] = useState<string | null>(
-    null,
+    () =>
+      priceList.departureTimes.length === 1
+        ? priceList.departureTimes[0].departsAt
+        : null,
   );
   const {
     register,
@@ -143,30 +142,16 @@ export default function BookingFlow({
     },
   });
 
-  const filteredRoutes = useMemo(() => {
-    if (!search.trim()) return priceList.routes;
-    const q = search.toLowerCase();
-    return priceList.routes.filter((r) => r.name.toLowerCase().includes(q));
-  }, [search, priceList.routes]);
-
-  // With a single departure there's nothing to choose — preselect it.
-  useEffect(() => {
-    if (priceList.departureTimes.length === 1) {
-      setSelectedDeparture(priceList.departureTimes[0].departsAt);
-    }
-  }, [priceList.departureTimes]);
-
   function handleClose() {
     if (isProcessing) return;
-    setStep("pick-destination");
-    setSearch("");
-    setSelectedRoute(null);
+    setStep("ride-summary");
     setSelectedDeparture(null);
     setBookingRef("");
     setCopied(false);
     setIsProcessing(false);
     setSubmitError("");
     setShortfall(null);
+    setPaymentMethod("wallet");
     resetForm({
       name: user.name,
       hall: undefined,
@@ -177,9 +162,13 @@ export default function BookingFlow({
     onClose();
   }
 
-  function handleSelectRoute(route: PublicRoute) {
-    setSelectedRoute(route);
-    setStep("ride-summary");
+  function handleBack() {
+    if (isProcessing) return;
+    if (step === "passenger-details") {
+      setStep("ride-summary");
+      return;
+    }
+    onBack();
   }
 
   function handleCopyRef() {
@@ -188,59 +177,90 @@ export default function BookingFlow({
     setTimeout(() => setCopied(false), 2000);
   }
 
-  const basePrice = selectedRoute?.price ?? 0;
+  const basePrice = route.price;
   const totalAmount = basePrice + serviceFee;
-  const pickup = isLeaving
-    ? "Covenant University"
-    : (selectedRoute?.name ?? "");
-  const destination = isLeaving
-    ? (selectedRoute?.name ?? "")
-    : "Covenant University";
+  const pickup = isLeaving ? "Covenant University" : route.name;
+  const destination = isLeaving ? route.name : "Covenant University";
+
+  const insufficientWallet =
+    balanceKobo !== null && balanceKobo < nairaToKobo(totalAmount);
+  const activeMethod: "wallet" | "online" = insufficientWallet
+    ? "online"
+    : paymentMethod;
+
+  function bookingIntent(values: PassengerValues) {
+    return {
+      vendorId: vendor.id,
+      routeId: route.id,
+      direction: priceList.direction,
+      passengerName: values.name,
+      passengerPhone: values.phone,
+      parentsPhone: values.parentsPhone,
+      hall: values.hall,
+      roomNumber: values.roomNumber.trim().toUpperCase(),
+      routeName: route.name,
+      fare: basePrice,
+      studentNotes: values.studentNotes,
+      destinationAddress: values.destinationAddress,
+      departureAt: selectedDeparture ?? undefined,
+    };
+  }
+
+  async function submitWalletPayment(values: PassengerValues) {
+    const result = await payBookingFromWallet(bookingIntent(values));
+
+    if ("error" in result) {
+      if (result.error === "INSUFFICIENT_BALANCE" && "shortfall" in result) {
+        setShortfall(result.shortfall);
+      } else {
+        setSubmitError(result.error);
+      }
+      setIsProcessing(false);
+      return;
+    }
+
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.wallet.all(user.id),
+    });
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.bookings.all(user.id),
+    });
+    setBookingRef(result.reference);
+    setStep("success");
+    setIsProcessing(false);
+  }
+
+  const checkoutMutation = useMutation({
+    mutationFn: (values: PassengerValues) =>
+      startBookingCheckout(bookingIntent(values)),
+    onSuccess: (result) => {
+      if ("error" in result) {
+        setSubmitError(result.error);
+        setIsProcessing(false);
+        return;
+      }
+      window.location.href = result.authorizationUrl;
+    },
+    onError: () => {
+      setSubmitError("Something went wrong. Please try again.");
+      setIsProcessing(false);
+    },
+  });
 
   async function submitBooking(values: PassengerValues) {
-    if (!selectedRoute) return;
     setSubmitError("");
     setShortfall(null);
     setIsProcessing(true);
 
+    if (activeMethod === "online") {
+      checkoutMutation.mutate(values);
+      return;
+    }
+
     try {
-      const result = await payBookingFromWallet({
-        vendorId: vendor.id,
-        routeId: selectedRoute.id,
-        direction: priceList.direction,
-        passengerName: values.name,
-        passengerPhone: values.phone,
-        parentsPhone: values.parentsPhone,
-        hall: values.hall,
-        roomNumber: values.roomNumber.trim().toUpperCase(),
-        routeName: selectedRoute.name,
-        fare: basePrice,
-        studentNotes: values.studentNotes,
-        destinationAddress: values.destinationAddress,
-        departureAt: selectedDeparture ?? undefined,
-      });
-
-      if ("error" in result) {
-        if (result.error === "INSUFFICIENT_BALANCE" && "shortfall" in result) {
-          setShortfall(result.shortfall);
-        } else {
-          setSubmitError(result.error);
-        }
-        setIsProcessing(false);
-        return;
-      }
-
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.wallet.all(user.id),
-      });
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.bookings.all(user.id),
-      });
-      setBookingRef(result.reference);
-      setStep("success");
+      await submitWalletPayment(values);
     } catch {
       setSubmitError("Something went wrong. Please try again.");
-    } finally {
       setIsProcessing(false);
     }
   }
@@ -272,9 +292,9 @@ export default function BookingFlow({
           >
             {/* Header */}
             <div className="flex items-center gap-3 px-5 py-4 border-b border-portal-border flex-shrink-0">
-              {STEP_BACK[step] && !isProcessing && (
+              {step !== "success" && !isProcessing && (
                 <button
-                  onClick={() => setStep(STEP_BACK[step]!)}
+                  onClick={handleBack}
                   className="w-8 h-8 rounded-lg bg-portal-accent-bg/50 border border-portal-border flex items-center justify-center hover:bg-portal-bg2 transition-colors"
                 >
                   <ChevronLeft className="w-4 h-4" />
@@ -300,62 +320,7 @@ export default function BookingFlow({
 
             <div className="flex-1 overflow-y-auto">
               <AnimatePresence mode="wait">
-                {/* ── Step 1: Pick Destination ── */}
-                {step === "pick-destination" && (
-                  <motion.div
-                    key="step-destination"
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 10 }}
-                    transition={{ duration: 0.2 }}
-                    className="p-5"
-                  >
-                    <div className="relative mb-4">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-portal-muted" />
-                      <input
-                        type="text"
-                        placeholder="Search destinations..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        className="w-full pl-9 pr-3.5 py-2.5 bg-portal-accent-bg/50 border border-portal-border rounded-xl text-sm text-portal-text placeholder:text-portal-muted outline-none focus:border-portal-accent transition-colors"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      {filteredRoutes.length === 0 && (
-                        <p className="text-center text-[13px] text-portal-muted py-8">
-                          No destinations found
-                        </p>
-                      )}
-                      {filteredRoutes.map((route) => (
-                        <button
-                          key={route.id}
-                          onClick={() => handleSelectRoute(route)}
-                          className="w-full flex items-center gap-3 px-3.5 py-3 bg-portal-accent-bg/50 rounded-xl hover:bg-portal-bg2 hover:border-portal-accent-border border border-transparent transition-all text-left"
-                        >
-                          <div className="w-9 h-9 rounded-lg bg-portal-accent-bg flex items-center justify-center flex-shrink-0">
-                            <MapPin className="w-4 h-4 text-portal-accent" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[13px] font-semibold text-portal-text">
-                              {route.name}
-                            </p>
-                            {route.capacity !== null && (
-                              <p className="text-[11px] text-portal-muted mt-0.5">
-                                {route.capacity} seats
-                              </p>
-                            )}
-                          </div>
-                          <p className="font-heading text-sm font-extrabold flex-shrink-0">
-                            &#x20A6;{route.price.toLocaleString()}
-                          </p>
-                          <ArrowRight className="w-4 h-4 text-portal-muted flex-shrink-0" />
-                        </button>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-
-                {step === "ride-summary" && selectedRoute && (
+                {step === "ride-summary" && (
                   <motion.div
                     key="step-summary"
                     initial={{ opacity: 0, x: -10 }}
@@ -398,10 +363,10 @@ export default function BookingFlow({
                           <Bus className="w-3.5 h-3.5 text-portal-muted" />
                           {vendor.transportName}
                         </div>
-                        {selectedRoute.capacity !== null && (
+                        {route.capacity !== null && (
                           <div className="flex items-center gap-1.5 text-[12px] text-portal-text2">
                             <span className="text-portal-muted">·</span>
-                            {selectedRoute.capacity} seats
+                            {route.capacity} seats
                           </div>
                         )}
                       </div>
@@ -690,6 +655,49 @@ export default function BookingFlow({
                         />
                       </Field>
 
+                      {/* Payment method */}
+                      <div>
+                        <p className="text-[12px] font-semibold text-portal-text2 mb-1.5">
+                          Pay With
+                        </p>
+                        <div className="grid grid-cols-2 gap-2.5">
+                          <button
+                            type="button"
+                            onClick={() => setPaymentMethod("wallet")}
+                            disabled={insufficientWallet}
+                            className={`rounded-xl border px-3.5 py-2.5 text-left transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                              activeMethod === "wallet"
+                                ? "border-portal-accent bg-portal-accent/5"
+                                : "border-portal-border bg-portal-accent-bg/50 hover:border-portal-accent/50"
+                            }`}
+                          >
+                            <p className="text-[12px] font-semibold text-portal-text">
+                              Wallet Balance
+                            </p>
+                            <p className="text-[11px] text-portal-muted mt-0.5">
+                              {formatBalance(balanceKobo)}
+                              {insufficientWallet && " · insufficient"}
+                            </p>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPaymentMethod("online")}
+                            className={`rounded-xl border px-3.5 py-2.5 text-left transition-colors ${
+                              activeMethod === "online"
+                                ? "border-portal-accent bg-portal-accent/5"
+                                : "border-portal-border bg-portal-accent-bg/50 hover:border-portal-accent/50"
+                            }`}
+                          >
+                            <p className="text-[12px] font-semibold text-portal-text">
+                              Pay Online
+                            </p>
+                            <p className="text-[11px] text-portal-muted mt-0.5">
+                              Card, bank transfer
+                            </p>
+                          </button>
+                        </div>
+                      </div>
+
                       {/* Insufficient balance warning */}
                       {shortfall !== null && (
                         <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-3">
@@ -699,16 +707,28 @@ export default function BookingFlow({
                               You&apos;re ₦{shortfall.toLocaleString()} short
                             </p>
                             <p className="text-[11px] text-amber-600 mt-0.5">
-                              Top up your wallet to complete this booking.
+                              Top up your wallet, or pay online instead.
                             </p>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => openTopUp()}
-                            className="flex-shrink-0 text-[12px] font-semibold text-amber-700 underline underline-offset-2 hover:text-amber-800"
-                          >
-                            Top Up Now
-                          </button>
+                          <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => openTopUp()}
+                              className="text-[12px] font-semibold text-amber-700 underline underline-offset-2 hover:text-amber-800"
+                            >
+                              Top Up Now
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPaymentMethod("online");
+                                setShortfall(null);
+                              }}
+                              className="text-[12px] font-semibold text-amber-700 underline underline-offset-2 hover:text-amber-800"
+                            >
+                              Pay Online Instead
+                            </button>
+                          </div>
                         </div>
                       )}
 
@@ -728,6 +748,8 @@ export default function BookingFlow({
                             <Loader2 className="w-4 h-4 animate-spin" />
                             Processing...
                           </>
+                        ) : activeMethod === "online" ? (
+                          `Pay ${formatAmount(totalAmount)} Online`
                         ) : (
                           `Pay ${formatAmount(totalAmount)} from Wallet`
                         )}
@@ -737,7 +759,7 @@ export default function BookingFlow({
                 )}
 
                 {/* ── Step 4: Success ── */}
-                {step === "success" && selectedRoute && (
+                {step === "success" && (
                   <motion.div
                     key="step-success"
                     initial={{ opacity: 0, scale: 0.95 }}

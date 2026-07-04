@@ -36,7 +36,7 @@ export const SETTINGS_REGISTRY = {
     description:
       "Which processor handles new payment attempts (top-ups, checkout).",
     schema: z.enum(["flutterwave", "paystack"]),
-    default: "paystack" as const,
+    default: "flutterwave" as const,
   },
   otp_config: {
     label: "OTP configuration",

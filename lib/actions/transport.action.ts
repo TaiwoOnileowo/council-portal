@@ -91,41 +91,43 @@ export async function getPublicTransports(): Promise<PublicVendor[]> {
     },
   });
 
-  return rows.map((v) => ({
-    id: v.user_id,
-    transportName: v.business_name,
-    image: v.user.image,
-    tagline: v.tagline,
-    description: v.description,
-    instagram: v.instagram,
-    tiktok: v.tiktok,
-    phone: v.user.phone ?? "",
-    isActive: v.is_active,
-    priceLists: v.price_lists
-      .filter((pl) => String(pl.availability_type) !== "INACTIVE")
-      .map((pl) => ({
-        id: pl.id,
-        name: pl.name,
-        direction: String(pl.direction) as "LEAVING" | "RETURNING",
-        availType: String(pl.availability_type) as
-          | "ACTIVE"
-          | "INACTIVE"
-          | "SCHEDULED",
-        schedEnd: pl.scheduled_end,
-        schedStart: pl.scheduled_start,
-        luggagePolicy: pl.luggage_policy,
-        notes: pl.notes,
-        routes: pl.routes.map((r) => ({
-          id: r.id,
-          name: r.name,
-          price: r.price,
-          capacity: r.capacity,
+  return rows
+    .map((v) => ({
+      id: v.user_id,
+      transportName: v.business_name,
+      image: v.user.image,
+      tagline: v.tagline,
+      description: v.description,
+      instagram: v.instagram,
+      tiktok: v.tiktok,
+      phone: v.user.phone ?? "",
+      isActive: v.is_active,
+      priceLists: v.price_lists
+        .filter((pl) => String(pl.availability_type) !== "INACTIVE")
+        .map((pl) => ({
+          id: pl.id,
+          name: pl.name,
+          direction: String(pl.direction) as "LEAVING" | "RETURNING",
+          availType: String(pl.availability_type) as
+            | "ACTIVE"
+            | "INACTIVE"
+            | "SCHEDULED",
+          schedEnd: pl.scheduled_end,
+          schedStart: pl.scheduled_start,
+          luggagePolicy: pl.luggage_policy,
+          notes: pl.notes,
+          routes: pl.routes.map((r) => ({
+            id: r.id,
+            name: r.name,
+            price: r.price,
+            capacity: r.capacity,
+          })),
+          departureTimes: pl.departure_times.map((d) => ({
+            departsAt: d.departs_at.toISOString(),
+          })),
         })),
-        departureTimes: pl.departure_times.map((d) => ({
-          departsAt: d.departs_at.toISOString(),
-        })),
-      })),
-  }));
+    }))
+    .filter((v) => v.priceLists.some((pl) => pl.routes.length > 0));
 }
 
 type DbPriceListFull = DbPriceList & {

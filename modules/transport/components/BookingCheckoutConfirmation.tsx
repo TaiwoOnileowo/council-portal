@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { checkTopUpStatus } from "@/lib/actions/wallet.action";
+import { checkBookingCheckoutStatus } from "@/lib/actions/booking.action";
 import { queryKeys } from "@/lib/query-keys";
 import { useCurrentUser } from "@/modules/auth/hooks/useCurrentUser";
 import { CheckCircle2, Loader2, X, XCircle } from "lucide-react";
@@ -26,27 +26,27 @@ const BANNER_CONFIG: Record<
     icon: (
       <Loader2 className="w-4 h-4 text-portal-accent animate-spin flex-shrink-0" />
     ),
-    message: "Confirming your top-up...",
+    message: "Confirming your booking...",
   },
   success: {
     toneClass: "bg-portal-green-bg border-portal-green/20",
     icon: <CheckCircle2 className="w-4 h-4 text-portal-green flex-shrink-0" />,
-    message: "Your wallet has been topped up.",
+    message: "Payment received — your booking is confirmed.",
   },
   timeout: {
     toneClass: "bg-amber-50 border-amber-200",
     icon: <Loader2 className="w-4 h-4 text-amber-500 flex-shrink-0" />,
     message:
-      "Still waiting on confirmation — check back in a bit, we'll update your wallet as soon as it clears.",
+      "Still waiting on confirmation — check back in a bit, we'll confirm your booking as soon as it clears.",
   },
   failed: {
     toneClass: "bg-red-50 border-red-200",
     icon: <XCircle className="w-4 h-4 text-red-500 flex-shrink-0" />,
-    message: "That payment wasn't completed. You can try again.",
+    message: "That payment wasn't completed. You can try booking again.",
   },
 };
 
-export default function TopUpConfirmation({
+export default function BookingCheckoutConfirmation({
   reference,
   initialStatus,
 }: {
@@ -63,7 +63,7 @@ export default function TopUpConfirmation({
 
   function dismiss() {
     setDismissed(true);
-    router.replace("/wallet");
+    router.replace("/transport");
   }
 
   useEffect(() => {
@@ -74,7 +74,7 @@ export default function TopUpConfirmation({
     let attempts = 0;
 
     async function poll() {
-      const result = await checkTopUpStatus(reference);
+      const result = await checkBookingCheckoutStatus(reference);
       if (cancelled) return;
 
       if ("error" in result || result.status === "FAILED") {
@@ -84,7 +84,7 @@ export default function TopUpConfirmation({
 
       if (result.status === "SUCCESS") {
         queryClient.invalidateQueries({
-          queryKey: queryKeys.wallet.all(currentUser?.id ?? ""),
+          queryKey: queryKeys.bookings.all(currentUser?.id ?? ""),
         });
         setState("success");
         return;
@@ -112,7 +112,10 @@ export default function TopUpConfirmation({
   // after a moment, so it doesn't linger or reappear if the user comes back.
   useEffect(() => {
     if (state === "checking") return;
-    const timer = setTimeout(() => router.replace("/wallet"), AUTO_DISMISS_MS);
+    const timer = setTimeout(
+      () => router.replace("/transport"),
+      AUTO_DISMISS_MS,
+    );
     return () => clearTimeout(timer);
   }, [state, router]);
 

@@ -1,9 +1,9 @@
 "use client";
 
-import { X, MapPin, Phone, Instagram, Copy, Check } from "lucide-react";
+import { X, MapPin, Phone, Instagram, Copy, Check, Search } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   PublicVendor,
   PublicPriceList,
@@ -14,6 +14,8 @@ import {
   closesToday,
   closesSoon,
   isVendorAvailable,
+  routeMatchRank,
+  primaryRouteName,
 } from "@/modules/transport/transport.utils";
 
 type ActiveTab = "leaving" | "returning";
@@ -43,6 +45,16 @@ export default function VendorDetailPopup({
   const defaultTab: ActiveTab = leavingList ? "leaving" : "returning";
   const [tab, setTab] = useState<ActiveTab>(defaultTab);
   const [phoneCopied, setPhoneCopied] = useState(false);
+  const [routeSearch, setRouteSearch] = useState("");
+  const [descExpanded, setDescExpanded] = useState(false);
+  const [isDescClamped, setIsDescClamped] = useState(false);
+  const descRef = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    const el = descRef.current;
+    if (!el) return;
+    setIsDescClamped(el.scrollHeight > el.clientHeight + 1);
+  }, [vendor.description]);
 
   function copyPhone() {
     navigator.clipboard.writeText(vendor.phone);
@@ -50,8 +62,33 @@ export default function VendorDetailPopup({
     setTimeout(() => setPhoneCopied(false), 2000);
   }
 
+  function switchTab(next: ActiveTab) {
+    setTab(next);
+    setRouteSearch("");
+  }
+
   const activeList = tab === "leaving" ? leavingList : returningList;
   const listAvailable = activeList ? isPriceListActive(activeList) : false;
+
+  const filteredRoutes = useMemo(() => {
+    if (!activeList) return [];
+    const q = routeSearch.trim();
+    if (!q) {
+      return [...activeList.routes].sort((a, b) =>
+        a.name.localeCompare(b.name),
+      );
+    }
+    return activeList.routes
+      .map((route) => ({
+        route,
+        rank: routeMatchRank(primaryRouteName(route.name), q),
+      }))
+      .filter((r) => r.rank !== -1)
+      .sort(
+        (a, b) => a.rank - b.rank || a.route.name.localeCompare(b.route.name),
+      )
+      .map((r) => r.route);
+  }, [activeList, routeSearch]);
 
   if (!open) return null;
 
@@ -125,11 +162,26 @@ export default function VendorDetailPopup({
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
               {vendor.description && (
-                <p className="text-[13px] text-portal-text2 leading-relaxed">
-                  {vendor.description}
-                </p>
+                <div>
+                  <p
+                    ref={descRef}
+                    className={`text-[13px] text-portal-text2 leading-relaxed ${
+                      !descExpanded ? "line-clamp-3" : ""
+                    }`}
+                  >
+                    {vendor.description}
+                  </p>
+                  {isDescClamped && (
+                    <button
+                      onClick={() => setDescExpanded((v) => !v)}
+                      className="text-[12px] font-semibold text-portal-accent mt-1"
+                    >
+                      {descExpanded ? "Show less" : "Read more"}
+                    </button>
+                  )}
+                </div>
               )}
 
               <div className="flex flex-wrap gap-2">
@@ -168,7 +220,6 @@ export default function VendorDetailPopup({
                     onClick={(e) => e.stopPropagation()}
                     className="flex items-center gap-1.5 text-xs text-portal-text2 bg-portal-accent-bg/50 border border-portal-border px-3 py-1.5 rounded-lg hover:border-portal-accent-border transition-colors"
                   >
-                    {/* TikTok icon via SVG */}
                     <svg
                       className="w-3.5 h-3.5 text-portal-muted"
                       viewBox="0 0 24 24"
@@ -181,13 +232,12 @@ export default function VendorDetailPopup({
                 )}
               </div>
 
-              {/* Tabs */}
               {(leavingList || returningList) && (
                 <>
-                  <div className="flex gap-1 bg-portal-accent-bg/50 rounded-lg p-1">
-                    {leavingList && (
+                  {leavingList && returningList ? (
+                    <div className="flex gap-1 bg-portal-accent-bg/50 rounded-lg p-1">
                       <button
-                        onClick={() => setTab("leaving")}
+                        onClick={() => switchTab("leaving")}
                         className={`flex-1 text-[13px] font-semibold py-2 rounded-md transition-all ${
                           tab === "leaving"
                             ? "bg-portal-surface text-portal-text shadow-sm"
@@ -196,10 +246,8 @@ export default function VendorDetailPopup({
                       >
                         Leaving School
                       </button>
-                    )}
-                    {returningList && (
                       <button
-                        onClick={() => setTab("returning")}
+                        onClick={() => switchTab("returning")}
                         className={`flex-1 text-[13px] font-semibold py-2 rounded-md transition-all ${
                           tab === "returning"
                             ? "bg-portal-surface text-portal-text shadow-sm"
@@ -208,10 +256,13 @@ export default function VendorDetailPopup({
                       >
                         Returning to School
                       </button>
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <p className="text-[13px] font-semibold text-portal-text">
+                      {leavingList ? "Leaving School" : "Returning to School"}
+                    </p>
+                  )}
 
-                  {/* Price list status badges */}
                   {activeList && (
                     <div className="flex flex-wrap gap-1.5">
                       {!listAvailable && (
@@ -229,23 +280,34 @@ export default function VendorDetailPopup({
                           Closes soon
                         </span>
                       )}
-                      {activeList.luggagePolicy && (
-                        <span className="text-[11px] text-portal-muted bg-portal-accent-bg/50 border border-portal-border px-2 py-0.5 rounded-full">
-                          {activeList.luggagePolicy}
-                        </span>
-                      )}
                     </div>
                   )}
 
-                  {/* Routes */}
+                  {activeList && activeList.routes.length > 0 && (
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-portal-muted" />
+                      <input
+                        type="text"
+                        placeholder="Search destinations..."
+                        value={routeSearch}
+                        onChange={(e) => setRouteSearch(e.target.value)}
+                        className="w-full pl-9 pr-3.5 py-2.5 bg-portal-accent-bg/50 border border-portal-border rounded-xl text-sm text-portal-text placeholder:text-portal-muted outline-none focus:border-portal-accent transition-colors"
+                      />
+                    </div>
+                  )}
+
                   {activeList && (
                     <div className="space-y-1.5">
                       {activeList.routes.length === 0 ? (
                         <p className="text-center text-[13px] text-portal-muted py-6">
                           No routes available
                         </p>
+                      ) : filteredRoutes.length === 0 ? (
+                        <p className="text-center text-[13px] text-portal-muted py-6">
+                          No destinations found
+                        </p>
                       ) : (
-                        activeList.routes.map((route) => (
+                        filteredRoutes.map((route) => (
                           <div
                             key={route.id}
                             className="flex items-center gap-3 px-3.5 py-3 bg-portal-accent-bg/50 rounded-xl hover:bg-portal-bg2 transition-colors"
@@ -277,13 +339,6 @@ export default function VendorDetailPopup({
                         ))
                       )}
                     </div>
-                  )}
-
-                  {/* Notes */}
-                  {activeList?.notes && (
-                    <p className="text-[12px] text-portal-muted italic">
-                      {activeList.notes}
-                    </p>
                   )}
                 </>
               )}

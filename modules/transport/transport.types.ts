@@ -162,6 +162,28 @@ export type StudentBookingsResponse = {
   total: number;
 };
 
+export const bookingCheckoutMetadataSchema = z.object({
+  vendorId: z.string(),
+  routeId: z.string(),
+  direction: z.enum(["LEAVING", "RETURNING"]),
+  passengerName: z.string(),
+  passengerPhone: z.string(),
+  parentsPhone: z.string(),
+  hall: z.string(),
+  roomNumber: z.string(),
+  routeName: z.string(),
+  fare: z.number(),
+  serviceFee: z.number(),
+  commissionNaira: z.number(),
+  studentNotes: z.string().nullable(),
+  destinationAddress: z.string(),
+  departureAt: z.string().nullable(),
+});
+
+export type BookingCheckoutMetadata = z.infer<
+  typeof bookingCheckoutMetadataSchema
+>;
+
 export type ExportFilters = {
   vendorId?: string;
   direction: "all" | "LEAVING" | "RETURNING";

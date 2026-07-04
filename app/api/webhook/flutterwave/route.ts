@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { markPayoutSuccess, reversePayout } from "@/lib/payouts";
 import { creditWallet } from "@/lib/actions/wallet.action";
+import { finalizeBookingCheckout } from "@/lib/actions/booking.action";
 import { getPaymentByReference, markPaymentResult } from "@/lib/payments";
 import type { Prisma } from "@/generated/prisma/client";
 import { NextRequest, NextResponse } from "next/server";
@@ -129,8 +130,9 @@ export async function POST(req: NextRequest) {
         reference: txRef,
       },
     );
+  } else if (payment.destination === "booking") {
+    await finalizeBookingCheckout(payment);
   }
-  // Other destinations (e.g. "booking") aren't implemented yet.
 
   return NextResponse.json({ received: true });
 }
