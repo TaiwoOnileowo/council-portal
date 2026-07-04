@@ -13,14 +13,12 @@ import { formatAmount, formatBalance } from "@/lib/format";
 import { readLocalDraft, writeLocalDraft } from "@/hooks/useLocalStorageDraft";
 import { nairaToKobo } from "@/lib/money";
 import { queryKeys } from "@/lib/query-keys";
-import { useModalStore } from "@/lib/stores/modal.store";
 import { useWalletBalance } from "@/modules/wallet/hooks/useWalletBalance";
 import { inputClass } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
-  AlertCircle,
   Bus,
   CalendarClock,
   Check,
@@ -107,7 +105,6 @@ export default function BookingFlow({
   user: { id: string; name: string; phone: string; email: string };
   serviceFee: number;
 }) {
-  const { openTopUp } = useModalStore();
   const { balanceKobo } = useWalletBalance();
   const isLeaving = priceList.direction === "LEAVING";
   const directionLabel = isLeaving ? "Leaving School" : "Returning to School";
@@ -119,7 +116,6 @@ export default function BookingFlow({
   const [copied, setCopied] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [submitError, setSubmitError] = useState("");
-  const [shortfall, setShortfall] = useState<number | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<"wallet" | "online">(
     "wallet",
   );
@@ -162,7 +158,6 @@ export default function BookingFlow({
     setCopied(false);
     setIsProcessing(false);
     setSubmitError("");
-    setShortfall(null);
     setPaymentMethod("wallet");
     resetForm({
       name: user.name,
@@ -232,11 +227,7 @@ export default function BookingFlow({
     const result = await payBookingFromWallet(bookingIntent(values));
 
     if ("error" in result) {
-      if (result.error === "INSUFFICIENT_BALANCE" && "shortfall" in result) {
-        setShortfall(result.shortfall);
-      } else {
-        setSubmitError(result.error);
-      }
+      setSubmitError(result.error);
       setIsProcessing(false);
       return;
     }
@@ -273,7 +264,6 @@ export default function BookingFlow({
 
   async function submitBooking(values: PassengerValues) {
     setSubmitError("");
-    setShortfall(null);
     setIsProcessing(true);
 
     if (activeMethod === "online") {
@@ -721,40 +711,6 @@ export default function BookingFlow({
                           </button>
                         </div>
                       </div>
-
-                      {/* Insufficient balance warning */}
-                      {shortfall !== null && (
-                        <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-3">
-                          <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[12px] font-semibold text-amber-700">
-                              You&apos;re ₦{shortfall.toLocaleString()} short
-                            </p>
-                            <p className="text-[11px] text-amber-600 mt-0.5">
-                              Top up your wallet, or pay online instead.
-                            </p>
-                          </div>
-                          <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => openTopUp()}
-                              className="text-[12px] font-semibold text-amber-700 underline underline-offset-2 hover:text-amber-800"
-                            >
-                              Top Up Now
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setPaymentMethod("online");
-                                setShortfall(null);
-                              }}
-                              className="text-[12px] font-semibold text-amber-700 underline underline-offset-2 hover:text-amber-800"
-                            >
-                              Pay Online Instead
-                            </button>
-                          </div>
-                        </div>
-                      )}
 
                       {submitError && (
                         <p className="text-[12px] text-red-500 text-center">
