@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { motion } from "motion/react";
 import Image from "next/image";
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
 import type {
   PublicVendor,
   PublicPriceList,
@@ -122,8 +122,17 @@ export default function VendorCardsList({
             placeholder="Search for a route or destination..."
             value={query}
             onChange={(e) => handleQueryChange(e.target.value)}
-            className="w-full pl-9 pr-3.5 py-2.5 bg-portal-surface border border-portal-border rounded-xl text-sm text-portal-text placeholder:text-portal-muted outline-none focus:border-portal-accent transition-colors"
+            className="w-full pl-9 pr-9 py-2.5 bg-portal-surface border border-portal-border rounded-xl text-sm text-portal-text placeholder:text-portal-muted outline-none focus:border-portal-accent transition-colors"
           />
+          {query && (
+            <button
+              type="button"
+              onClick={() => handleQueryChange("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-portal-muted hover:text-portal-text2"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
 
         {isSearching ? (

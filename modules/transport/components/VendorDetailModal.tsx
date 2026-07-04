@@ -290,8 +290,17 @@ export default function VendorDetailPopup({
                         placeholder="Search destinations..."
                         value={routeSearch}
                         onChange={(e) => setRouteSearch(e.target.value)}
-                        className="w-full pl-9 pr-3.5 py-2.5 bg-portal-accent-bg/50 border border-portal-border rounded-xl text-sm text-portal-text placeholder:text-portal-muted outline-none focus:border-portal-accent transition-colors"
+                        className="w-full pl-9 pr-9 py-2.5 bg-portal-accent-bg/50 border border-portal-border rounded-xl text-sm text-portal-text placeholder:text-portal-muted outline-none focus:border-portal-accent transition-colors"
                       />
+                      {routeSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setRouteSearch("")}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-portal-muted hover:text-portal-text2"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   )}
 
