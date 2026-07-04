@@ -3,6 +3,7 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
+import { startPayment, getPaymentByReference } from "@/lib/payments";
 import {
   WALLET_TX_PAGE_SIZE,
   type WalletTransactionsFilters,
@@ -50,7 +51,9 @@ export async function creditWallet(
     ? { vendor_id: owner.vendorId }
     : { user_id: owner.userId };
   const readBalance = (client: Prisma.TransactionClient | typeof db) =>
-    isVendor ? vendorBalance(owner.vendorId, client) : currentBalance(owner.userId, client);
+    isVendor
+      ? vendorBalance(owner.vendorId, client)
+      : currentBalance(owner.userId, client);
 
   try {
     const created = await db.$transaction(async (tx) => {
@@ -109,72 +112,64 @@ export async function topUpWallet(amountKobo: number) {
   return { balance, ref };
 }
 
-export async function verifyAndTopUpWallet({
-  transactionId,
-  txRef,
-  amountKobo,
-}: {
-  transactionId: number;
-  txRef: string;
-  amountKobo: number;
-}): Promise<{ balance: number; ref: string } | { error: string }> {
+export async function startTopUp(
+  amountKobo: number,
+): Promise<
+  { authorizationUrl: string; reference: string } | { error: string }
+> {
   const session = await auth();
   if (!session?.user?.id) return { error: "Unauthorized" };
 
-  const userId = session.user.id;
-
-  // Idempotency — skip re-verifying with Flutterwave if already processed
-  const existing = await db.wallet.findUnique({ where: { reference: txRef } });
-  if (existing) {
-    return { balance: await currentBalance(userId), ref: txRef };
+  if (!Number.isInteger(amountKobo) || amountKobo <= 0) {
+    return { error: "Invalid amount." };
   }
 
-  // Verify with Flutterwave
-  let flwAmount: number;
-  try {
-    const res = await fetch(
-      `https://api.flutterwave.com/v3/transactions/${transactionId}/verify`,
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.FLW_SECRET_KEY}`,
-        },
-      },
-    );
-    const json = await res.json();
-    const data = json.data as Record<string, unknown> | undefined;
+  const user = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { first_name: true, last_name: true, email: true },
+  });
+  if (!user) return { error: "User not found." };
 
-    if (
-      json.status !== "success" ||
-      !data ||
-      data.status !== "successful" ||
-      data.currency !== "NGN" ||
-      typeof data.amount !== "number"
-    ) {
-      return { error: "Payment verification failed." };
-    }
+  const reference = `TOPUP-${Date.now().toString(36).toUpperCase()}-${Math.random()
+    .toString(36)
+    .slice(2, 5)
+    .toUpperCase()}`;
 
-    flwAmount = data.amount;
-  } catch {
-    return { error: "Could not verify payment. Please try again." };
+  return startPayment({
+    reference,
+    amountKobo,
+    userId: session.user.id,
+    destination: "wallet_topup",
+    email: user.email,
+    name: `${user.first_name} ${user.last_name}`,
+    redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL}/wallet?topup_ref=${reference}`,
+  });
+}
+
+export type TopUpStatus =
+  | { status: "SUCCESS"; balance: number }
+  | { status: "PENDING" | "FAILED" }
+  | { error: string };
+
+export async function checkTopUpStatus(
+  reference: string,
+): Promise<TopUpStatus> {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Unauthorized" };
+
+  const payment = await getPaymentByReference(reference);
+  if (!payment || payment.user_id !== session.user.id) {
+    return { error: "Payment not found." };
   }
 
-  // Tolerance of ₦1 for rounding
-  if (flwAmount < amountKobo / 100 - 1) {
-    return { error: "Payment amount mismatch." };
+  if (payment.status === "SUCCESS") {
+    return {
+      status: "SUCCESS",
+      balance: await currentBalance(session.user.id),
+    };
   }
 
-  const { balance } = await creditWallet(
-    { userId },
-    {
-      amountKobo,
-      reason: "Wallet top-up",
-      type: "topup",
-      modelResponsible: "Payment",
-      reference: txRef,
-    },
-  );
-
-  return { balance, ref: txRef };
+  return { status: payment.status };
 }
 
 export async function getTransactionHistory(

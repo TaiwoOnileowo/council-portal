@@ -129,7 +129,6 @@ export default function BookingFlow({
     control,
     handleSubmit,
     reset: resetForm,
-    getValues,
     formState: { errors },
   } = useForm<PassengerValues>({
     resolver: zodResolver(passengerSchema),
@@ -705,12 +704,7 @@ export default function BookingFlow({
                           </div>
                           <button
                             type="button"
-                            onClick={() =>
-                              openTopUp({
-                                prefilledAmount: shortfall,
-                                onSuccess: () => submitBooking(getValues()),
-                              })
-                            }
+                            onClick={() => openTopUp()}
                             className="flex-shrink-0 text-[12px] font-semibold text-amber-700 underline underline-offset-2 hover:text-amber-800"
                           >
                             Top Up Now

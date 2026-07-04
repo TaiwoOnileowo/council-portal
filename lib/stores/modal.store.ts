@@ -5,18 +5,15 @@ type BankAccount = { name: string; accountName: string; mask: string };
 interface ModalStore {
   topUp: {
     open: boolean;
-    prefilledAmount?: number;
-    onSuccess?: () => void;
+    openId: number; // bumped on every openTopUp — used as a React key to
+    // force TopUpModal to remount fresh instead of resetting state via effect
   };
   withdraw: {
     open: boolean;
     availableKobo: number;
     bankAccount: BankAccount | null;
   };
-  openTopUp: (opts?: {
-    prefilledAmount?: number;
-    onSuccess?: () => void;
-  }) => void;
+  openTopUp: () => void;
   closeTopUp: () => void;
   openWithdraw: (opts: {
     availableKobo: number;
@@ -25,11 +22,13 @@ interface ModalStore {
   closeWithdraw: () => void;
 }
 
-export const useModalStore = create<ModalStore>((set) => ({
-  topUp: { open: false },
+export const useModalStore = create<ModalStore>((set, get) => ({
+  topUp: { open: false, openId: 0 },
   withdraw: { open: false, availableKobo: 0, bankAccount: null },
-  openTopUp: (opts = {}) => set({ topUp: { open: true, ...opts } }),
-  closeTopUp: () => set({ topUp: { open: false } }),
+  openTopUp: () =>
+    set({ topUp: { open: true, openId: get().topUp.openId + 1 } }),
+  closeTopUp: () =>
+    set((state) => ({ topUp: { open: false, openId: state.topUp.openId } })),
   openWithdraw: (opts) => set({ withdraw: { open: true, ...opts } }),
   closeWithdraw: () =>
     set({ withdraw: { open: false, availableKobo: 0, bankAccount: null } }),

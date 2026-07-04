@@ -48,6 +48,12 @@ enum PayoutStatus {
   FAILED
 }
 
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
 model user {
   id              String           @id @default(uuid())
   first_name      String
@@ -65,6 +71,7 @@ model user {
   wallet          wallet[] // append-only ledger entries
   bookings        booking[] // as passenger
   virtual_account virtual_account?
+  payments        payment[] // inbound processor charge attempts
 }
 
 model app_setting {
@@ -148,6 +155,29 @@ model virtual_account {
   is_active      Boolean         @default(true)
   created_at     DateTime        @default(now())
   updated_at     DateTime        @updatedAt
+}
+
+model payment {
+  id                  String        @id @default(uuid())
+  reference           String        @unique // our tx_ref, passed to the processor
+  processor           String // "flutterwave" | "paystack" — whichever handled this one
+  processor_reference String? // their reference/id, once known
+  amount              Int // kobo
+  currency            String        @default("NGN")
+  status              PaymentStatus @default(PENDING)
+  failure_reason      String?
+  destination         String // free-text, e.g. "wallet_topup", "booking" — mirrors wallet.model_responsible
+  destination_id      String? // null until the destination record exists
+  user_id             String
+  user                user          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  metadata            Json? // intent needed to create the destination record on success
+  raw_response        Json? // processor's raw callback payload, for audit
+  paid_at             DateTime?
+  created_at          DateTime      @default(now())
+  updated_at          DateTime      @updatedAt
+
+  @@index([user_id, created_at])
+  @@index([destination, destination_id])
 }
 
 model payout {

@@ -9,12 +9,7 @@ export default function GlobalModals() {
 
   return (
     <>
-      <TopUpModal
-        open={topUp.open}
-        onClose={closeTopUp}
-        prefilledAmount={topUp.prefilledAmount}
-        onSuccess={topUp.onSuccess}
-      />
+      <TopUpModal key={topUp.openId} open={topUp.open} onClose={closeTopUp} />
       <WithdrawModal
         open={withdraw.open}
         onClose={closeWithdraw}

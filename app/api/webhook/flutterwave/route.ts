@@ -1,6 +1,8 @@
 import { db } from "@/lib/db";
 import { markPayoutSuccess, reversePayout } from "@/lib/payouts";
 import { creditWallet } from "@/lib/actions/wallet.action";
+import { getPaymentByReference, markPaymentResult } from "@/lib/payments";
+import type { Prisma } from "@/generated/prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
@@ -48,34 +50,32 @@ export async function POST(req: NextRequest) {
   const amount = data.amount as number | undefined;
   const currency = data.currency as string | undefined;
 
-  if (!txRef || status !== "successful" || currency !== "NGN" || !amount) {
-    return NextResponse.json({ received: true });
-  }
+  if (!txRef) return NextResponse.json({ received: true });
 
-  const amountKobo = Math.round(amount * 100);
+  const amountKobo = amount ? Math.round(amount * 100) : 0;
+  const isSuccessful =
+    status === "successful" && currency === "NGN" && !!amount;
+  const flwRef = data.flw_ref as string | undefined;
 
   // Static virtual account credit — Flutterwave echoes back the tx_ref we
   // supplied when the account was created, not a per-transfer one, so we
-  // look up the owner by that instead of by meta.userId.
+  // look up the owner by that instead of a payment row.
   if (txRef.startsWith("VA-")) {
+    if (!isSuccessful) return NextResponse.json({ received: true });
+
     const virtualAccount = await db.virtual_account.findUnique({
       where: { tx_ref: txRef },
     });
     if (!virtualAccount) {
       console.error(
         "[flutterwave webhook] unattributed virtual account transfer",
-        {
-          txRef,
-          flwRef: data.flw_ref,
-          amount,
-        },
+        { txRef, flwRef, amount },
       );
       return NextResponse.json({ received: true });
     }
 
-    const flwRef =
-      (data.flw_ref as string | undefined) || String(data.id ?? "");
-    if (!flwRef) return NextResponse.json({ received: true });
+    const creditRef = flwRef || String(data.id ?? "");
+    if (!creditRef) return NextResponse.json({ received: true });
 
     const owner = virtualAccount.vendor_id
       ? { vendorId: virtualAccount.vendor_id }
@@ -86,30 +86,51 @@ export async function POST(req: NextRequest) {
       reason: "Wallet top-up — bank transfer",
       type: "topup",
       modelResponsible: "VirtualAccount",
-      reference: flwRef,
+      reference: creditRef,
     });
 
     return NextResponse.json({ received: true });
   }
 
-  if (!txRef.startsWith("TOPUP-")) {
+  // Everything else is a payment we started ourselves via startPayment —
+  // look it up by reference rather than trusting anything client-supplied,
+  // and only ever act on it once (a webhook can be retried by Flutterwave).
+  const payment = await getPaymentByReference(txRef);
+  if (!payment || payment.status !== "PENDING") {
     return NextResponse.json({ received: true });
   }
 
-  const meta = data.meta as Record<string, unknown> | undefined;
-  const userId = meta?.userId as string | undefined;
-  if (!userId) return NextResponse.json({ received: true });
+  if (!isSuccessful || amountKobo < payment.amount) {
+    await markPaymentResult(txRef, {
+      status: "FAILED",
+      failureReason: !isSuccessful
+        ? `Flutterwave reported status "${status}"`
+        : "Amount mismatch",
+      processorReference: flwRef,
+      rawResponse: body as unknown as Prisma.InputJsonValue,
+    });
+    return NextResponse.json({ received: true });
+  }
 
-  await creditWallet(
-    { userId },
-    {
-      amountKobo,
-      reason: "Wallet top-up",
-      type: "topup",
-      modelResponsible: "Payment",
-      reference: txRef,
-    },
-  );
+  await markPaymentResult(txRef, {
+    status: "SUCCESS",
+    processorReference: flwRef,
+    rawResponse: body as unknown as Prisma.InputJsonValue,
+  });
+
+  if (payment.destination === "wallet_topup") {
+    await creditWallet(
+      { userId: payment.user_id },
+      {
+        amountKobo: payment.amount,
+        reason: "Wallet top-up",
+        type: "topup",
+        modelResponsible: "Payment",
+        reference: txRef,
+      },
+    );
+  }
+  // Other destinations (e.g. "booking") aren't implemented yet.
 
   return NextResponse.json({ received: true });
 }

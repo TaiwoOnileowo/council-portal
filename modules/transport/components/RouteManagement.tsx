@@ -28,7 +28,13 @@ import {
   buildBody,
   emptyFormValues,
   formValuesFromPriceList,
+  priceListDraftKey,
 } from "@/modules/transport/transport.utils";
+import {
+  clearLocalDraft,
+  readLocalDraft,
+  useLocalStorageDraft,
+} from "@/hooks/useLocalStorageDraft";
 import {
   House,
   Loader2,
@@ -81,13 +87,20 @@ export default function RouteManagement() {
     remove: removeDeparture,
   } = useFieldArray({ control, name: "departureTimes" });
 
-  const watchedName = useWatch({ control, name: "name" });
-  const watchedDirection = useWatch({ control, name: "direction" });
-  const watchedRoutes = useWatch({ control, name: "routes" });
-  const watchedDepartureTimes = useWatch({ control, name: "departureTimes" });
-  const watchedAvailType = useWatch({ control, name: "availType" });
-  const watchedSchedStart = useWatch({ control, name: "schedStart" });
-  const watchedSchedEnd = useWatch({ control, name: "schedEnd" });
+  const watchedFormValues = useWatch({ control });
+  const watchedName = watchedFormValues.name ?? "";
+  const watchedDirection = watchedFormValues.direction ?? "leaving";
+  const watchedRoutes = watchedFormValues.routes ?? [];
+  const watchedDepartureTimes = watchedFormValues.departureTimes ?? [];
+  const watchedAvailType = watchedFormValues.availType ?? "active";
+  const watchedSchedStart = watchedFormValues.schedStart ?? "";
+  const watchedSchedEnd = watchedFormValues.schedEnd ?? "";
+
+  const draftKey = priceListDraftKey(watchedDirection, editingId);
+  useLocalStorageDraft(
+    drawerOpen && formIsDirty ? draftKey : null,
+    watchedFormValues,
+  );
 
   const leaving =
     (priceLists ?? []).find((p) => p.direction === "leaving") ?? null;
@@ -95,13 +108,15 @@ export default function RouteManagement() {
     (priceLists ?? []).find((p) => p.direction === "returning") ?? null;
 
   function openNew(direction: "leaving" | "returning") {
-    reset(emptyFormValues(direction));
+    const draft = readLocalDraft<DrawerFormValues>(priceListDraftKey(direction, null));
+    reset(draft ?? emptyFormValues(direction));
     setEditingId(null);
     setDrawerOpen(true);
   }
 
   function openEdit(pl: PriceList) {
-    reset(formValuesFromPriceList(pl));
+    const draft = readLocalDraft<DrawerFormValues>(priceListDraftKey(pl.direction, pl.id));
+    reset(draft ?? formValuesFromPriceList(pl));
     setEditingId(pl.id);
     setDrawerOpen(true);
   }
@@ -115,6 +130,7 @@ export default function RouteManagement() {
   }
 
   function confirmDiscard() {
+    clearLocalDraft(draftKey);
     setDiscardOpen(false);
     setDrawerOpen(false);
   }
@@ -155,6 +171,7 @@ export default function RouteManagement() {
         await createMutation.mutateAsync(body);
         toast.success("Price list created");
       }
+      clearLocalDraft(draftKey);
       setDrawerOpen(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong");

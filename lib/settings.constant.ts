@@ -31,6 +31,13 @@ export const SETTINGS_REGISTRY = {
       serviceFeeNaira: 0,
     },
   },
+  active_payment_processor: {
+    label: "Active payment processor",
+    description:
+      "Which processor handles new payment attempts (top-ups, checkout).",
+    schema: z.enum(["flutterwave", "paystack"]),
+    default: "paystack" as const,
+  },
   otp_config: {
     label: "OTP configuration",
     description:

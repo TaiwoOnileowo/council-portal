@@ -111,6 +111,10 @@ export function isVendorAvailable(vendor: PublicVendor): boolean {
   });
 }
 
+export function priceListDraftKey(direction: "leaving" | "returning", id: string | null): string {
+  return `priceListDraft:${direction}:${id ?? "new"}`;
+}
+
 export function emptyFormValues(direction: "leaving" | "returning"): DrawerFormValues {
   return {
     name: direction === "leaving" ? "Leaving School" : "Returning to School",
