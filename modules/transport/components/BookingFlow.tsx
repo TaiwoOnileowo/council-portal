@@ -10,6 +10,7 @@ import type {
   PublicVendor,
 } from "@/lib/actions/transport.action";
 import { formatAmount, formatBalance } from "@/lib/format";
+import { readLocalDraft, writeLocalDraft } from "@/hooks/useLocalStorageDraft";
 import { nairaToKobo } from "@/lib/money";
 import { queryKeys } from "@/lib/query-keys";
 import { useModalStore } from "@/lib/stores/modal.store";
@@ -70,6 +71,15 @@ const passengerSchema = z.object({
 
 type PassengerValues = z.infer<typeof passengerSchema>;
 
+type PassengerDraft = Pick<
+  PassengerValues,
+  "hall" | "roomNumber" | "parentsPhone" | "destinationAddress" | "studentNotes"
+>;
+
+function passengerDraftKey(userId: string) {
+  return `passengerDraft:${userId}`;
+}
+
 type Step = "ride-summary" | "passenger-details" | "success";
 
 const STEP_TITLE: Record<Step, string> = {
@@ -113,16 +123,17 @@ export default function BookingFlow({
   const [paymentMethod, setPaymentMethod] = useState<"wallet" | "online">(
     "wallet",
   );
-  // BookingFlow fully unmounts/remounts per booking attempt (the parent only
-  // renders it while a vendor/priceList/route is selected), so this prop is
-  // stable for the component's whole lifetime — a lazy initializer instead
-  // of a sync effect.
+
   const [selectedDeparture, setSelectedDeparture] = useState<string | null>(
     () =>
       priceList.departureTimes.length === 1
         ? priceList.departureTimes[0].departsAt
         : null,
   );
+  const savedPassengerDraft = readLocalDraft<PassengerDraft>(
+    passengerDraftKey(user.id),
+  );
+
   const {
     register,
     control,
@@ -134,11 +145,12 @@ export default function BookingFlow({
     mode: "onChange",
     defaultValues: {
       name: user.name,
-      hall: undefined,
-      roomNumber: "",
+      hall: savedPassengerDraft?.hall,
+      roomNumber: savedPassengerDraft?.roomNumber ?? "",
       phone: user.phone,
-      parentsPhone: "",
-      destinationAddress: "",
+      parentsPhone: savedPassengerDraft?.parentsPhone ?? "",
+      destinationAddress: savedPassengerDraft?.destinationAddress ?? "",
+      studentNotes: savedPassengerDraft?.studentNotes,
     },
   });
 
@@ -206,6 +218,16 @@ export default function BookingFlow({
     };
   }
 
+  function savePassengerDraft(values: PassengerValues) {
+    writeLocalDraft<PassengerDraft>(passengerDraftKey(user.id), {
+      hall: values.hall,
+      roomNumber: values.roomNumber,
+      parentsPhone: values.parentsPhone,
+      destinationAddress: values.destinationAddress,
+      studentNotes: values.studentNotes,
+    });
+  }
+
   async function submitWalletPayment(values: PassengerValues) {
     const result = await payBookingFromWallet(bookingIntent(values));
 
@@ -225,6 +247,7 @@ export default function BookingFlow({
     queryClient.invalidateQueries({
       queryKey: queryKeys.bookings.all(user.id),
     });
+    savePassengerDraft(values);
     setBookingRef(result.reference);
     setStep("success");
     setIsProcessing(false);
@@ -233,12 +256,13 @@ export default function BookingFlow({
   const checkoutMutation = useMutation({
     mutationFn: (values: PassengerValues) =>
       startBookingCheckout(bookingIntent(values)),
-    onSuccess: (result) => {
+    onSuccess: (result, values) => {
       if ("error" in result) {
         setSubmitError(result.error);
         setIsProcessing(false);
         return;
       }
+      savePassengerDraft(values);
       window.location.href = result.authorizationUrl;
     },
     onError: () => {

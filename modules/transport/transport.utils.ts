@@ -111,39 +111,6 @@ export function isVendorAvailable(vendor: PublicVendor): boolean {
   });
 }
 
-function escapeRegExp(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-/**
- * Route names are often suffixed with a trailing state/region annotation,
- * e.g. "AGEGE (Lagos)" — strip just that trailing group before matching so
- * the annotation itself (e.g. "Lagos" containing "ago") can't cause false
- * matches. Earlier parenthetical content (e.g. an alias list) is kept.
- */
-export function primaryRouteName(name: string): string {
-  return name.replace(/\s*\([^()]*\)\s*$/, "").trim();
-}
-
-/**
- * Ranks how closely `name` matches `query` for search relevance — lower is a
- * closer match. Returns -1 when `query` isn't found in `name` at all.
- * 0 = exact match, 1 = starts with query, 2 = query starts a word within
- * name (e.g. "ago" in "Ago Palace" or ".../OGOMBO"), 3 = query appears
- * mid-word (e.g. "ago" inside "Magodo").
- */
-export function routeMatchRank(name: string, query: string): number {
-  const q = query.trim();
-  if (!q) return -1;
-  const n = name.toLowerCase();
-  const lq = q.toLowerCase();
-  if (n === lq) return 0;
-  if (n.startsWith(lq)) return 1;
-  if (!n.includes(lq)) return -1;
-  const wordBoundary = new RegExp(`[^a-z0-9]${escapeRegExp(lq)}`, "i");
-  return wordBoundary.test(name) ? 2 : 3;
-}
-
 export function priceListDraftKey(direction: "leaving" | "returning", id: string | null): string {
   return `priceListDraft:${direction}:${id ?? "new"}`;
 }

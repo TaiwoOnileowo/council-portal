@@ -28,10 +28,15 @@ export function clearLocalDraft(key: string) {
   window.localStorage.removeItem(key);
 }
 
+export function writeLocalDraft<T>(key: string, value: T) {
+  if (typeof window === "undefined") return;
+  const stored: StoredDraft<T> = { value, savedAt: Date.now() };
+  window.localStorage.setItem(key, JSON.stringify(stored));
+}
+
 export function useLocalStorageDraft<T>(key: string | null, value: T) {
   useEffect(() => {
-    if (!key || typeof window === "undefined") return;
-    const stored: StoredDraft<T> = { value, savedAt: Date.now() };
-    window.localStorage.setItem(key, JSON.stringify(stored));
+    if (!key) return;
+    writeLocalDraft(key, value);
   }, [key, value]);
 }

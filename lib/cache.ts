@@ -1,7 +1,12 @@
 import { redis } from "./redis";
 
 export async function cacheGet<T>(key: string): Promise<T | null> {
-  return redis.get<T>(key);
+  try {
+    return await redis.get<T>(key);
+  } catch (err) {
+    console.error("[cache] get failed, treating as miss", key, err);
+    return null;
+  }
 }
 
 export async function cacheSet(
@@ -9,10 +14,14 @@ export async function cacheSet(
   value: unknown,
   ttlSeconds?: number,
 ): Promise<void> {
-  if (ttlSeconds && ttlSeconds > 0) {
-    await redis.setex(key, ttlSeconds, value);
-  } else {
-    await redis.set(key, value);
+  try {
+    if (ttlSeconds && ttlSeconds > 0) {
+      await redis.setex(key, ttlSeconds, value);
+    } else {
+      await redis.set(key, value);
+    }
+  } catch (err) {
+    console.error("[cache] set failed, skipping cache write", key, err);
   }
 }
 

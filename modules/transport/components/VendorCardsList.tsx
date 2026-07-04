@@ -12,9 +12,8 @@ import type {
 import {
   isPriceListActive,
   isVendorAvailable,
-  routeMatchRank,
-  primaryRouteName,
 } from "@/modules/transport/transport.utils";
+import { textMatchRank, stripTrailingParenthetical } from "@/lib/utils";
 import VendorDetailPopup from "./VendorDetailModal";
 import BookingFlow from "./BookingFlow";
 
@@ -88,7 +87,7 @@ export default function VendorCardsList({
       const matches: VendorRouteGroup["matches"] = [];
       for (const priceList of vendor.priceLists) {
         for (const route of priceList.routes) {
-          const rank = routeMatchRank(primaryRouteName(route.name), q);
+          const rank = textMatchRank(stripTrailingParenthetical(route.name), q);
           if (rank !== -1) matches.push({ priceList, route, rank });
         }
       }

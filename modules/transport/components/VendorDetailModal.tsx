@@ -14,9 +14,8 @@ import {
   closesToday,
   closesSoon,
   isVendorAvailable,
-  routeMatchRank,
-  primaryRouteName,
 } from "@/modules/transport/transport.utils";
+import { textMatchRank, stripTrailingParenthetical } from "@/lib/utils";
 
 type ActiveTab = "leaving" | "returning";
 
@@ -81,7 +80,7 @@ export default function VendorDetailPopup({
     return activeList.routes
       .map((route) => ({
         route,
-        rank: routeMatchRank(primaryRouteName(route.name), q),
+        rank: textMatchRank(stripTrailingParenthetical(route.name), q),
       }))
       .filter((r) => r.rank !== -1)
       .sort(
