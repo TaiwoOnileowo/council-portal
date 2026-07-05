@@ -6,6 +6,7 @@ import { sendBookingConfirmationEmail } from "@/lib/sendpulse";
 import {
   bookingCheckoutMetadataSchema,
   STUDENT_BOOKINGS_PAGE_SIZE,
+  type BookingCheckoutMetadata,
   type StudentBooking,
   type StudentBookingsFilters,
   type StudentBookingsResponse,
@@ -203,10 +204,9 @@ export async function payBookingFromWallet({
   const session = await auth();
   if (!session?.user?.id) return { error: "You must be signed in to book." };
 
-  const {
-    serviceFeeNaira: serviceFee,
-    commissionNaira,
-  } = await getSetting("booking_pricing_config");
+  const { serviceFeeNaira: serviceFee, commissionNaira } = await getSetting(
+    "booking_pricing_config",
+  );
 
   const userId = session.user.id;
   const totalAmountKobo = nairaToKobo(fare + serviceFee);
@@ -358,8 +358,9 @@ export async function startBookingCheckout({
   const session = await auth();
   if (!session?.user?.id) return { error: "You must be signed in to book." };
 
-  const { serviceFeeNaira: serviceFee, commissionNaira } =
-    await getSetting("booking_pricing_config");
+  const { serviceFeeNaira: serviceFee, commissionNaira } = await getSetting(
+    "booking_pricing_config",
+  );
 
   const user = await db.user.findUnique({
     where: { id: session.user.id },
@@ -397,107 +398,100 @@ export async function startBookingCheckout({
   });
 }
 
-// Creates the booking record and credits the vendor's earning — the
-// counterpart to payBookingFromWallet's in-transaction logic, minus the
-// student wallet debit since the money already came from the processor.
-// Reuses the payment's own reference as the booking's reference, so the
-// confirmation page never needs to look up a second identifier.
-export async function finalizeBookingCheckout(payment: {
-  reference: string;
-  user_id: string;
-  metadata: Prisma.JsonValue;
-}): Promise<void> {
+// Runs inside the caller's payment-success transaction (see
+// completePaymentSuccess) — throwing here rolls back the whole transaction,
+// including the payment's SUCCESS transition, so a bad write leaves the
+// payment PENDING for a retry instead of stuck SUCCESS with no booking.
+export async function finalizeBookingCheckout(
+  payment: { reference: string; user_id: string; metadata: Prisma.JsonValue },
+  tx: Prisma.TransactionClient,
+): Promise<BookingCheckoutMetadata> {
   const parsed = bookingCheckoutMetadataSchema.safeParse(payment.metadata);
   if (!parsed.success) {
-    console.error(
-      "[booking-checkout] invalid metadata",
-      payment.reference,
-      parsed.error,
+    throw new Error(
+      `invalid booking checkout metadata for ${payment.reference}: ${parsed.error.message}`,
     );
-    return;
   }
   const m = parsed.data;
   const vendorEarningKobo = nairaToKobo(m.fare) - nairaToKobo(m.commissionNaira);
 
-  try {
-    const booking = await db.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${m.vendorId}))`;
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${m.vendorId}))`;
 
-      const booking = await tx.booking.create({
-        data: {
-          reference: payment.reference,
-          status: "CONFIRMED",
-          passenger_name: m.passengerName,
-          passenger_phone: m.passengerPhone,
-          parents_phone: m.parentsPhone,
-          hall: m.hall,
-          room_number: m.roomNumber,
-          direction: m.direction,
-          route_name: m.routeName,
-          fare: m.fare,
-          service_fee: m.serviceFee,
-          commission: m.commissionNaira,
-          student_notes: m.studentNotes,
-          destination_address: m.destinationAddress,
-          departure_at: m.departureAt ? new Date(m.departureAt) : null,
-          user_id: payment.user_id,
-          vendor_id: m.vendorId,
-          route_id: m.routeId,
-        },
-      });
+  const booking = await tx.booking.create({
+    data: {
+      reference: payment.reference,
+      status: "CONFIRMED",
+      passenger_name: m.passengerName,
+      passenger_phone: m.passengerPhone,
+      parents_phone: m.parentsPhone,
+      hall: m.hall,
+      room_number: m.roomNumber,
+      direction: m.direction,
+      route_name: m.routeName,
+      fare: m.fare,
+      service_fee: m.serviceFee,
+      commission: m.commissionNaira,
+      student_notes: m.studentNotes,
+      destination_address: m.destinationAddress,
+      departure_at: m.departureAt ? new Date(m.departureAt) : null,
+      user_id: payment.user_id,
+      vendor_id: m.vendorId,
+      route_id: m.routeId,
+    },
+  });
 
-      const vBal = await vendorBalance(m.vendorId, tx);
+  const vBal = await vendorBalance(m.vendorId, tx);
 
-      await tx.wallet.create({
-        data: {
-          vendor_id: m.vendorId,
-          difference: vendorEarningKobo,
-          balance: vBal + vendorEarningKobo,
-          reason: `Earning — ${m.routeName} · ${payment.reference}`,
-          type: "earning",
-          model_responsible: "Booking",
-          model_id: booking.id,
-          reference: `${payment.reference}-V`,
-        },
-      });
+  await tx.wallet.create({
+    data: {
+      vendor_id: m.vendorId,
+      difference: vendorEarningKobo,
+      balance: vBal + vendorEarningKobo,
+      reason: `Earning — ${m.routeName} · ${payment.reference}`,
+      type: "earning",
+      model_responsible: "Booking",
+      model_id: booking.id,
+      reference: `${payment.reference}-V`,
+    },
+  });
 
-      return booking;
-    });
+  await tx.payment.updateMany({
+    where: { reference: payment.reference },
+    data: { destination_id: booking.id },
+  });
 
-    await db.payment.updateMany({
-      where: { reference: payment.reference },
-      data: { destination_id: booking.id },
-    });
+  return m;
+}
 
-    const [user, vendor] = await Promise.all([
-      db.user.findUnique({
-        where: { id: payment.user_id },
-        select: { email: true, first_name: true },
-      }),
-      db.vendor_profile.findUnique({
-        where: { user_id: m.vendorId },
-        select: { business_name: true },
-      }),
-    ]);
+// Best-effort — called after the finalize transaction has committed, so a
+// failed email never rolls back a successful booking.
+export async function notifyBookingConfirmed(
+  userId: string,
+  reference: string,
+  m: BookingCheckoutMetadata,
+): Promise<void> {
+  const [user, vendor] = await Promise.all([
+    db.user.findUnique({
+      where: { id: userId },
+      select: { email: true, first_name: true },
+    }),
+    db.vendor_profile.findUnique({
+      where: { user_id: m.vendorId },
+      select: { business_name: true },
+    }),
+  ]);
 
-    if (user?.email && vendor) {
-      sendBookingConfirmationEmail(user.email, user.first_name, {
-        reference: payment.reference,
-        vendorName: vendor.business_name,
-        routeName: m.routeName,
-        direction: m.direction,
-        hall: m.hall,
-        roomNumber: m.roomNumber,
-        totalAmount: m.fare + m.serviceFee,
-      }).catch((err) => console.error("[booking-email]", err));
-    }
-  } catch (err) {
-    console.error(
-      "[booking-checkout] failed to finalize",
-      payment.reference,
-      err,
-    );
-  }
+  if (!user?.email || !vendor) return;
+
+  await sendBookingConfirmationEmail(user.email, user.first_name, {
+    reference,
+    vendorName: vendor.business_name,
+    routeName: m.routeName,
+    direction: m.direction,
+    hall: m.hall,
+    roomNumber: m.roomNumber,
+    totalAmount: m.fare + m.serviceFee,
+  });
 }
 
 export type BookingCheckoutStatus =

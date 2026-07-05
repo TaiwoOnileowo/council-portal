@@ -1,8 +1,15 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { getPaymentByReference, markPaymentResult } from "@/lib/payments";
+import {
+  completePaymentSuccess,
+  getPaymentByReference,
+  markPaymentResult,
+} from "@/lib/payments";
 import { creditWallet } from "@/lib/actions/wallet.action";
-import { finalizeBookingCheckout } from "@/lib/actions/booking.action";
+import {
+  finalizeBookingCheckout,
+  notifyBookingConfirmed,
+} from "@/lib/actions/booking.action";
 import type { Prisma } from "@/generated/prisma/client";
 
 function isValidSignature(rawBody: string, signature: string | null): boolean {
@@ -17,23 +24,30 @@ function isValidSignature(rawBody: string, signature: string | null): boolean {
   return timingSafeEqual(expectedBuf, signatureBuf);
 }
 
+const LOG_TAG = "[paystack webhook]";
+
 export async function POST(req: NextRequest) {
   const rawBody = await req.text();
   const signature = req.headers.get("x-paystack-signature");
 
   if (!isValidSignature(rawBody, signature)) {
+    console.warn(LOG_TAG, "rejected: invalid x-paystack-signature", {
+      hasSignature: !!signature,
+    });
     return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
   }
 
   let body: Record<string, unknown>;
   try {
     body = JSON.parse(rawBody);
-  } catch {
+  } catch (err) {
+    console.error(LOG_TAG, "rejected: invalid JSON body", err);
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
   const event = body.event as string | undefined;
   const data = body.data as Record<string, unknown> | undefined;
+  console.log(LOG_TAG, "received event", { event, hasData: !!data });
   if (event !== "charge.success" || !data) {
     return NextResponse.json({ received: true });
   }
@@ -43,48 +57,112 @@ export async function POST(req: NextRequest) {
   const amountKobo = data.amount as number | undefined; // already kobo
   const currency = data.currency as string | undefined;
 
-  if (!reference) return NextResponse.json({ received: true });
+  if (!reference) {
+    console.warn(LOG_TAG, "charge.success missing reference", data);
+    return NextResponse.json({ received: true });
+  }
 
   const isSuccessful =
     status === "success" && currency === "NGN" && !!amountKobo;
   const processorReference = String(data.id ?? "");
 
+  console.log(LOG_TAG, "charge.success", {
+    reference,
+    status,
+    amountKobo,
+    currency,
+    isSuccessful,
+  });
+
   const payment = await getPaymentByReference(reference);
-  if (!payment || payment.status !== "PENDING") {
+  if (!payment) {
+    console.warn(LOG_TAG, "no payment row found for reference", {
+      reference,
+    });
+    return NextResponse.json({ received: true });
+  }
+  if (payment.status !== "PENDING") {
+    console.log(LOG_TAG, "ignoring webhook for non-pending payment", {
+      reference,
+      currentStatus: payment.status,
+    });
     return NextResponse.json({ received: true });
   }
 
   if (!isSuccessful || (amountKobo ?? 0) < payment.amount) {
+    const failureReason = !isSuccessful
+      ? `Paystack reported status "${status}"`
+      : "Amount mismatch";
+    console.warn(LOG_TAG, "marking payment FAILED", {
+      reference,
+      failureReason,
+      amountKobo,
+      expectedAmount: payment.amount,
+    });
     await markPaymentResult(reference, {
       status: "FAILED",
-      failureReason: !isSuccessful
-        ? `Paystack reported status "${status}"`
-        : "Amount mismatch",
+      failureReason,
       processorReference,
       rawResponse: body as unknown as Prisma.InputJsonValue,
     });
     return NextResponse.json({ received: true });
   }
 
-  await markPaymentResult(reference, {
-    status: "SUCCESS",
-    processorReference,
-    rawResponse: body as unknown as Prisma.InputJsonValue,
-  });
-
-  if (payment.destination === "wallet_topup") {
-    await creditWallet(
-      { userId: payment.user_id },
+  // Marking the payment SUCCESS and crediting/creating its destination
+  // happen in one transaction — a throw here rolls both back, leaving the
+  // payment PENDING so a retried webhook delivery can safely finish the job
+  // instead of finding it already SUCCESS with nothing actually settled.
+  try {
+    const bookingMeta = await completePaymentSuccess(
+      payment,
       {
-        amountKobo: payment.amount,
-        reason: "Wallet top-up",
-        type: "topup",
-        modelResponsible: "Payment",
-        reference,
+        processorReference,
+        rawResponse: body as unknown as Prisma.InputJsonValue,
+      },
+      async (tx) => {
+        if (payment.destination === "wallet_topup") {
+          await creditWallet(
+            { userId: payment.user_id },
+            {
+              amountKobo: payment.amount,
+              reason: "Wallet top-up",
+              type: "topup",
+              modelResponsible: "Payment",
+              reference,
+            },
+            tx,
+          );
+          return null;
+        }
+        if (payment.destination === "booking") {
+          return finalizeBookingCheckout(payment, tx);
+        }
+        return null;
       },
     );
-  } else if (payment.destination === "booking") {
-    await finalizeBookingCheckout(payment);
+
+    if (bookingMeta) {
+      console.log(LOG_TAG, "booking checkout finalized", { reference });
+      notifyBookingConfirmed(payment.user_id, reference, bookingMeta).catch(
+        (err) =>
+          console.error(LOG_TAG, "booking confirmation email failed", {
+            reference,
+            err,
+          }),
+      );
+    } else {
+      console.log(LOG_TAG, "payment marked SUCCESS", {
+        reference,
+        destination: payment.destination,
+      });
+    }
+  } catch (err) {
+    console.error(
+      LOG_TAG,
+      "payment success processing failed — rolled back, payment remains PENDING for retry",
+      { reference, destination: payment.destination, err },
+    );
+    return NextResponse.json({ error: "Processing failed" }, { status: 500 });
   }
 
   return NextResponse.json({ received: true });

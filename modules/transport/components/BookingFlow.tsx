@@ -11,6 +11,7 @@ import type {
 } from "@/lib/actions/transport.action";
 import { formatAmount, formatBalance } from "@/lib/format";
 import { readLocalDraft, writeLocalDraft } from "@/hooks/useLocalStorageDraft";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { nairaToKobo } from "@/lib/money";
 import { queryKeys } from "@/lib/query-keys";
 import { useWalletBalance } from "@/modules/wallet/hooks/useWalletBalance";
@@ -28,6 +29,7 @@ import {
   Copy,
   Info,
   Loader2,
+  Phone,
   X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -113,7 +115,8 @@ export default function BookingFlow({
 
   const [step, setStep] = useState<Step>("ride-summary");
   const [bookingRef, setBookingRef] = useState("");
-  const [copied, setCopied] = useState(false);
+  const { copied, copy: copyRef } = useCopyToClipboard();
+  const { copied: phoneCopied, copy: copyPhone } = useCopyToClipboard();
   const [isProcessing, setIsProcessing] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"wallet" | "online">(
@@ -155,7 +158,6 @@ export default function BookingFlow({
     setStep("ride-summary");
     setSelectedDeparture(null);
     setBookingRef("");
-    setCopied(false);
     setIsProcessing(false);
     setSubmitError("");
     setPaymentMethod("wallet");
@@ -176,12 +178,6 @@ export default function BookingFlow({
       return;
     }
     onBack();
-  }
-
-  function handleCopyRef() {
-    navigator.clipboard.writeText(bookingRef);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   }
 
   const basePrice = route.price;
@@ -764,7 +760,7 @@ export default function BookingFlow({
                       <div className="flex justify-between text-[13px]">
                         <span className="text-portal-muted">Booking Ref</span>
                         <button
-                          onClick={handleCopyRef}
+                          onClick={() => copyRef(bookingRef)}
                           className="flex items-center gap-1.5 font-mono text-[12px] font-bold text-portal-accent hover:underline"
                         >
                           {bookingRef}
@@ -781,6 +777,24 @@ export default function BookingFlow({
                         <span className="font-semibold">
                           {vendor.transportName}
                         </span>
+                      </div>
+                      <div className="flex justify-between items-center text-[13px]">
+                        <span className="text-portal-muted">
+                          Vendor Phone
+                        </span>
+                        <button
+                          onClick={() => copyPhone(vendor.phone)}
+                          className="flex items-center gap-1.5 font-semibold text-portal-text hover:text-portal-accent transition-colors"
+                        >
+                          <Phone className="w-3 h-3 text-portal-muted" />
+                          {vendor.phone}
+                          <Copy className="w-3 h-3 text-portal-muted/60" />
+                          {phoneCopied && (
+                            <span className="text-[10px] text-portal-green">
+                              Copied!
+                            </span>
+                          )}
+                        </button>
                       </div>
                       <div className="flex justify-between text-[13px]">
                         <span className="text-portal-muted">Route</span>

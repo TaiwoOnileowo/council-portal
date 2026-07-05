@@ -1,6 +1,6 @@
 "use client";
 
-import { X, MapPin, Phone, Instagram, Copy, Check, Search } from "lucide-react";
+import { X, MapPin, Search } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -43,7 +43,6 @@ export default function VendorDetailPopup({
 
   const defaultTab: ActiveTab = leavingList ? "leaving" : "returning";
   const [tab, setTab] = useState<ActiveTab>(defaultTab);
-  const [phoneCopied, setPhoneCopied] = useState(false);
   const [routeSearch, setRouteSearch] = useState("");
   const [descExpanded, setDescExpanded] = useState(false);
   const [isDescClamped, setIsDescClamped] = useState(false);
@@ -54,12 +53,6 @@ export default function VendorDetailPopup({
     if (!el) return;
     setIsDescClamped(el.scrollHeight > el.clientHeight + 1);
   }, [vendor.description]);
-
-  function copyPhone() {
-    navigator.clipboard.writeText(vendor.phone);
-    setPhoneCopied(true);
-    setTimeout(() => setPhoneCopied(false), 2000);
-  }
 
   function switchTab(next: ActiveTab) {
     setTab(next);
@@ -182,54 +175,6 @@ export default function VendorDetailPopup({
                   )}
                 </div>
               )}
-
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    copyPhone();
-                  }}
-                  className="flex items-center gap-1.5 text-xs text-portal-text2 bg-portal-accent-bg/50 border border-portal-border px-3 py-1.5 rounded-lg hover:border-portal-accent-border transition-colors"
-                >
-                  <Phone className="w-3.5 h-3.5 text-portal-muted" />
-                  {vendor.phone}
-                  {phoneCopied ? (
-                    <Check className="w-3 h-3 text-green-500" />
-                  ) : (
-                    <Copy className="w-3 h-3 text-portal-muted/60" />
-                  )}
-                </button>
-                {vendor.instagram && (
-                  <a
-                    href={`https://instagram.com/${vendor.instagram.replace(/^@/, "")}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="flex items-center gap-1.5 text-xs text-portal-text2 bg-portal-accent-bg/50 border border-portal-border px-3 py-1.5 rounded-lg hover:border-portal-accent-border transition-colors"
-                  >
-                    <Instagram className="w-3.5 h-3.5 text-portal-muted" />
-                    {vendor.instagram}
-                  </a>
-                )}
-                {vendor.tiktok && (
-                  <a
-                    href={`https://tiktok.com/@${vendor.tiktok.replace(/^@/, "")}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="flex items-center gap-1.5 text-xs text-portal-text2 bg-portal-accent-bg/50 border border-portal-border px-3 py-1.5 rounded-lg hover:border-portal-accent-border transition-colors"
-                  >
-                    <svg
-                      className="w-3.5 h-3.5 text-portal-muted"
-                      viewBox="0 0 24 24"
-                      fill="currentColor"
-                    >
-                      <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.73a8.17 8.17 0 004.77 1.52V6.8a4.85 4.85 0 01-1-.11z" />
-                    </svg>
-                    {vendor.tiktok}
-                  </a>
-                )}
-              </div>
 
               {(leavingList || returningList) && (
                 <>

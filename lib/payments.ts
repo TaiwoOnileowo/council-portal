@@ -75,12 +75,15 @@ type PaymentResult =
 
 // Only ever transitions a payment still in PENDING — a processor webhook can
 // and will retry delivery, and a second call for an already-terminal
-// reference should be a silent no-op, not a re-credit.
+// reference should be a silent no-op, not a re-credit. Returns whether this
+// call actually made the transition, so a caller acting on SUCCESS (crediting
+// a wallet, creating a booking) knows whether to run that action at all.
 export async function markPaymentResult(
   reference: string,
   result: PaymentResult,
-): Promise<void> {
-  await db.payment.updateMany({
+  client: Prisma.TransactionClient | typeof db = db,
+): Promise<boolean> {
+  const { count } = await client.payment.updateMany({
     where: { reference, status: "PENDING" },
     data: {
       status: result.status,
@@ -90,5 +93,31 @@ export async function markPaymentResult(
         ? { paid_at: new Date() }
         : { failure_reason: result.failureReason }),
     },
+  });
+  return count > 0;
+}
+
+// Marks a payment SUCCESS and runs its destination-specific action in the
+// same transaction, so a crash or error between the two can never leave a
+// payment marked SUCCESS with the credit/booking never applied — the whole
+// transaction rolls back and the payment stays PENDING for a retry to pick
+// up cleanly. Returns null if this call lost the race (already handled);
+// otherwise whatever onSuccess returns.
+export async function completePaymentSuccess<T>(
+  payment: { reference: string },
+  processorMeta: {
+    processorReference?: string;
+    rawResponse?: Prisma.InputJsonValue;
+  },
+  onSuccess: (tx: Prisma.TransactionClient) => Promise<T>,
+): Promise<T | null> {
+  return db.$transaction(async (tx) => {
+    const transitioned = await markPaymentResult(
+      payment.reference,
+      { status: "SUCCESS", ...processorMeta },
+      tx,
+    );
+    if (!transitioned) return null;
+    return onSuccess(tx);
   });
 }

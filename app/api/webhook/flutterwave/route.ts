@@ -1,10 +1,19 @@
 import { db } from "@/lib/db";
 import { markPayoutSuccess, reversePayout } from "@/lib/payouts";
 import { creditWallet } from "@/lib/actions/wallet.action";
-import { finalizeBookingCheckout } from "@/lib/actions/booking.action";
-import { getPaymentByReference, markPaymentResult } from "@/lib/payments";
+import {
+  finalizeBookingCheckout,
+  notifyBookingConfirmed,
+} from "@/lib/actions/booking.action";
+import {
+  completePaymentSuccess,
+  getPaymentByReference,
+  markPaymentResult,
+} from "@/lib/payments";
 import type { Prisma } from "@/generated/prisma/client";
 import { NextRequest, NextResponse } from "next/server";
+
+const LOG_TAG = "[flutterwave webhook]";
 
 export async function POST(req: NextRequest) {
   // Verify Flutterwave secret hash
@@ -12,37 +21,64 @@ export async function POST(req: NextRequest) {
   const signature = req.headers.get("verif-hash");
 
   if (!secretHash || signature !== secretHash) {
+    console.warn(LOG_TAG, "rejected: bad or missing verif-hash", {
+      hasSecret: !!secretHash,
+      hasSignature: !!signature,
+    });
     return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
   }
 
   let body: Record<string, unknown>;
   try {
     body = await req.json();
-  } catch {
+  } catch (err) {
+    console.error(LOG_TAG, "rejected: invalid JSON body", err);
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
   const event = body.event as string | undefined;
   const data = body.data as Record<string, unknown> | undefined;
+  console.log(LOG_TAG, "received event", { event, hasData: !!data });
   if (!data) return NextResponse.json({ received: true });
 
   if (event === "transfer.completed") {
     const reference = data.reference as string | undefined;
     const status = data.status as string | undefined;
-    if (!reference) return NextResponse.json({ received: true });
+    console.log(LOG_TAG, "transfer.completed", { reference, status });
+    if (!reference) {
+      console.warn(LOG_TAG, "transfer.completed missing reference", data);
+      return NextResponse.json({ received: true });
+    }
 
     if (status === "SUCCESSFUL") {
-      await markPayoutSuccess(reference);
+      try {
+        await markPayoutSuccess(reference);
+        console.log(LOG_TAG, "payout marked successful", { reference });
+      } catch (err) {
+        console.error(LOG_TAG, "markPayoutSuccess threw", { reference, err });
+        throw err;
+      }
     } else if (status === "FAILED") {
-      await reversePayout(
+      const reason =
+        (data.complete_message as string | undefined) ?? "Transfer failed.";
+      try {
+        await reversePayout(reference, reason);
+        console.log(LOG_TAG, "payout reversed", { reference, reason });
+      } catch (err) {
+        console.error(LOG_TAG, "reversePayout threw", { reference, err });
+        throw err;
+      }
+    } else {
+      console.log(LOG_TAG, "transfer.completed with unhandled status", {
         reference,
-        (data.complete_message as string | undefined) ?? "Transfer failed.",
-      );
+        status,
+      });
     }
     return NextResponse.json({ received: true });
   }
 
   if (event !== "charge.completed") {
+    console.log(LOG_TAG, "ignoring unhandled event type", { event });
     return NextResponse.json({ received: true });
   }
 
@@ -51,44 +87,84 @@ export async function POST(req: NextRequest) {
   const amount = data.amount as number | undefined;
   const currency = data.currency as string | undefined;
 
-  if (!txRef) return NextResponse.json({ received: true });
+  if (!txRef) {
+    console.warn(LOG_TAG, "charge.completed missing tx_ref", data);
+    return NextResponse.json({ received: true });
+  }
 
   const amountKobo = amount ? Math.round(amount * 100) : 0;
   const isSuccessful =
     status === "successful" && currency === "NGN" && !!amount;
   const flwRef = data.flw_ref as string | undefined;
 
+  console.log(LOG_TAG, "charge.completed", {
+    txRef,
+    status,
+    amount,
+    currency,
+    isSuccessful,
+  });
+
   // Static virtual account credit — Flutterwave echoes back the tx_ref we
   // supplied when the account was created, not a per-transfer one, so we
   // look up the owner by that instead of a payment row.
   if (txRef.startsWith("VA-")) {
-    if (!isSuccessful) return NextResponse.json({ received: true });
+    if (!isSuccessful) {
+      console.log(LOG_TAG, "VA transfer not successful, ignoring", {
+        txRef,
+        status,
+      });
+      return NextResponse.json({ received: true });
+    }
 
     const virtualAccount = await db.virtual_account.findUnique({
       where: { tx_ref: txRef },
     });
     if (!virtualAccount) {
-      console.error(
-        "[flutterwave webhook] unattributed virtual account transfer",
-        { txRef, flwRef, amount },
-      );
+      console.error(LOG_TAG, "unattributed virtual account transfer", {
+        txRef,
+        flwRef,
+        amount,
+      });
       return NextResponse.json({ received: true });
     }
 
     const creditRef = flwRef || String(data.id ?? "");
-    if (!creditRef) return NextResponse.json({ received: true });
+    if (!creditRef) {
+      console.warn(LOG_TAG, "VA transfer missing flw_ref/id, cannot credit", {
+        txRef,
+      });
+      return NextResponse.json({ received: true });
+    }
 
     const owner = virtualAccount.vendor_id
       ? { vendorId: virtualAccount.vendor_id }
       : { userId: virtualAccount.user_id! };
 
-    await creditWallet(owner, {
-      amountKobo,
-      reason: "Wallet top-up — bank transfer",
-      type: "topup",
-      modelResponsible: "VirtualAccount",
-      reference: creditRef,
-    });
+    try {
+      await creditWallet(owner, {
+        amountKobo,
+        reason: "Wallet top-up — bank transfer",
+        type: "topup",
+        modelResponsible: "VirtualAccount",
+        reference: creditRef,
+      });
+      console.log(LOG_TAG, "VA wallet credited", {
+        txRef,
+        creditRef,
+        owner,
+        amountKobo,
+      });
+    } catch (err) {
+      console.error(LOG_TAG, "creditWallet threw for VA transfer", {
+        txRef,
+        creditRef,
+        owner,
+        amountKobo,
+        err,
+      });
+      throw err;
+    }
 
     return NextResponse.json({ received: true });
   }
@@ -97,41 +173,92 @@ export async function POST(req: NextRequest) {
   // look it up by reference rather than trusting anything client-supplied,
   // and only ever act on it once (a webhook can be retried by Flutterwave).
   const payment = await getPaymentByReference(txRef);
-  if (!payment || payment.status !== "PENDING") {
+  if (!payment) {
+    console.warn(LOG_TAG, "no payment row found for tx_ref", { txRef });
+    return NextResponse.json({ received: true });
+  }
+  if (payment.status !== "PENDING") {
+    console.log(LOG_TAG, "ignoring webhook for non-pending payment", {
+      txRef,
+      currentStatus: payment.status,
+    });
     return NextResponse.json({ received: true });
   }
 
   if (!isSuccessful || amountKobo < payment.amount) {
+    const failureReason = !isSuccessful
+      ? `Flutterwave reported status "${status}"`
+      : "Amount mismatch";
+    console.warn(LOG_TAG, "marking payment FAILED", {
+      txRef,
+      failureReason,
+      amountKobo,
+      expectedAmount: payment.amount,
+    });
     await markPaymentResult(txRef, {
       status: "FAILED",
-      failureReason: !isSuccessful
-        ? `Flutterwave reported status "${status}"`
-        : "Amount mismatch",
+      failureReason,
       processorReference: flwRef,
       rawResponse: body as unknown as Prisma.InputJsonValue,
     });
     return NextResponse.json({ received: true });
   }
 
-  await markPaymentResult(txRef, {
-    status: "SUCCESS",
-    processorReference: flwRef,
-    rawResponse: body as unknown as Prisma.InputJsonValue,
-  });
-
-  if (payment.destination === "wallet_topup") {
-    await creditWallet(
-      { userId: payment.user_id },
+  // Marking the payment SUCCESS and crediting/creating its destination
+  // happen in one transaction — a throw here rolls both back, leaving the
+  // payment PENDING so a retried webhook delivery can safely finish the job
+  // instead of finding it already SUCCESS with nothing actually settled.
+  try {
+    const bookingMeta = await completePaymentSuccess(
+      payment,
       {
-        amountKobo: payment.amount,
-        reason: "Wallet top-up",
-        type: "topup",
-        modelResponsible: "Payment",
-        reference: txRef,
+        processorReference: flwRef,
+        rawResponse: body as unknown as Prisma.InputJsonValue,
+      },
+      async (tx) => {
+        if (payment.destination === "wallet_topup") {
+          await creditWallet(
+            { userId: payment.user_id },
+            {
+              amountKobo: payment.amount,
+              reason: "Wallet top-up",
+              type: "topup",
+              modelResponsible: "Payment",
+              reference: txRef,
+            },
+            tx,
+          );
+          return null;
+        }
+        if (payment.destination === "booking") {
+          return finalizeBookingCheckout(payment, tx);
+        }
+        return null;
       },
     );
-  } else if (payment.destination === "booking") {
-    await finalizeBookingCheckout(payment);
+
+    if (bookingMeta) {
+      console.log(LOG_TAG, "booking checkout finalized", { txRef });
+      notifyBookingConfirmed(payment.user_id, txRef, bookingMeta).catch(
+        (err) =>
+          console.error(LOG_TAG, "booking confirmation email failed", {
+            txRef,
+            err,
+          }),
+      );
+    } else {
+      console.log(LOG_TAG, "payment marked SUCCESS", {
+        txRef,
+        destination: payment.destination,
+      });
+    }
+  } catch (err) {
+    console.error(
+      LOG_TAG,
+      "payment success processing failed — rolled back, payment remains PENDING for retry",
+      { txRef, destination: payment.destination, err },
+    );
+    return NextResponse.json({ error: "Processing failed" }, { status: 500 });
   }
 
   return NextResponse.json({ received: true });

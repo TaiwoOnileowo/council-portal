@@ -45,32 +45,41 @@ export async function creditWallet(
     modelResponsible: string;
     reference: string;
   },
+  client: Prisma.TransactionClient | typeof db = db,
 ): Promise<{ balance: number }> {
   const isVendor = "vendorId" in owner;
   const ownerWhere = isVendor
     ? { vendor_id: owner.vendorId }
     : { user_id: owner.userId };
-  const readBalance = (client: Prisma.TransactionClient | typeof db) =>
-    isVendor
-      ? vendorBalance(owner.vendorId, client)
-      : currentBalance(owner.userId, client);
+  const readBalance = (c: Prisma.TransactionClient | typeof db) =>
+    isVendor ? vendorBalance(owner.vendorId, c) : currentBalance(owner.userId, c);
+
+  const write = async (tx: Prisma.TransactionClient | typeof db) => {
+    const balance = await readBalance(tx);
+    return tx.wallet.create({
+      data: {
+        ...ownerWhere,
+        difference: entry.amountKobo,
+        balance: balance + entry.amountKobo,
+        reason: entry.reason,
+        type: entry.type,
+        model_responsible: entry.modelResponsible,
+        reference: entry.reference,
+      },
+      select: { balance: true },
+    });
+  };
+
+  // Already inside a caller-managed transaction (e.g. a webhook finalizing a
+  // payment) — write directly and let any error abort/roll back that
+  // transaction rather than swallowing it here.
+  if (client !== db) {
+    const created = await write(client);
+    return { balance: created.balance };
+  }
 
   try {
-    const created = await db.$transaction(async (tx) => {
-      const balance = await readBalance(tx);
-      return tx.wallet.create({
-        data: {
-          ...ownerWhere,
-          difference: entry.amountKobo,
-          balance: balance + entry.amountKobo,
-          reason: entry.reason,
-          type: entry.type,
-          model_responsible: entry.modelResponsible,
-          reference: entry.reference,
-        },
-        select: { balance: true },
-      });
-    });
+    const created = await db.$transaction((tx) => write(tx));
     return { balance: created.balance };
   } catch {
     // Unique constraint on reference — already processed.
