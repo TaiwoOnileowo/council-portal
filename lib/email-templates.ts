@@ -201,6 +201,137 @@ export function newBookingVendorTemplate(
   return { html, text };
 }
 
+export function payoutSuccessTemplate(
+  vendorFirstName: string,
+  payout: {
+    reference: string;
+    amountKobo: number;
+    bankName: string;
+    accountMask: string;
+  },
+) {
+  const amountNaira = payout.amountKobo / 100;
+
+  const row = (label: string, value: string) =>
+    `<tr>
+      <td style="padding:10px 0;color:#64748b;font-size:13px;width:130px;vertical-align:top;white-space:nowrap;">${label}</td>
+      <td style="padding:10px 0;color:#111827;font-size:14px;font-weight:500;vertical-align:top;">${value}</td>
+    </tr>
+    <tr><td colspan="2" style="height:0;border-bottom:1px solid #f1f5f9;padding:0;font-size:0;line-height:0;">&nbsp;</td></tr>`;
+
+  const html = base(
+    `Payout sent — ₦${amountNaira.toLocaleString()} is on its way to ${payout.bankName} ${payout.accountMask}.`,
+    `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px 20px;margin-bottom:28px;">
+      <p style="margin:0;color:#15803d;font-size:14px;font-weight:600;">&#10003;&nbsp; Payout sent</p>
+    </div>
+
+    <h1 style="margin:0 0 12px;color:#111827;font-size:22px;font-weight:700;">You&rsquo;ve been paid, ${vendorFirstName}!</h1>
+    <p style="margin:0 0 28px;color:#64748b;font-size:15px;line-height:1.7;">
+      Your withdrawal has been processed and is on its way to your bank account.
+    </p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:20px;">
+      <tr>
+        <td style="background:#f8fafc;padding:12px 20px;border-bottom:1px solid #e2e8f0;">
+          <p style="margin:0;color:#64748b;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Payout Details</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:8px 20px 0;">
+          <table width="100%" cellpadding="0" cellspacing="0" border="0">
+            ${row("Reference", `<span style="font-family:monospace;font-size:15px;font-weight:700;letter-spacing:1px;">${payout.reference}</span>`)}
+            ${row("Bank", `${payout.bankName} ${payout.accountMask}`)}
+          </table>
+        </td>
+      </tr>
+      <tr>
+        <td style="background:#f8fafc;padding:14px 20px;border-top:1px solid #e2e8f0;">
+          <table width="100%" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td style="color:#111827;font-size:14px;font-weight:700;">Amount</td>
+              <td align="right" style="color:#15803d;font-size:20px;font-weight:700;">&#8358;${amountNaira.toLocaleString()}</td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>`,
+  );
+
+  const text =
+    `Hi ${vendorFirstName},\n\nYour payout has been sent!\n\n` +
+    `Reference: ${payout.reference}\n` +
+    `Bank: ${payout.bankName} ${payout.accountMask}\n` +
+    `Amount: ₦${amountNaira.toLocaleString()}`;
+
+  return { html, text };
+}
+
+export function payoutFailedTemplate(
+  vendorFirstName: string,
+  payout: {
+    reference: string;
+    amountKobo: number;
+    bankName: string;
+    accountMask: string;
+  },
+) {
+  const amountNaira = payout.amountKobo / 100;
+
+  const row = (label: string, value: string) =>
+    `<tr>
+      <td style="padding:10px 0;color:#64748b;font-size:13px;width:130px;vertical-align:top;white-space:nowrap;">${label}</td>
+      <td style="padding:10px 0;color:#111827;font-size:14px;font-weight:500;vertical-align:top;">${value}</td>
+    </tr>
+    <tr><td colspan="2" style="height:0;border-bottom:1px solid #f1f5f9;padding:0;font-size:0;line-height:0;">&nbsp;</td></tr>`;
+
+  const html = base(
+    `We couldn't complete a ₦${amountNaira.toLocaleString()} payout to ${payout.bankName} ${payout.accountMask} — your balance is unaffected.`,
+    `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px 20px;margin-bottom:28px;">
+      <p style="margin:0;color:#b91c1c;font-size:14px;font-weight:600;">&#10005;&nbsp; Payout couldn&rsquo;t be completed</p>
+    </div>
+
+    <h1 style="margin:0 0 12px;color:#111827;font-size:22px;font-weight:700;">Hi ${vendorFirstName}, we hit a snag sending your payout</h1>
+    <p style="margin:0 0 28px;color:#64748b;font-size:15px;line-height:1.7;">
+      We ran into an issue completing this payout. Your available balance hasn&rsquo;t been affected — this amount will be included in your next payout.
+    </p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:20px;">
+      <tr>
+        <td style="background:#f8fafc;padding:12px 20px;border-bottom:1px solid #e2e8f0;">
+          <p style="margin:0;color:#64748b;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Payout Details</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:8px 20px 0;">
+          <table width="100%" cellpadding="0" cellspacing="0" border="0">
+            ${row("Reference", `<span style="font-family:monospace;font-size:15px;font-weight:700;letter-spacing:1px;">${payout.reference}</span>`)}
+            ${row("Bank", `${payout.bankName} ${payout.accountMask}`)}
+          </table>
+        </td>
+      </tr>
+      <tr>
+        <td style="background:#f8fafc;padding:14px 20px;border-top:1px solid #e2e8f0;">
+          <table width="100%" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td style="color:#111827;font-size:14px;font-weight:700;">Amount</td>
+              <td align="right" style="color:#b91c1c;font-size:20px;font-weight:700;">&#8358;${amountNaira.toLocaleString()}</td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>`,
+  );
+
+  const text =
+    `Hi ${vendorFirstName},\n\nWe ran into an issue completing your payout.\n\n` +
+    `Reference: ${payout.reference}\n` +
+    `Bank: ${payout.bankName} ${payout.accountMask}\n` +
+    `Amount: ₦${amountNaira.toLocaleString()}\n\n` +
+    `Your available balance hasn't been affected — this amount will be included in your next payout.`;
+
+  return { html, text };
+}
+
 export function bookingConfirmationTemplate(
   firstName: string,
   booking: {

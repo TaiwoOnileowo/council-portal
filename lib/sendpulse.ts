@@ -4,6 +4,8 @@ import {
   passwordResetTemplate,
   bookingConfirmationTemplate,
   newBookingVendorTemplate,
+  payoutSuccessTemplate,
+  payoutFailedTemplate,
 } from "./email-templates";
 
 const SP_TOKEN_KEY = "sendpulse:access_token";
@@ -136,6 +138,44 @@ export async function sendBookingConfirmationEmail(
   await deliver(
     { name: firstName, email },
     `Booking Confirmed — ${booking.reference}`,
+    html,
+    text,
+  );
+}
+
+export async function sendPayoutSuccessEmail(
+  email: string,
+  firstName: string,
+  payout: {
+    reference: string;
+    amountKobo: number;
+    bankName: string;
+    accountMask: string;
+  },
+) {
+  const { html, text } = payoutSuccessTemplate(firstName, payout);
+  await deliver(
+    { name: firstName, email },
+    `Payout Sent — ${payout.reference}`,
+    html,
+    text,
+  );
+}
+
+export async function sendPayoutFailedEmail(
+  email: string,
+  firstName: string,
+  payout: {
+    reference: string;
+    amountKobo: number;
+    bankName: string;
+    accountMask: string;
+  },
+) {
+  const { html, text } = payoutFailedTemplate(firstName, payout);
+  await deliver(
+    { name: firstName, email },
+    `Payout Failed — ${payout.reference}`,
     html,
     text,
   );

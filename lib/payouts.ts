@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { koboToNaira } from "@/lib/money";
 import { vendorBalance } from "@/lib/actions/wallet.action";
+import { sendPayoutSuccessEmail, sendPayoutFailedEmail } from "@/lib/sendpulse";
 
 export const payoutLockKey = (vendorId: string) => `payout:lock:${vendorId}`;
 
@@ -114,10 +115,49 @@ export async function initiatePayout(
   }
 }
 
+// Best-effort — called after the terminal status write has already
+// committed, so a failed email never affects the payout outcome.
+async function notifyPayoutResult(
+  reference: string,
+  vendorId: string,
+  outcome: "SUCCESS" | "FAILED",
+  details: {
+    amountKobo: number;
+    bankName: string;
+    accountNumber: string;
+  },
+): Promise<void> {
+  const user = await db.user.findUnique({
+    where: { id: vendorId },
+    select: { email: true, first_name: true },
+  });
+  if (!user?.email) return;
+
+  const accountMask = `••••${details.accountNumber.slice(-4)}`;
+  const payload = {
+    reference,
+    amountKobo: details.amountKobo,
+    bankName: details.bankName,
+    accountMask,
+  };
+
+  if (outcome === "SUCCESS") {
+    await sendPayoutSuccessEmail(user.email, user.first_name, payload);
+  } else {
+    await sendPayoutFailedEmail(user.email, user.first_name, payload);
+  }
+}
+
 export async function reversePayout(reference: string, reason: string): Promise<void> {
   const payout = await db.payout.findUnique({
     where: { reference },
-    select: { vendor_id: true, status: true },
+    select: {
+      vendor_id: true,
+      status: true,
+      amount: true,
+      bank_name: true,
+      account_number: true,
+    },
   });
   if (!payout || payout.status !== "PENDING") return;
 
@@ -127,45 +167,77 @@ export async function reversePayout(reference: string, reason: string): Promise<
   });
 
   await cacheDel(payoutLockKey(payout.vendor_id));
+
+  notifyPayoutResult(reference, payout.vendor_id, "FAILED", {
+    amountKobo: payout.amount,
+    bankName: payout.bank_name,
+    accountNumber: payout.account_number,
+  }).catch((err) => console.error("[payout-email]", err));
 }
 
+type PayoutSuccessInfo = {
+  vendorId: string;
+  amount: number;
+  bankName: string;
+  accountNumber: string;
+};
+
 export async function markPayoutSuccess(reference: string): Promise<void> {
-  let vendorId: string | null = null;
+  let payoutInfo: PayoutSuccessInfo | null = null;
 
   try {
-    await db.$transaction(async (tx) => {
-      const payout = await tx.payout.findUnique({
-        where: { reference },
-        select: { vendor_id: true, amount: true, status: true },
-      });
-      if (!payout || payout.status !== "PENDING") return;
+    payoutInfo = await db.$transaction(
+      async (tx): Promise<PayoutSuccessInfo | null> => {
+        const payout = await tx.payout.findUnique({
+          where: { reference },
+          select: {
+            vendor_id: true,
+            amount: true,
+            status: true,
+            bank_name: true,
+            account_number: true,
+          },
+        });
+        if (!payout || payout.status !== "PENDING") return null;
 
-      vendorId = payout.vendor_id;
+        const balance = await vendorBalance(payout.vendor_id, tx);
 
-      const balance = await vendorBalance(payout.vendor_id, tx);
+        await tx.wallet.create({
+          data: {
+            vendor_id: payout.vendor_id,
+            difference: -payout.amount,
+            balance: balance - payout.amount,
+            reason: "Withdrawal",
+            type: "payout",
+            model_responsible: "Payout",
+            reference,
+          },
+        });
 
-      await tx.wallet.create({
-        data: {
-          vendor_id: payout.vendor_id,
-          difference: -payout.amount,
-          balance: balance - payout.amount,
-          reason: "Withdrawal",
-          type: "payout",
-          model_responsible: "Payout",
-          reference,
-        },
-      });
+        await tx.payout.update({
+          where: { reference },
+          data: { status: "SUCCESS" },
+        });
 
-      await tx.payout.update({
-        where: { reference },
-        data: { status: "SUCCESS" },
-      });
-    });
+        return {
+          vendorId: payout.vendor_id,
+          amount: payout.amount,
+          bankName: payout.bank_name,
+          accountNumber: payout.account_number,
+        };
+      },
+    );
   } catch {
     // Unique constraint on wallet reference — already processed.
   }
 
-  if (vendorId) {
-    await cacheDel(payoutLockKey(vendorId));
-  }
+  if (!payoutInfo) return;
+
+  await cacheDel(payoutLockKey(payoutInfo.vendorId));
+
+  notifyPayoutResult(reference, payoutInfo.vendorId, "SUCCESS", {
+    amountKobo: payoutInfo.amount,
+    bankName: payoutInfo.bankName,
+    accountNumber: payoutInfo.accountNumber,
+  }).catch((err) => console.error("[payout-email]", err));
 }
