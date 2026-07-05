@@ -47,7 +47,6 @@ export async function POST(req: NextRequest) {
 
   const event = body.event as string | undefined;
   const data = body.data as Record<string, unknown> | undefined;
-  console.log(LOG_TAG, "received event", { event, hasData: !!data });
   if (event !== "charge.success" || !data) {
     return NextResponse.json({ received: true });
   }
@@ -58,7 +57,9 @@ export async function POST(req: NextRequest) {
   const currency = data.currency as string | undefined;
 
   if (!reference) {
-    console.warn(LOG_TAG, "charge.success missing reference", data);
+    console.warn(LOG_TAG, "charge.success missing reference", {
+      fields: Object.keys(data),
+    });
     return NextResponse.json({ received: true });
   }
 
@@ -113,7 +114,7 @@ export async function POST(req: NextRequest) {
   // payment PENDING so a retried webhook delivery can safely finish the job
   // instead of finding it already SUCCESS with nothing actually settled.
   try {
-    const bookingMeta = await completePaymentSuccess(
+    const result = await completePaymentSuccess(
       payment,
       {
         processorReference,
@@ -132,18 +133,29 @@ export async function POST(req: NextRequest) {
             },
             tx,
           );
-          return null;
+          return { kind: "wallet_topup" as const };
         }
         if (payment.destination === "booking") {
-          return finalizeBookingCheckout(payment, tx);
+          return {
+            kind: "booking" as const,
+            meta: await finalizeBookingCheckout(payment, tx),
+          };
         }
-        return null;
+        return { kind: "unknown" as const };
       },
     );
 
-    if (bookingMeta) {
+    if (!result) {
+      // markPaymentResult lost the race (another delivery already handled
+      // this reference) — a normal, harmless outcome of processor retries.
+      console.log(LOG_TAG, "duplicate delivery, already finalized", {
+        reference,
+      });
+    } else if (result.kind === "wallet_topup") {
+      console.log(LOG_TAG, "wallet credited for payment", { reference });
+    } else if (result.kind === "booking") {
       console.log(LOG_TAG, "booking checkout finalized", { reference });
-      notifyBookingConfirmed(payment.user_id, reference, bookingMeta).catch(
+      notifyBookingConfirmed(payment.user_id, reference, result.meta).catch(
         (err) =>
           console.error(LOG_TAG, "booking confirmation email failed", {
             reference,
@@ -151,10 +163,11 @@ export async function POST(req: NextRequest) {
           }),
       );
     } else {
-      console.log(LOG_TAG, "payment marked SUCCESS", {
-        reference,
-        destination: payment.destination,
-      });
+      console.error(
+        LOG_TAG,
+        "payment marked SUCCESS but destination is unrecognized — nothing credited",
+        { reference, destination: payment.destination },
+      );
     }
   } catch (err) {
     console.error(

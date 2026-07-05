@@ -3,6 +3,7 @@ import {
   verificationTemplate,
   passwordResetTemplate,
   bookingConfirmationTemplate,
+  newBookingVendorTemplate,
 } from "./email-templates";
 
 const SP_TOKEN_KEY = "sendpulse:access_token";
@@ -72,6 +73,11 @@ async function deliver(
   html: string,
   text: string,
 ) {
+  if (process.env.NODE_ENV !== "production") {
+    console.log(`[email:skipped-non-production] "${subject}" -> ${to.email}`);
+    return;
+  }
+
   let token = await getAccessToken();
   try {
     await sendEmail(token, to, subject, html, text);
@@ -130,6 +136,30 @@ export async function sendBookingConfirmationEmail(
   await deliver(
     { name: firstName, email },
     `Booking Confirmed — ${booking.reference}`,
+    html,
+    text,
+  );
+}
+
+export async function sendNewBookingVendorEmail(
+  email: string,
+  firstName: string,
+  booking: {
+    reference: string;
+    passengerName: string;
+    passengerPhone: string;
+    routeName: string;
+    direction: "LEAVING" | "RETURNING";
+    hall: string;
+    roomNumber: string;
+    departureAt: string | null;
+    totalAmount: number;
+  },
+) {
+  const { html, text } = newBookingVendorTemplate(firstName, booking);
+  await deliver(
+    { name: firstName, email },
+    `New Booking — ${booking.reference}`,
     html,
     text,
   );

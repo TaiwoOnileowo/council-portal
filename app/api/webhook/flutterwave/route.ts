@@ -38,15 +38,18 @@ export async function POST(req: NextRequest) {
 
   const event = body.event as string | undefined;
   const data = body.data as Record<string, unknown> | undefined;
-  console.log(LOG_TAG, "received event", { event, hasData: !!data });
-  if (!data) return NextResponse.json({ received: true });
+  if (!data) {
+    console.warn(LOG_TAG, "event with no data payload", { event });
+    return NextResponse.json({ received: true });
+  }
 
   if (event === "transfer.completed") {
     const reference = data.reference as string | undefined;
     const status = data.status as string | undefined;
-    console.log(LOG_TAG, "transfer.completed", { reference, status });
     if (!reference) {
-      console.warn(LOG_TAG, "transfer.completed missing reference", data);
+      console.warn(LOG_TAG, "transfer.completed missing reference", {
+        fields: Object.keys(data),
+      });
       return NextResponse.json({ received: true });
     }
 
@@ -56,7 +59,10 @@ export async function POST(req: NextRequest) {
         console.log(LOG_TAG, "payout marked successful", { reference });
       } catch (err) {
         console.error(LOG_TAG, "markPayoutSuccess threw", { reference, err });
-        throw err;
+        return NextResponse.json(
+          { error: "Processing failed" },
+          { status: 500 },
+        );
       }
     } else if (status === "FAILED") {
       const reason =
@@ -66,10 +72,13 @@ export async function POST(req: NextRequest) {
         console.log(LOG_TAG, "payout reversed", { reference, reason });
       } catch (err) {
         console.error(LOG_TAG, "reversePayout threw", { reference, err });
-        throw err;
+        return NextResponse.json(
+          { error: "Processing failed" },
+          { status: 500 },
+        );
       }
     } else {
-      console.log(LOG_TAG, "transfer.completed with unhandled status", {
+      console.warn(LOG_TAG, "transfer.completed with unhandled status", {
         reference,
         status,
       });
@@ -78,7 +87,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (event !== "charge.completed") {
-    console.log(LOG_TAG, "ignoring unhandled event type", { event });
+    console.warn(LOG_TAG, "ignoring unhandled event type", { event });
     return NextResponse.json({ received: true });
   }
 
@@ -88,7 +97,9 @@ export async function POST(req: NextRequest) {
   const currency = data.currency as string | undefined;
 
   if (!txRef) {
-    console.warn(LOG_TAG, "charge.completed missing tx_ref", data);
+    console.warn(LOG_TAG, "charge.completed missing tx_ref", {
+      fields: Object.keys(data),
+    });
     return NextResponse.json({ received: true });
   }
 
@@ -109,13 +120,7 @@ export async function POST(req: NextRequest) {
   // supplied when the account was created, not a per-transfer one, so we
   // look up the owner by that instead of a payment row.
   if (txRef.startsWith("VA-")) {
-    if (!isSuccessful) {
-      console.log(LOG_TAG, "VA transfer not successful, ignoring", {
-        txRef,
-        status,
-      });
-      return NextResponse.json({ received: true });
-    }
+    if (!isSuccessful) return NextResponse.json({ received: true });
 
     const virtualAccount = await db.virtual_account.findUnique({
       where: { tx_ref: txRef },
@@ -163,7 +168,10 @@ export async function POST(req: NextRequest) {
         amountKobo,
         err,
       });
-      throw err;
+      return NextResponse.json(
+        { error: "Processing failed" },
+        { status: 500 },
+      );
     }
 
     return NextResponse.json({ received: true });
@@ -209,7 +217,7 @@ export async function POST(req: NextRequest) {
   // payment PENDING so a retried webhook delivery can safely finish the job
   // instead of finding it already SUCCESS with nothing actually settled.
   try {
-    const bookingMeta = await completePaymentSuccess(
+    const result = await completePaymentSuccess(
       payment,
       {
         processorReference: flwRef,
@@ -228,18 +236,29 @@ export async function POST(req: NextRequest) {
             },
             tx,
           );
-          return null;
+          return { kind: "wallet_topup" as const };
         }
         if (payment.destination === "booking") {
-          return finalizeBookingCheckout(payment, tx);
+          return {
+            kind: "booking" as const,
+            meta: await finalizeBookingCheckout(payment, tx),
+          };
         }
-        return null;
+        return { kind: "unknown" as const };
       },
     );
 
-    if (bookingMeta) {
+    if (!result) {
+      // markPaymentResult lost the race (another delivery already handled
+      // this reference) — a normal, harmless outcome of processor retries.
+      console.log(LOG_TAG, "duplicate delivery, already finalized", {
+        txRef,
+      });
+    } else if (result.kind === "wallet_topup") {
+      console.log(LOG_TAG, "wallet credited for payment", { txRef });
+    } else if (result.kind === "booking") {
       console.log(LOG_TAG, "booking checkout finalized", { txRef });
-      notifyBookingConfirmed(payment.user_id, txRef, bookingMeta).catch(
+      notifyBookingConfirmed(payment.user_id, txRef, result.meta).catch(
         (err) =>
           console.error(LOG_TAG, "booking confirmation email failed", {
             txRef,
@@ -247,10 +266,11 @@ export async function POST(req: NextRequest) {
           }),
       );
     } else {
-      console.log(LOG_TAG, "payment marked SUCCESS", {
-        txRef,
-        destination: payment.destination,
-      });
+      console.error(
+        LOG_TAG,
+        "payment marked SUCCESS but destination is unrecognized — nothing credited",
+        { txRef, destination: payment.destination },
+      );
     }
   } catch (err) {
     console.error(

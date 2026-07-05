@@ -110,6 +110,97 @@ export function passwordResetTemplate(firstName: string, resetUrl: string) {
   return { html, text };
 }
 
+export function newBookingVendorTemplate(
+  vendorFirstName: string,
+  booking: {
+    reference: string;
+    passengerName: string;
+    passengerPhone: string;
+    routeName: string;
+    direction: "LEAVING" | "RETURNING";
+    hall: string;
+    roomNumber: string;
+    departureAt: string | null;
+    totalAmount: number;
+  },
+) {
+  const directionLabel =
+    booking.direction === "LEAVING" ? "Leaving School" : "Returning to School";
+  const pickup =
+    booking.direction === "LEAVING" ? "Covenant University" : booking.routeName;
+  const destination =
+    booking.direction === "LEAVING" ? booking.routeName : "Covenant University";
+  const departureLabel = booking.departureAt
+    ? new Date(booking.departureAt).toLocaleString("en-NG", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      })
+    : "Not specified";
+
+  const row = (label: string, value: string) =>
+    `<tr>
+      <td style="padding:10px 0;color:#64748b;font-size:13px;width:130px;vertical-align:top;white-space:nowrap;">${label}</td>
+      <td style="padding:10px 0;color:#111827;font-size:14px;font-weight:500;vertical-align:top;">${value}</td>
+    </tr>
+    <tr><td colspan="2" style="height:0;border-bottom:1px solid #f1f5f9;padding:0;font-size:0;line-height:0;">&nbsp;</td></tr>`;
+
+  const html = base(
+    `New booking — ${booking.reference}. ${booking.passengerName} is booked for ${booking.routeName}.`,
+    `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px 20px;margin-bottom:28px;">
+      <p style="margin:0;color:#1e40af;font-size:14px;font-weight:600;">&#128230;&nbsp; New booking received</p>
+    </div>
+
+    <h1 style="margin:0 0 12px;color:#111827;font-size:22px;font-weight:700;">You&rsquo;ve got a new booking, ${vendorFirstName}!</h1>
+    <p style="margin:0 0 28px;color:#64748b;font-size:15px;line-height:1.7;">
+      A passenger has booked and paid for a trip on your route. Here are the details.
+    </p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:20px;">
+      <tr>
+        <td style="background:#f8fafc;padding:12px 20px;border-bottom:1px solid #e2e8f0;">
+          <p style="margin:0;color:#64748b;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Trip Details</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:8px 20px 0;">
+          <table width="100%" cellpadding="0" cellspacing="0" border="0">
+            ${row("Reference", `<span style="font-family:monospace;font-size:15px;font-weight:700;letter-spacing:1px;">${booking.reference}</span>`)}
+            ${row("Passenger", `${booking.passengerName} &middot; ${booking.passengerPhone}`)}
+            ${row("Direction", directionLabel)}
+            ${row("From", pickup)}
+            ${row("To", destination)}
+            ${row("Hall / Room", `${booking.hall}, Room ${booking.roomNumber}`)}
+            ${row("Departure", departureLabel)}
+          </table>
+        </td>
+      </tr>
+      <tr>
+        <td style="background:#f8fafc;padding:14px 20px;border-top:1px solid #e2e8f0;">
+          <table width="100%" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td style="color:#111827;font-size:14px;font-weight:700;">Fare</td>
+              <td align="right" style="color:#2563eb;font-size:20px;font-weight:700;">&#8358;${booking.totalAmount.toLocaleString()}</td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>`,
+  );
+
+  const text =
+    `Hi ${vendorFirstName},\n\nYou have a new booking!\n\n` +
+    `Reference: ${booking.reference}\n` +
+    `Passenger: ${booking.passengerName} (${booking.passengerPhone})\n` +
+    `Direction: ${directionLabel}\n` +
+    `From: ${pickup}\n` +
+    `To: ${destination}\n` +
+    `Hall/Room: ${booking.hall}, Room ${booking.roomNumber}\n` +
+    `Departure: ${departureLabel}\n` +
+    `Fare: ₦${booking.totalAmount.toLocaleString()}`;
+
+  return { html, text };
+}
+
 export function bookingConfirmationTemplate(
   firstName: string,
   booking: {

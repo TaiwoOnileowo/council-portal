@@ -1,59 +1,16 @@
 "use client";
 
 import Modal from "@/components/ui/Modal";
+import DetailRow from "@/components/ui/DetailRow";
 import type { TransportBooking } from "@/modules/transport/transport.types";
 import { format } from "date-fns";
-import { Check, Copy, MessageSquare } from "lucide-react";
-import { useState } from "react";
+import { MessageSquare } from "lucide-react";
 
 type Props = {
   booking: TransportBooking | null;
   open: boolean;
   onClose: () => void;
 };
-
-function Row({
-  label,
-  value,
-  copyable,
-}: {
-  label: string;
-  value: string;
-  copyable?: boolean;
-}) {
-const [copied, setCopied] = useState(false);
-
-  function handleCopy() {
-    navigator.clipboard.writeText(value);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
-
-  return (
-    <div className="flex items-start justify-between gap-4 py-3 border-b border-portal-border last:border-b-0">
-      <span className="text-[12.5px] text-portal-muted flex-shrink-0">
-        {label}
-      </span>
-      <div className="flex items-center gap-1.5">
-        <span className="text-[13px] font-medium text-portal-text text-right">
-          {value}
-        </span>
-        {copyable && (
-          <button
-            onClick={handleCopy}
-            className="flex-shrink-0 text-portal-muted/60 hover:text-portal-accent transition-colors"
-          >
-            {copied ? (
-              <Check className="w-3.5 h-3.5 text-green-500" />
-            ) : (
-              <Copy className="w-3.5 h-3.5" />
-            )}
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
 
 export default function BookingDetailModal({
   booking,
@@ -72,17 +29,25 @@ export default function BookingDetailModal({
     >
       <div className="px-5 py-4 space-y-4">
         <div className="bg-portal-accent-bg/50 rounded-xl border border-portal-border px-4">
-          <Row label="Name" value={booking.passengerName} />
-          <Row label="Phone" value={booking.passengerPhone} copyable />
-          <Row label="Guardian phone" value={booking.parentsPhone} copyable />
+          <DetailRow label="Name" value={booking.passengerName} />
+          <DetailRow
+            label="Phone"
+            value={booking.passengerPhone}
+            copyValue={booking.passengerPhone}
+          />
+          <DetailRow
+            label="Guardian phone"
+            value={booking.parentsPhone}
+            copyValue={booking.parentsPhone}
+          />
 
-          <Row label="Hall" value={booking.hall} />
-          <Row label="Room" value={booking.roomNumber} />
+          <DetailRow label="Hall" value={booking.hall} />
+          <DetailRow label="Room" value={booking.roomNumber} />
         </div>
 
         <div className="bg-portal-accent-bg/50 rounded-xl border border-portal-border px-4">
-          <Row label="Route" value={booking.routeName} />
-          <Row
+          <DetailRow label="Route" value={booking.routeName} />
+          <DetailRow
             label="Direction"
             value={
               booking.direction === "LEAVING"
@@ -90,7 +55,7 @@ export default function BookingDetailModal({
                 : "Returning to school"
             }
           />
-          <Row
+          <DetailRow
             label={
               booking.direction === "LEAVING"
                 ? "Drop-off address"
@@ -99,7 +64,7 @@ export default function BookingDetailModal({
             value={booking.destinationAddress ?? "-"}
           />
           {booking.departureAt && (
-            <Row
+            <DetailRow
               label="Departure"
               value={format(
                 new Date(booking.departureAt),
@@ -107,7 +72,7 @@ export default function BookingDetailModal({
               )}
             />
           )}
-          <Row
+          <DetailRow
             label="Booked on"
             value={format(new Date(booking.createdAt), "MMM d, yyyy")}
           />

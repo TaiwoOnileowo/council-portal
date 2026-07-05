@@ -1,34 +1,21 @@
 "use client";
 
+import DetailRow from "@/components/ui/DetailRow";
 import Modal from "@/components/ui/Modal";
-import type { StudentBooking } from "@/modules/transport/transport.types";
-import { Calendar, Clock, MapPin } from "lucide-react";
-import Image from "next/image";
+import { formatAmount } from "@/lib/format";
 import { bookingStatusConfig } from "@/modules/dashboard/dashboard.constant";
 import {
   formatDeparture,
   formatFullDate,
 } from "@/modules/dashboard/dashboard.util";
-import { formatAmount } from "@/lib/format";
+import type { StudentBooking } from "@/modules/transport/transport.types";
+import Image from "next/image";
 
 type Props = {
   booking: StudentBooking | null;
   open: boolean;
   onClose: () => void;
 };
-
-function Row({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="flex items-start justify-between gap-4 py-3 border-b border-portal-border last:border-b-0">
-      <span className="text-[12.5px] text-portal-muted flex-shrink-0">
-        {label}
-      </span>
-      <span className="text-[13px] font-medium text-portal-text text-right">
-        {value}
-      </span>
-    </div>
-  );
-}
 
 export default function BookingDetailModal({ booking, open, onClose }: Props) {
   if (!booking) return null;
@@ -79,54 +66,41 @@ export default function BookingDetailModal({ booking, open, onClose }: Props) {
         </div>
 
         <div className="bg-portal-accent-bg/50 rounded-xl border border-portal-border px-4 mb-5">
-          <Row
-            label="Route"
-            value={
-              <span className="flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5 text-portal-muted flex-shrink-0" />
-                {booking.routeName}
-              </span>
-            }
-          />
-          <Row label="Direction" value={directionLabel} />
+          {booking.status === "CONFIRMED" && booking.vendor.phone && (
+            <DetailRow
+              label="Vendor phone"
+              value={booking.vendor.phone}
+              copyValue={booking.vendor.phone}
+            />
+          )}
+          <DetailRow label="Route" value={booking.routeName} />
+          <DetailRow label="Direction" value={directionLabel} />
           {booking.destinationAddress && (
-            <Row
+            <DetailRow
               label={
                 booking.direction === "LEAVING"
                   ? "Drop-off address"
                   : "Pickup address"
               }
-              value={
-                <span className="flex items-center gap-1.5 justify-end">
-                  <MapPin className="w-3.5 h-3.5 text-portal-muted flex-shrink-0" />
-                  {booking.destinationAddress}
-                </span>
-              }
+              value={booking.destinationAddress}
             />
           )}
           {booking.departureAt && (
-            <Row
+            <DetailRow
               label="Departure"
-              value={
-                <span className="flex items-center gap-1.5 justify-end">
-                  <Clock className="w-3.5 h-3.5 text-portal-muted flex-shrink-0" />
-                  {formatDeparture(booking.departureAt)}
-                </span>
-              }
+              value={formatDeparture(booking.departureAt)}
             />
           )}
-          <Row
+          <DetailRow
             label="Date booked"
-            value={
-              <span className="flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-portal-muted flex-shrink-0" />
-                {formatFullDate(booking.createdAt)}
-              </span>
-            }
+            value={formatFullDate(booking.createdAt)}
           />
-          <Row label="Fare" value={formatAmount(booking.fare)} />
-          <Row label="Service fee" value={formatAmount(booking.serviceFee)} />
-          <Row
+          <DetailRow label="Fare" value={formatAmount(booking.fare)} />
+          <DetailRow
+            label="Service fee"
+            value={formatAmount(booking.serviceFee)}
+          />
+          <DetailRow
             label="Total paid"
             value={
               <span className="font-bold font-heading text-[14px]">

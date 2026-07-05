@@ -2,7 +2,10 @@
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { sendBookingConfirmationEmail } from "@/lib/sendpulse";
+import {
+  sendBookingConfirmationEmail,
+  sendNewBookingVendorEmail,
+} from "@/lib/sendpulse";
 import {
   bookingCheckoutMetadataSchema,
   STUDENT_BOOKINGS_PAGE_SIZE,
@@ -294,7 +297,7 @@ export async function payBookingFromWallet({
 
     if ("error" in result) return result;
 
-    // Fire-and-forget confirmation email
+    // Fire-and-forget confirmation emails
     const [user, vendor] = await Promise.all([
       db.user.findUnique({
         where: { id: userId },
@@ -302,7 +305,10 @@ export async function payBookingFromWallet({
       }),
       db.vendor_profile.findUnique({
         where: { user_id: vendorId },
-        select: { business_name: true },
+        select: {
+          business_name: true,
+          user: { select: { email: true, first_name: true } },
+        },
       }),
     ]);
 
@@ -316,6 +322,20 @@ export async function payBookingFromWallet({
         roomNumber,
         totalAmount: fare + serviceFee,
       }).catch((err) => console.error("[booking-email]", err));
+    }
+
+    if (vendor?.user.email) {
+      sendNewBookingVendorEmail(vendor.user.email, vendor.user.first_name, {
+        reference,
+        passengerName,
+        passengerPhone,
+        routeName,
+        direction,
+        hall,
+        roomNumber,
+        departureAt: departureAt ?? null,
+        totalAmount: fare + serviceFee,
+      }).catch((err) => console.error("[booking-vendor-email]", err));
     }
 
     return { reference };
@@ -477,21 +497,38 @@ export async function notifyBookingConfirmed(
     }),
     db.vendor_profile.findUnique({
       where: { user_id: m.vendorId },
-      select: { business_name: true },
+      select: {
+        business_name: true,
+        user: { select: { email: true, first_name: true } },
+      },
     }),
   ]);
 
-  if (!user?.email || !vendor) return;
+  if (user?.email && vendor) {
+    await sendBookingConfirmationEmail(user.email, user.first_name, {
+      reference,
+      vendorName: vendor.business_name,
+      routeName: m.routeName,
+      direction: m.direction,
+      hall: m.hall,
+      roomNumber: m.roomNumber,
+      totalAmount: m.fare + m.serviceFee,
+    });
+  }
 
-  await sendBookingConfirmationEmail(user.email, user.first_name, {
-    reference,
-    vendorName: vendor.business_name,
-    routeName: m.routeName,
-    direction: m.direction,
-    hall: m.hall,
-    roomNumber: m.roomNumber,
-    totalAmount: m.fare + m.serviceFee,
-  });
+  if (vendor?.user.email) {
+    await sendNewBookingVendorEmail(vendor.user.email, vendor.user.first_name, {
+      reference,
+      passengerName: m.passengerName,
+      passengerPhone: m.passengerPhone,
+      routeName: m.routeName,
+      direction: m.direction,
+      hall: m.hall,
+      roomNumber: m.roomNumber,
+      departureAt: m.departureAt,
+      totalAmount: m.fare + m.serviceFee,
+    });
+  }
 }
 
 export type BookingCheckoutStatus =
