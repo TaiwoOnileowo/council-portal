@@ -20,14 +20,30 @@ async function fetchSetting<K extends SettingKey>(
 ): Promise<SettingValue<K>> {
   const definition = SETTINGS_REGISTRY[key];
 
-  const cached = await cacheGet<SettingValue<K>>(cacheKeyFor(key));
-  if (cached !== null && cached !== undefined) return cached;
+  const cached = await cacheGet<unknown>(cacheKeyFor(key));
+  if (cached !== null && cached !== undefined) {
+    const parsed = definition.schema.safeParse(cached);
+    if (parsed.success) return parsed.data as SettingValue<K>;
+    console.error(
+      `[settings] cached value for "${key}" failed validation, falling back to default`,
+      parsed.error,
+    );
+  }
 
   const row = await db.app_setting.findUnique({ where: { key } });
-  const value = row
-    ? (row.value as SettingValue<K>)
-    : (definition.default as SettingValue<K>);
+  if (row) {
+    const parsed = definition.schema.safeParse(row.value);
+    if (parsed.success) {
+      await cacheSet(cacheKeyFor(key), parsed.data, CACHE_TTL_SECONDS);
+      return parsed.data as SettingValue<K>;
+    }
+    console.error(
+      `[settings] stored value for "${key}" failed validation, falling back to default`,
+      parsed.error,
+    );
+  }
 
+  const value = definition.default as SettingValue<K>;
   await cacheSet(cacheKeyFor(key), value, CACHE_TTL_SECONDS);
   return value;
 }

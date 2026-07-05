@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
 import { getSetting } from "@/lib/settings";
+import { SETTINGS_REGISTRY } from "@/lib/settings.constant";
 import { PAYMENT_PROCESSORS } from "@/lib/payment-processors";
 
 export type StartPaymentInput = {
@@ -27,7 +28,13 @@ export async function startPayment({
   { authorizationUrl: string; reference: string } | { error: string }
 > {
   const processor = await getSetting("active_payment_processor");
-  const implementation = PAYMENT_PROCESSORS[processor];
+  // getSetting already validates against the registry's enum, so this
+  // should always resolve — but if a new enum member is ever added without
+  // registering its processor, fall back to the default rather than
+  // failing every payment outright.
+  const implementation =
+    PAYMENT_PROCESSORS[processor] ??
+    PAYMENT_PROCESSORS[SETTINGS_REGISTRY.active_payment_processor.default];
   if (!implementation) {
     return { error: "Payment service is not configured correctly." };
   }
