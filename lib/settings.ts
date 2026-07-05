@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { db } from "@/lib/db";
 import { cacheGet, cacheSet } from "@/lib/cache";
+import { logger } from "@/lib/logger";
 import type { Prisma } from "@/generated/prisma/client";
 import {
   SETTINGS_REGISTRY,
@@ -24,9 +25,10 @@ async function fetchSetting<K extends SettingKey>(
   if (cached !== null && cached !== undefined) {
     const parsed = definition.schema.safeParse(cached);
     if (parsed.success) return parsed.data as SettingValue<K>;
-    console.error(
-      `[settings] cached value for "${key}" failed validation, falling back to default`,
-      parsed.error,
+    logger.error(
+      "[settings]",
+      "cached value failed validation, falling back to default",
+      { key, error: parsed.error },
     );
   }
 
@@ -37,9 +39,10 @@ async function fetchSetting<K extends SettingKey>(
       await cacheSet(cacheKeyFor(key), parsed.data, CACHE_TTL_SECONDS);
       return parsed.data as SettingValue<K>;
     }
-    console.error(
-      `[settings] stored value for "${key}" failed validation, falling back to default`,
-      parsed.error,
+    logger.error(
+      "[settings]",
+      "stored value failed validation, falling back to default",
+      { key, error: parsed.error },
     );
   }
 

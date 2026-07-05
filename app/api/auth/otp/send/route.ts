@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { sendVerificationEmail } from "@/lib/sendpulse";
 import { cacheGet, cacheSet, cacheIncr } from "@/lib/cache";
 import { getSetting } from "@/lib/settings";
+import { logger } from "@/lib/logger";
 
 const otpKey = (email: string) => `otp:${email}:code`;
 const rateKey = (email: string) => `otp:${email}:sends`;
@@ -58,7 +59,7 @@ export async function POST(req: NextRequest) {
   try {
     await sendVerificationEmail(email, firstName, code);
   } catch (err) {
-    console.error("SendPulse error:", err);
+    logger.error("[otp send]", "SendPulse error", { email, err });
     return NextResponse.json(
       { error: "Failed to send verification email. Please try again." },
       { status: 502 },

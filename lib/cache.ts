@@ -1,10 +1,11 @@
 import { redis } from "./redis";
+import { logger } from "./logger";
 
 export async function cacheGet<T>(key: string): Promise<T | null> {
   try {
     return await redis.get<T>(key);
   } catch (err) {
-    console.error("[cache] get failed, treating as miss", key, err);
+    logger.error("[cache]", "get failed, treating as miss", { key, err });
     return null;
   }
 }
@@ -21,7 +22,7 @@ export async function cacheSet(
       await redis.set(key, value);
     }
   } catch (err) {
-    console.error("[cache] set failed, skipping cache write", key, err);
+    logger.error("[cache]", "set failed, skipping cache write", { key, err });
   }
 }
 

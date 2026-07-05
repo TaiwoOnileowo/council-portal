@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
 import { startPayment, getPaymentByReference } from "@/lib/payments";
 import { getSetting } from "@/lib/settings";
-import { nairaToKobo } from "@/lib/money";
+import { nairaToKobo, computeServiceFee } from "@/lib/money";
 import {
   WALLET_TX_PAGE_SIZE,
   type WalletTopupMetadata,
@@ -145,8 +145,9 @@ export async function startTopUp(
   const { serviceFeeRate, serviceFeeCapNaira } = await getSetting(
     "pricing_config",
   );
-  const feeKobo = Math.min(
-    Math.round(amountKobo * serviceFeeRate),
+  const feeKobo = computeServiceFee(
+    amountKobo,
+    serviceFeeRate,
     nairaToKobo(serviceFeeCapNaira),
   );
   const chargeKobo = amountKobo + feeKobo;

@@ -12,6 +12,7 @@ import {
   updateStudentProfileSchema,
 } from "@/modules/auth/auth.types";
 import { CallbackRouteError } from "@auth/core/errors";
+import { logger } from "@/lib/logger";
 
 export async function getUserFromDb(email: string) {
   return db.user.findUnique({ where: { email } });
@@ -176,7 +177,7 @@ export async function signUpUser({
       },
     });
   } catch (error: unknown) {
-    console.error("Error creating user:", error);
+    logger.error("[signup]", "failed to create user", { email, error });
     const msg = error instanceof Error ? error.message : "";
     // Prisma unique constraint violation
     if (msg.includes("Unique constraint")) {

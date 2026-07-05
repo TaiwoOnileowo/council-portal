@@ -14,6 +14,7 @@ import {
   isVendorAvailable,
 } from "@/modules/transport/transport.utils";
 import { textMatchRank, stripTrailingParenthetical } from "@/lib/utils";
+import { computeServiceFee } from "@/lib/money";
 import VendorDetailPopup from "./VendorDetailModal";
 import BookingFlow from "./BookingFlow";
 
@@ -28,10 +29,12 @@ export default function VendorCardsList({
   vendors,
   user,
   serviceFeeRate,
+  serviceFeeCapNaira,
 }: {
   vendors: PublicVendor[];
   user: { id: string; name: string; phone: string; email: string };
   serviceFeeRate: number;
+  serviceFeeCapNaira: number;
 }) {
   const [detailVendor, setDetailVendor] = useState<PublicVendor | null>(null);
   const [bookingVendor, setBookingVendor] = useState<PublicVendor | null>(null);
@@ -285,7 +288,11 @@ export default function VendorCardsList({
           onClose={handleBookingClose}
           onBack={handleBookingBack}
           user={user}
-          serviceFeeRate={serviceFeeRate}
+          serviceFee={computeServiceFee(
+            bookingRoute.price,
+            serviceFeeRate,
+            serviceFeeCapNaira,
+          )}
         />
       )}
     </>

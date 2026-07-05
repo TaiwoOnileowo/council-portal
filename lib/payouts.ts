@@ -4,6 +4,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { koboToNaira } from "@/lib/money";
 import { vendorBalance } from "@/lib/actions/wallet.action";
 import { sendPayoutSuccessEmail, sendPayoutFailedEmail } from "@/lib/sendpulse";
+import { logger } from "@/lib/logger";
 
 export const payoutLockKey = (vendorId: string) => `payout:lock:${vendorId}`;
 
@@ -172,7 +173,13 @@ export async function reversePayout(reference: string, reason: string): Promise<
     amountKobo: payout.amount,
     bankName: payout.bank_name,
     accountNumber: payout.account_number,
-  }).catch((err) => console.error("[payout-email]", err));
+  }).catch((err) =>
+    logger.error("[payouts]", "payout-failed notification email failed", {
+      reference,
+      vendorId: payout.vendor_id,
+      err,
+    }),
+  );
 }
 
 type PayoutSuccessInfo = {
@@ -239,5 +246,11 @@ export async function markPayoutSuccess(reference: string): Promise<void> {
     amountKobo: payoutInfo.amount,
     bankName: payoutInfo.bankName,
     accountNumber: payoutInfo.accountNumber,
-  }).catch((err) => console.error("[payout-email]", err));
+  }).catch((err) =>
+    logger.error("[payouts]", "payout-success notification email failed", {
+      reference,
+      vendorId: payoutInfo.vendorId,
+      err,
+    }),
+  );
 }

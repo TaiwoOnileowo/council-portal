@@ -15,9 +15,10 @@ import {
   type StudentBookingsResponse,
 } from "@/modules/transport/transport.types";
 import type { Prisma } from "@/generated/prisma/client";
-import { nairaToKobo } from "@/lib/money";
+import { nairaToKobo, computeServiceFee } from "@/lib/money";
 import { vendorBalance } from "@/lib/actions/wallet.action";
 import { getSetting } from "@/lib/settings";
+import { logger } from "@/lib/logger";
 import { startPayment, getPaymentByReference } from "@/lib/payments";
 
 const studentBookingSelect = {
@@ -320,7 +321,12 @@ export async function payBookingFromWallet({
         hall,
         roomNumber,
         totalAmount: fare + serviceFee,
-      }).catch((err) => console.error("[booking-email]", err));
+      }).catch((err) =>
+        logger.error("[booking]", "booking confirmation email failed", {
+          reference,
+          err,
+        }),
+      );
     }
 
     if (vendor?.user.email) {
@@ -334,7 +340,13 @@ export async function payBookingFromWallet({
         roomNumber,
         departureAt: departureAt ?? null,
         totalAmount: fare + serviceFee,
-      }).catch((err) => console.error("[booking-vendor-email]", err));
+      }).catch((err) =>
+        logger.error(
+          "[booking]",
+          "vendor new-booking notification email failed",
+          { reference, err },
+        ),
+      );
     }
 
     return { reference };
@@ -379,10 +391,7 @@ export async function startBookingCheckout({
 
   const { serviceFeeRate, serviceFeeCapNaira, commissionNaira } =
     await getSetting("pricing_config");
-  const serviceFee = Math.min(
-    Math.round(fare * serviceFeeRate),
-    serviceFeeCapNaira,
-  );
+  const serviceFee = computeServiceFee(fare, serviceFeeRate, serviceFeeCapNaira);
 
   const user = await db.user.findUnique({
     where: { id: session.user.id },

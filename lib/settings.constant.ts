@@ -46,7 +46,7 @@ export const SETTINGS_REGISTRY = {
       scheduledPayoutsEnabled: z.boolean(),
     }),
     default: {
-      activeProcessor: "flutterwave" as const,
+      activeProcessor: "paystack" as const,
       withdrawalsEnabled: {
         flutterwave: false,
         paystack: false,

@@ -96,7 +96,7 @@ export default function BookingFlow({
   onClose,
   onBack,
   user,
-  serviceFeeRate,
+  serviceFee,
 }: {
   vendor: PublicVendor;
   priceList: PublicPriceList;
@@ -105,7 +105,7 @@ export default function BookingFlow({
   onClose: () => void;
   onBack: () => void;
   user: { id: string; name: string; phone: string; email: string };
-  serviceFeeRate: number;
+  serviceFee: number;
 }) {
   const { balanceKobo } = useWalletBalance();
   const isLeaving = priceList.direction === "LEAVING";
@@ -183,7 +183,6 @@ export default function BookingFlow({
   }
 
   const basePrice = route.price;
-  const serviceFee = Math.round(basePrice * serviceFeeRate);
   const walletTotal = basePrice;
   const onlineTotal = basePrice + serviceFee;
   const pickup = isLeaving ? "Covenant University" : route.name;

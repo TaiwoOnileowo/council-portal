@@ -5,6 +5,7 @@ import { getSetting } from "@/lib/settings";
 import { nairaToKobo } from "@/lib/money";
 import { vendorBalance } from "@/lib/actions/wallet.action";
 import { initiatePayout } from "@/lib/payouts";
+import { logger } from "@/lib/logger";
 
 function isAuthorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
@@ -27,11 +28,13 @@ type PayoutRunResult =
 
 export async function POST(req: NextRequest) {
   if (!isAuthorized(req)) {
+    logger.warn("[payouts-cron]", "unauthorized payout run attempt");
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { scheduledPayoutsEnabled } = await getSetting("payment_config");
   if (!scheduledPayoutsEnabled) {
+    logger.info("[payouts-cron]", "run skipped: scheduled payouts disabled");
     return NextResponse.json({ processed: 0, results: [], disabled: true });
   }
 
@@ -77,16 +80,33 @@ export async function POST(req: NextRequest) {
       account_name: vendor.account_name!,
     });
 
-    results.push(
-      "error" in result
-        ? { vendorId: vendor.user_id, status: "failed", error: result.error }
-        : {
-            vendorId: vendor.user_id,
-            status: "initiated",
-            reference: result.reference,
-          },
-    );
+    if ("error" in result) {
+      logger.error("[payouts-cron]", "payout initiation failed", {
+        vendorId: vendor.user_id,
+        balance,
+        error: result.error,
+      });
+      results.push({
+        vendorId: vendor.user_id,
+        status: "failed",
+        error: result.error,
+      });
+    } else {
+      results.push({
+        vendorId: vendor.user_id,
+        status: "initiated",
+        reference: result.reference,
+      });
+    }
   }
+
+  const failed = results.filter((r) => r.status === "failed").length;
+  logger.info("[payouts-cron]", "run complete", {
+    processed: results.length,
+    initiated: results.filter((r) => r.status === "initiated").length,
+    skipped: results.filter((r) => r.status === "skipped").length,
+    failed,
+  });
 
   return NextResponse.json({ processed: results.length, results });
 }

@@ -4,6 +4,7 @@ import { ZodError } from "zod";
 import { credentialsSchema } from "@/modules/auth/auth.types";
 import { db } from "@/lib/db";
 import { verifyPassword } from "@/lib/password";
+import { logger } from "@/lib/logger";
 import type { Role } from "@/generated/prisma/enums";
 
 declare module "next-auth" {
@@ -107,5 +108,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   pages: {
     signIn: "/gate",
+  },
+  logger: {
+    error(error) {
+      logger.error("[auth]", error.message, error);
+    },
+    warn(code) {
+      logger.warn("[auth]", code);
+    },
   },
 });

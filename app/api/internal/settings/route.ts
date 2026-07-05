@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { getAllSettings, setSetting } from "@/lib/settings";
 import { SETTINGS_REGISTRY, type SettingKey } from "@/lib/settings.constant";
+import { logger } from "@/lib/logger";
 
 function isAuthorized(req: NextRequest): boolean {
   const secret = process.env.INTERNAL_API_KEY;
@@ -19,6 +20,7 @@ function isAuthorized(req: NextRequest): boolean {
 
 export async function GET(req: NextRequest) {
   if (!isAuthorized(req)) {
+    logger.warn("[settings]", "unauthorized settings read attempt");
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -28,6 +30,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   if (!isAuthorized(req)) {
+    logger.warn("[settings]", "unauthorized settings write attempt");
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -35,12 +38,20 @@ export async function POST(req: NextRequest) {
   const key = body?.key as SettingKey | undefined;
 
   if (!key || !Object.hasOwn(SETTINGS_REGISTRY, key)) {
+    logger.warn("[settings]", "write attempted for unknown key", {
+      key: body?.key,
+    });
     return NextResponse.json({ error: "Unknown setting key" }, { status: 400 });
   }
 
   const definition = SETTINGS_REGISTRY[key];
   const parsed = definition.schema.safeParse(body?.value);
   if (!parsed.success) {
+    logger.warn("[settings]", "write rejected: invalid value", {
+      key,
+      value: body?.value,
+      error: parsed.error,
+    });
     return NextResponse.json(
       { error: parsed.error.issues[0]?.message ?? "Invalid value" },
       { status: 400 },
@@ -48,5 +59,6 @@ export async function POST(req: NextRequest) {
   }
 
   const saved = await setSetting(key, parsed.data as never);
+  logger.info("[settings]", "setting updated", { key, value: saved });
   return NextResponse.json({ data: { key, value: saved } });
 }

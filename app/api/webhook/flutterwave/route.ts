@@ -11,6 +11,7 @@ import {
   markPaymentResult,
 } from "@/lib/payments";
 import { walletTopupMetadataSchema } from "@/modules/wallet/wallet.types";
+import { logger } from "@/lib/logger";
 import type { Prisma } from "@/generated/prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -22,7 +23,7 @@ export async function POST(req: NextRequest) {
   const signature = req.headers.get("verif-hash");
 
   if (!secretHash || signature !== secretHash) {
-    console.warn(LOG_TAG, "rejected: bad or missing verif-hash", {
+    logger.warn(LOG_TAG, "rejected: bad or missing verif-hash", {
       hasSecret: !!secretHash,
       hasSignature: !!signature,
     });
@@ -33,14 +34,14 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch (err) {
-    console.error(LOG_TAG, "rejected: invalid JSON body", err);
+    logger.error(LOG_TAG, "rejected: invalid JSON body", err);
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
   const event = body.event as string | undefined;
   const data = body.data as Record<string, unknown> | undefined;
   if (!data) {
-    console.warn(LOG_TAG, "event with no data payload", { event });
+    logger.warn(LOG_TAG, "event with no data payload", { event });
     return NextResponse.json({ received: true });
   }
 
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest) {
     const reference = data.reference as string | undefined;
     const status = data.status as string | undefined;
     if (!reference) {
-      console.warn(LOG_TAG, "transfer.completed missing reference", {
+      logger.warn(LOG_TAG, "transfer.completed missing reference", {
         fields: Object.keys(data),
       });
       return NextResponse.json({ received: true });
@@ -57,9 +58,9 @@ export async function POST(req: NextRequest) {
     if (status === "SUCCESSFUL") {
       try {
         await markPayoutSuccess(reference);
-        console.log(LOG_TAG, "payout marked successful", { reference });
+        logger.info(LOG_TAG, "payout marked successful", { reference });
       } catch (err) {
-        console.error(LOG_TAG, "markPayoutSuccess threw", { reference, err });
+        logger.error(LOG_TAG, "markPayoutSuccess threw", { reference, err });
         return NextResponse.json(
           { error: "Processing failed" },
           { status: 500 },
@@ -70,16 +71,16 @@ export async function POST(req: NextRequest) {
         (data.complete_message as string | undefined) ?? "Transfer failed.";
       try {
         await reversePayout(reference, reason);
-        console.log(LOG_TAG, "payout reversed", { reference, reason });
+        logger.info(LOG_TAG, "payout reversed", { reference, reason });
       } catch (err) {
-        console.error(LOG_TAG, "reversePayout threw", { reference, err });
+        logger.error(LOG_TAG, "reversePayout threw", { reference, err });
         return NextResponse.json(
           { error: "Processing failed" },
           { status: 500 },
         );
       }
     } else {
-      console.warn(LOG_TAG, "transfer.completed with unhandled status", {
+      logger.warn(LOG_TAG, "transfer.completed with unhandled status", {
         reference,
         status,
       });
@@ -88,7 +89,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (event !== "charge.completed") {
-    console.warn(LOG_TAG, "ignoring unhandled event type", { event });
+    logger.warn(LOG_TAG, "ignoring unhandled event type", { event });
     return NextResponse.json({ received: true });
   }
 
@@ -98,7 +99,7 @@ export async function POST(req: NextRequest) {
   const currency = data.currency as string | undefined;
 
   if (!txRef) {
-    console.warn(LOG_TAG, "charge.completed missing tx_ref", {
+    logger.warn(LOG_TAG, "charge.completed missing tx_ref", {
       fields: Object.keys(data),
     });
     return NextResponse.json({ received: true });
@@ -109,7 +110,7 @@ export async function POST(req: NextRequest) {
     status === "successful" && currency === "NGN" && !!amount;
   const flwRef = data.flw_ref as string | undefined;
 
-  console.log(LOG_TAG, "charge.completed", {
+  logger.info(LOG_TAG, "charge.completed", {
     txRef,
     status,
     amount,
@@ -127,7 +128,7 @@ export async function POST(req: NextRequest) {
       where: { tx_ref: txRef },
     });
     if (!virtualAccount) {
-      console.error(LOG_TAG, "unattributed virtual account transfer", {
+      logger.error(LOG_TAG, "unattributed virtual account transfer", {
         txRef,
         flwRef,
         amount,
@@ -137,7 +138,7 @@ export async function POST(req: NextRequest) {
 
     const creditRef = flwRef || String(data.id ?? "");
     if (!creditRef) {
-      console.warn(LOG_TAG, "VA transfer missing flw_ref/id, cannot credit", {
+      logger.warn(LOG_TAG, "VA transfer missing flw_ref/id, cannot credit", {
         txRef,
       });
       return NextResponse.json({ received: true });
@@ -155,14 +156,14 @@ export async function POST(req: NextRequest) {
         modelResponsible: "VirtualAccount",
         reference: creditRef,
       });
-      console.log(LOG_TAG, "VA wallet credited", {
+      logger.info(LOG_TAG, "VA wallet credited", {
         txRef,
         creditRef,
         owner,
         amountKobo,
       });
     } catch (err) {
-      console.error(LOG_TAG, "creditWallet threw for VA transfer", {
+      logger.error(LOG_TAG, "creditWallet threw for VA transfer", {
         txRef,
         creditRef,
         owner,
@@ -180,11 +181,11 @@ export async function POST(req: NextRequest) {
   // and only ever act on it once (a webhook can be retried by Flutterwave).
   const payment = await getPaymentByReference(txRef);
   if (!payment) {
-    console.warn(LOG_TAG, "no payment row found for tx_ref", { txRef });
+    logger.warn(LOG_TAG, "no payment row found for tx_ref", { txRef });
     return NextResponse.json({ received: true });
   }
   if (payment.status !== "PENDING") {
-    console.log(LOG_TAG, "ignoring webhook for non-pending payment", {
+    logger.info(LOG_TAG, "ignoring webhook for non-pending payment", {
       txRef,
       currentStatus: payment.status,
     });
@@ -195,7 +196,7 @@ export async function POST(req: NextRequest) {
     const failureReason = !isSuccessful
       ? `Flutterwave reported status "${status}"`
       : "Amount mismatch";
-    console.warn(LOG_TAG, "marking payment FAILED", {
+    logger.warn(LOG_TAG, "marking payment FAILED", {
       txRef,
       failureReason,
       amountKobo,
@@ -256,28 +257,28 @@ export async function POST(req: NextRequest) {
     if (!result) {
       // markPaymentResult lost the race (another delivery already handled
       // this reference) — a normal, harmless outcome of processor retries.
-      console.log(LOG_TAG, "duplicate delivery, already finalized", {
+      logger.info(LOG_TAG, "duplicate delivery, already finalized", {
         txRef,
       });
     } else if (result.kind === "wallet_topup") {
-      console.log(LOG_TAG, "wallet credited for payment", { txRef });
+      logger.info(LOG_TAG, "wallet credited for payment", { txRef });
     } else if (result.kind === "booking") {
-      console.log(LOG_TAG, "booking checkout finalized", { txRef });
+      logger.info(LOG_TAG, "booking checkout finalized", { txRef });
       notifyBookingConfirmed(payment.user_id, txRef, result.meta).catch((err) =>
-        console.error(LOG_TAG, "booking confirmation email failed", {
+        logger.error(LOG_TAG, "booking confirmation email failed", {
           txRef,
           err,
         }),
       );
     } else {
-      console.error(
+      logger.error(
         LOG_TAG,
         "payment marked SUCCESS but destination is unrecognized — nothing credited",
         { txRef, destination: payment.destination },
       );
     }
   } catch (err) {
-    console.error(
+    logger.error(
       LOG_TAG,
       "payment success processing failed — rolled back, payment remains PENDING for retry",
       { txRef, destination: payment.destination, err },

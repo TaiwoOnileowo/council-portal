@@ -3,6 +3,7 @@ import type {
   InitiateChargeResult,
   PaymentProcessor,
 } from "./types";
+import { logger } from "@/lib/logger";
 
 async function initiateCharge({
   reference,
@@ -38,7 +39,10 @@ async function initiateCharge({
     }
     return { authorizationUrl: json.data.authorization_url as string };
   } catch (error) {
-    console.error("Error initiating Paystack charge:", error);
+    logger.error("[paystack]", "error initiating charge", {
+      reference,
+      error,
+    });
     return { error: "Could not start payment. Please try again." };
   }
 }

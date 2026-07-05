@@ -13,3 +13,13 @@ export function nairaToKobo(naira: number): number {
 export function koboToNaira(kobo: number): number {
   return kobo / 100;
 }
+
+// `amount` and `cap` must be in the same unit (both naira or both kobo) —
+// the result comes back in that same unit.
+export function computeServiceFee(
+  amount: number,
+  rate: number,
+  cap: number,
+): number {
+  return Math.min(Math.round(amount * rate), cap);
+}

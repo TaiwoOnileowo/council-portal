@@ -36,6 +36,7 @@ export default async function VendorCards() {
       vendors={vendors}
       user={user}
       serviceFeeRate={pricingConfig.serviceFeeRate}
+      serviceFeeCapNaira={pricingConfig.serviceFeeCapNaira}
     />
   );
 }

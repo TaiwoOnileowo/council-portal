@@ -3,6 +3,7 @@ import type {
   InitiateChargeResult,
   PaymentProcessor,
 } from "./types";
+import { logger } from "@/lib/logger";
 
 async function initiateCharge({
   reference,
@@ -40,7 +41,10 @@ async function initiateCharge({
     }
     return { authorizationUrl: json.data.link as string };
   } catch (error) {
-    console.error("Error initiating Flutterwave charge:", error);
+    logger.error("[flutterwave]", "error initiating charge", {
+      reference,
+      error,
+    });
     return { error: "Could not start payment. Please try again." };
   }
 }

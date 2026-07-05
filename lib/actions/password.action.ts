@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
 import { sendPasswordResetEmail } from "@/lib/sendpulse";
 import { cacheGet, cacheSet, cacheDel } from "@/lib/cache";
+import { logger } from "@/lib/logger";
 
 const TOKEN_TTL = 3600;
 const RESET_PREFIX = "pwreset:";
@@ -25,7 +26,10 @@ export async function requestPasswordReset(email: string) {
   try {
     await sendPasswordResetEmail(email, firstName, resetUrl);
   } catch (err) {
-    console.error("Failed to send password reset email:", err);
+    logger.error("[password-reset]", "failed to send reset email", {
+      email,
+      err,
+    });
   }
 
   return { success: true };

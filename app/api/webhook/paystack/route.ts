@@ -10,6 +10,7 @@ import {
   finalizeBookingCheckout,
   notifyBookingConfirmed,
 } from "@/lib/actions/booking.action";
+import { logger } from "@/lib/logger";
 import type { Prisma } from "@/generated/prisma/client";
 
 function isValidSignature(rawBody: string, signature: string | null): boolean {
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
   const signature = req.headers.get("x-paystack-signature");
 
   if (!isValidSignature(rawBody, signature)) {
-    console.warn(LOG_TAG, "rejected: invalid x-paystack-signature", {
+    logger.warn(LOG_TAG, "rejected: invalid x-paystack-signature", {
       hasSignature: !!signature,
     });
     return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
   try {
     body = JSON.parse(rawBody);
   } catch (err) {
-    console.error(LOG_TAG, "rejected: invalid JSON body", err);
+    logger.error(LOG_TAG, "rejected: invalid JSON body", err);
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
@@ -57,7 +58,7 @@ export async function POST(req: NextRequest) {
   const currency = data.currency as string | undefined;
 
   if (!reference) {
-    console.warn(LOG_TAG, "charge.success missing reference", {
+    logger.warn(LOG_TAG, "charge.success missing reference", {
       fields: Object.keys(data),
     });
     return NextResponse.json({ received: true });
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest) {
     status === "success" && currency === "NGN" && !!amountKobo;
   const processorReference = String(data.id ?? "");
 
-  console.log(LOG_TAG, "charge.success", {
+  logger.info(LOG_TAG, "charge.success", {
     reference,
     status,
     amountKobo,
@@ -77,13 +78,13 @@ export async function POST(req: NextRequest) {
 
   const payment = await getPaymentByReference(reference);
   if (!payment) {
-    console.warn(LOG_TAG, "no payment row found for reference", {
+    logger.warn(LOG_TAG, "no payment row found for reference", {
       reference,
     });
     return NextResponse.json({ received: true });
   }
   if (payment.status !== "PENDING") {
-    console.log(LOG_TAG, "ignoring webhook for non-pending payment", {
+    logger.info(LOG_TAG, "ignoring webhook for non-pending payment", {
       reference,
       currentStatus: payment.status,
     });
@@ -94,7 +95,7 @@ export async function POST(req: NextRequest) {
     const failureReason = !isSuccessful
       ? `Paystack reported status "${status}"`
       : "Amount mismatch";
-    console.warn(LOG_TAG, "marking payment FAILED", {
+    logger.warn(LOG_TAG, "marking payment FAILED", {
       reference,
       failureReason,
       amountKobo,
@@ -148,29 +149,29 @@ export async function POST(req: NextRequest) {
     if (!result) {
       // markPaymentResult lost the race (another delivery already handled
       // this reference) — a normal, harmless outcome of processor retries.
-      console.log(LOG_TAG, "duplicate delivery, already finalized", {
+      logger.info(LOG_TAG, "duplicate delivery, already finalized", {
         reference,
       });
     } else if (result.kind === "wallet_topup") {
-      console.log(LOG_TAG, "wallet credited for payment", { reference });
+      logger.info(LOG_TAG, "wallet credited for payment", { reference });
     } else if (result.kind === "booking") {
-      console.log(LOG_TAG, "booking checkout finalized", { reference });
+      logger.info(LOG_TAG, "booking checkout finalized", { reference });
       notifyBookingConfirmed(payment.user_id, reference, result.meta).catch(
         (err) =>
-          console.error(LOG_TAG, "booking confirmation email failed", {
+          logger.error(LOG_TAG, "booking confirmation email failed", {
             reference,
             err,
           }),
       );
     } else {
-      console.error(
+      logger.error(
         LOG_TAG,
         "payment marked SUCCESS but destination is unrecognized — nothing credited",
         { reference, destination: payment.destination },
       );
     }
   } catch (err) {
-    console.error(
+    logger.error(
       LOG_TAG,
       "payment success processing failed — rolled back, payment remains PENDING for retry",
       { reference, destination: payment.destination, err },
