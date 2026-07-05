@@ -39,7 +39,8 @@ async function initiateCharge({
       return { error: json.message ?? "Could not start payment." };
     }
     return { authorizationUrl: json.data.link as string };
-  } catch {
+  } catch (error) {
+    console.error("Error initiating Flutterwave charge:", error);
     return { error: "Could not start payment. Please try again." };
   }
 }

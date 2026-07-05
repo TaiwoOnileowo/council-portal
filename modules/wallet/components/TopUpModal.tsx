@@ -46,7 +46,8 @@ export default function TopUpModal({
       }
       window.location.href = data.authorizationUrl;
     },
-    onError: () => {
+    onError: (error: unknown) => {
+      console.error("Error starting top-up:", error);
       setVerifyError("Could not start payment. Please try again.");
     },
   });
