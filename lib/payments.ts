@@ -27,14 +27,14 @@ export async function startPayment({
 }: StartPaymentInput): Promise<
   { authorizationUrl: string; reference: string } | { error: string }
 > {
-  const processor = await getSetting("active_payment_processor");
+  const { activeProcessor: processor } = await getSetting("payment_config");
   // getSetting already validates against the registry's enum, so this
   // should always resolve — but if a new enum member is ever added without
   // registering its processor, fall back to the default rather than
   // failing every payment outright.
   const implementation =
     PAYMENT_PROCESSORS[processor] ??
-    PAYMENT_PROCESSORS[SETTINGS_REGISTRY.active_payment_processor.default];
+    PAYMENT_PROCESSORS[SETTINGS_REGISTRY.payment_config.default.activeProcessor];
   if (!implementation) {
     return { error: "Payment service is not configured correctly." };
   }

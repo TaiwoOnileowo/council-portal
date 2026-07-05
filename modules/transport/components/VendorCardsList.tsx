@@ -27,11 +27,11 @@ const ROUTES_PER_VENDOR = 5;
 export default function VendorCardsList({
   vendors,
   user,
-  serviceFee,
+  serviceFeeRate,
 }: {
   vendors: PublicVendor[];
   user: { id: string; name: string; phone: string; email: string };
-  serviceFee: number;
+  serviceFeeRate: number;
 }) {
   const [detailVendor, setDetailVendor] = useState<PublicVendor | null>(null);
   const [bookingVendor, setBookingVendor] = useState<PublicVendor | null>(null);
@@ -285,7 +285,7 @@ export default function VendorCardsList({
           onClose={handleBookingClose}
           onBack={handleBookingBack}
           user={user}
-          serviceFee={serviceFee}
+          serviceFeeRate={serviceFeeRate}
         />
       )}
     </>

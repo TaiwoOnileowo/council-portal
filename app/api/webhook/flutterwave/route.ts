@@ -10,6 +10,7 @@ import {
   getPaymentByReference,
   markPaymentResult,
 } from "@/lib/payments";
+import { walletTopupMetadataSchema } from "@/modules/wallet/wallet.types";
 import type { Prisma } from "@/generated/prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -168,10 +169,7 @@ export async function POST(req: NextRequest) {
         amountKobo,
         err,
       });
-      return NextResponse.json(
-        { error: "Processing failed" },
-        { status: 500 },
-      );
+      return NextResponse.json({ error: "Processing failed" }, { status: 500 });
     }
 
     return NextResponse.json({ received: true });
@@ -225,10 +223,17 @@ export async function POST(req: NextRequest) {
       },
       async (tx) => {
         if (payment.destination === "wallet_topup") {
+          const parsedMeta = walletTopupMetadataSchema.safeParse(
+            payment.metadata,
+          );
+          const creditKobo = parsedMeta.success
+            ? parsedMeta.data.requestedAmountKobo
+            : payment.amount;
+
           await creditWallet(
             { userId: payment.user_id },
             {
-              amountKobo: payment.amount,
+              amountKobo: creditKobo,
               reason: "Wallet top-up",
               type: "topup",
               modelResponsible: "Payment",
@@ -258,12 +263,11 @@ export async function POST(req: NextRequest) {
       console.log(LOG_TAG, "wallet credited for payment", { txRef });
     } else if (result.kind === "booking") {
       console.log(LOG_TAG, "booking checkout finalized", { txRef });
-      notifyBookingConfirmed(payment.user_id, txRef, result.meta).catch(
-        (err) =>
-          console.error(LOG_TAG, "booking confirmation email failed", {
-            txRef,
-            err,
-          }),
+      notifyBookingConfirmed(payment.user_id, txRef, result.meta).catch((err) =>
+        console.error(LOG_TAG, "booking confirmation email failed", {
+          txRef,
+          err,
+        }),
       );
     } else {
       console.error(

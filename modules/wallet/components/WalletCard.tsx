@@ -51,19 +51,31 @@ export function WalletBalancePanel() {
         </div>
 
         {isVendor ? (
-          <button
-            onClick={() =>
-              openWithdraw({
-                availableKobo: vendorSummary?.balance ?? 0,
-                bankAccount: vendorSummary?.bankAccount ?? null,
-              })
-            }
-            disabled={!vendorSummary || vendorSummary.balance <= 0}
-            className="flex items-center justify-center gap-2 px-5 py-3 bg-portal-accent text-white rounded-xl text-[14px] font-semibold hover:bg-portal-accent2 disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:enabled:-translate-y-0.5"
-          >
-            <ArrowUpRight className="w-4 h-4" />
-            Withdraw
-          </button>
+          <div className="flex flex-col items-end gap-1.5">
+            <button
+              onClick={() =>
+                openWithdraw({
+                  availableKobo: vendorSummary?.balance ?? 0,
+                  bankAccount: vendorSummary?.bankAccount ?? null,
+                })
+              }
+              disabled={
+                !vendorSummary ||
+                vendorSummary.balance <= 0 ||
+                !vendorSummary.withdrawalsEnabled
+              }
+              className="flex items-center justify-center gap-2 px-5 py-3 bg-portal-accent text-white rounded-xl text-[14px] font-semibold hover:bg-portal-accent2 disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:enabled:-translate-y-0.5"
+            >
+              <ArrowUpRight className="w-4 h-4" />
+              Withdraw
+            </button>
+            {vendorSummary && !vendorSummary.withdrawalsEnabled && (
+              <p className="text-[11px] text-portal-muted text-right max-w-[180px]">
+                On-demand withdrawals are paused, you&apos;re settled
+                automatically every few days.
+              </p>
+            )}
+          </div>
         ) : (
           <button
             onClick={() => openTopUp()}

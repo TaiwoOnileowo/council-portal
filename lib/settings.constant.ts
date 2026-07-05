@@ -16,27 +16,43 @@ export const SETTINGS_REGISTRY = {
       "davidcityconsulting247@gmail.com",
     ] as string[],
   },
-  booking_pricing_config: {
-    label: "Booking pricing",
+  pricing_config: {
+    label: "Pricing",
     description:
-      "Commission taken from vendor earnings, minimum vendor withdrawal, and the customer-facing service fee.",
+      "Commission taken from vendor earnings, minimum vendor withdrawal, and the service fee rate (capped at a max naira amount) applied to online checkout — booking payments made online and wallet top-ups. Wallet-balance booking payments stay fee-free.",
     schema: z.object({
       commissionNaira: z.number().int().min(0),
       minPayoutNaira: z.number().int().min(0),
-      serviceFeeNaira: z.number().int().min(0),
+      serviceFeeRate: z.number().min(0).max(1).default(0.02),
+      serviceFeeCapNaira: z.number().int().min(0).default(1500),
     }),
     default: {
       commissionNaira: 1000,
       minPayoutNaira: 1000,
-      serviceFeeNaira: 0,
+      serviceFeeRate: 0.02,
+      serviceFeeCapNaira: 1500,
     },
   },
-  active_payment_processor: {
-    label: "Active payment processor",
+  payment_config: {
+    label: "Payment configuration",
     description:
-      "Which processor handles new payment attempts (top-ups, checkout).",
-    schema: z.enum(["flutterwave", "paystack"]),
-    default: "flutterwave" as const,
+      "Which processor handles new payment attempts (top-ups, checkout); whether vendor-initiated withdrawals are enabled per processor; and whether the scheduled payout run is enabled. Withdrawals and scheduled payouts are independent — disabling on-demand withdrawal does not stop the payout cron, and vice versa.",
+    schema: z.object({
+      activeProcessor: z.enum(["flutterwave", "paystack"]),
+      withdrawalsEnabled: z.object({
+        flutterwave: z.boolean(),
+        paystack: z.boolean(),
+      }),
+      scheduledPayoutsEnabled: z.boolean(),
+    }),
+    default: {
+      activeProcessor: "flutterwave" as const,
+      withdrawalsEnabled: {
+        flutterwave: false,
+        paystack: false,
+      },
+      scheduledPayoutsEnabled: false,
+    },
   },
   otp_config: {
     label: "OTP configuration",

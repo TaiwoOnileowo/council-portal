@@ -1,4 +1,12 @@
+import { z } from "zod";
+
 export const WALLET_TX_PAGE_SIZE = 20;
+
+export const walletTopupMetadataSchema = z.object({
+  requestedAmountKobo: z.number().int().positive(),
+});
+
+export type WalletTopupMetadata = z.infer<typeof walletTopupMetadataSchema>;
 
 export type WalletTransactionType = "topup" | "booking" | "refund";
 

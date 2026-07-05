@@ -8,7 +8,7 @@ export default async function VendorCards() {
   const [vendors, session, pricingConfig] = await Promise.all([
     getPublicTransports(),
     auth(),
-    getSetting("booking_pricing_config"),
+    getSetting("pricing_config"),
   ]);
 
   let user: { id: string; name: string; phone: string; email: string } = {
@@ -35,7 +35,7 @@ export default async function VendorCards() {
     <VendorCardsList
       vendors={vendors}
       user={user}
-      serviceFee={pricingConfig.serviceFeeNaira}
+      serviceFeeRate={pricingConfig.serviceFeeRate}
     />
   );
 }

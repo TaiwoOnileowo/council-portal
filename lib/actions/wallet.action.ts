@@ -4,8 +4,11 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
 import { startPayment, getPaymentByReference } from "@/lib/payments";
+import { getSetting } from "@/lib/settings";
+import { nairaToKobo } from "@/lib/money";
 import {
   WALLET_TX_PAGE_SIZE,
+  type WalletTopupMetadata,
   type WalletTransactionsFilters,
   type WalletTransactionsResponse,
 } from "@/modules/wallet/wallet.types";
@@ -139,19 +142,31 @@ export async function startTopUp(
   });
   if (!user) return { error: "User not found." };
 
+  const { serviceFeeRate, serviceFeeCapNaira } = await getSetting(
+    "pricing_config",
+  );
+  const feeKobo = Math.min(
+    Math.round(amountKobo * serviceFeeRate),
+    nairaToKobo(serviceFeeCapNaira),
+  );
+  const chargeKobo = amountKobo + feeKobo;
+
   const reference = `TOPUP-${Date.now().toString(36).toUpperCase()}-${Math.random()
     .toString(36)
     .slice(2, 5)
     .toUpperCase()}`;
 
+  const metadata: WalletTopupMetadata = { requestedAmountKobo: amountKobo };
+
   return startPayment({
     reference,
-    amountKobo,
+    amountKobo: chargeKobo,
     userId: session.user.id,
     destination: "wallet_topup",
     email: user.email,
     name: `${user.first_name} ${user.last_name}`,
     redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL}/wallet?topup_ref=${reference}`,
+    metadata,
   });
 }
 

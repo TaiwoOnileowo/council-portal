@@ -96,7 +96,7 @@ export default function BookingFlow({
   onClose,
   onBack,
   user,
-  serviceFee,
+  serviceFeeRate,
 }: {
   vendor: PublicVendor;
   priceList: PublicPriceList;
@@ -105,7 +105,7 @@ export default function BookingFlow({
   onClose: () => void;
   onBack: () => void;
   user: { id: string; name: string; phone: string; email: string };
-  serviceFee: number;
+  serviceFeeRate: number;
 }) {
   const { balanceKobo } = useWalletBalance();
   const isLeaving = priceList.direction === "LEAVING";
@@ -115,6 +115,7 @@ export default function BookingFlow({
 
   const [step, setStep] = useState<Step>("ride-summary");
   const [bookingRef, setBookingRef] = useState("");
+  const [paidAmount, setPaidAmount] = useState(0);
   const { copied, copy: copyRef } = useCopyToClipboard();
   const { copied: phoneCopied, copy: copyPhone } = useCopyToClipboard();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -158,6 +159,7 @@ export default function BookingFlow({
     setStep("ride-summary");
     setSelectedDeparture(null);
     setBookingRef("");
+    setPaidAmount(0);
     setIsProcessing(false);
     setSubmitError("");
     setPaymentMethod("wallet");
@@ -181,15 +183,18 @@ export default function BookingFlow({
   }
 
   const basePrice = route.price;
-  const totalAmount = basePrice + serviceFee;
+  const serviceFee = Math.round(basePrice * serviceFeeRate);
+  const walletTotal = basePrice;
+  const onlineTotal = basePrice + serviceFee;
   const pickup = isLeaving ? "Covenant University" : route.name;
   const destination = isLeaving ? route.name : "Covenant University";
 
   const insufficientWallet =
-    balanceKobo !== null && balanceKobo < nairaToKobo(totalAmount);
+    balanceKobo !== null && balanceKobo < nairaToKobo(walletTotal);
   const activeMethod: "wallet" | "online" = insufficientWallet
     ? "online"
     : paymentMethod;
+  const totalAmount = activeMethod === "online" ? onlineTotal : walletTotal;
 
   function bookingIntent(values: PassengerValues) {
     return {
@@ -236,6 +241,7 @@ export default function BookingFlow({
     });
     savePassengerDraft(values);
     setBookingRef(result.reference);
+    setPaidAmount(walletTotal);
     setStep("success");
     setIsProcessing(false);
   }
@@ -470,23 +476,11 @@ export default function BookingFlow({
                       </div>
                     )}
 
-                    <div className="bg-portal-accent-bg/50 rounded-xl p-4 mb-4 space-y-2">
-                      <div className="flex justify-between text-[13px]">
-                        <span className="text-portal-text2">Fare</span>
-                        <span className="font-semibold">
-                          &#x20A6;{basePrice.toLocaleString()}
-                        </span>
-                      </div>
-                      {/* <div className="flex justify-between text-[13px]">
-                        <span className="text-portal-text2">Service fee</span>
-                        <span className="font-semibold">
-                          &#x20A6;{serviceFee.toLocaleString()}
-                        </span>
-                      </div> */}
-                      <div className="flex justify-between text-[14px] pt-2 border-t border-portal-border">
-                        <span className="font-bold">Total</span>
+                    <div className="bg-portal-accent-bg/50 rounded-xl p-4 mb-4">
+                      <div className="flex justify-between text-[14px]">
+                        <span className="font-bold">Fare</span>
                         <span className="font-heading font-extrabold text-base">
-                          {formatAmount(totalAmount)}
+                          {formatAmount(basePrice)}
                         </span>
                       </div>
                     </div>
@@ -682,7 +676,7 @@ export default function BookingFlow({
                             }`}
                           >
                             <p className="text-[12px] font-semibold text-portal-text">
-                              Wallet Balance
+                              Wallet Balance (Free)
                             </p>
                             <p className="text-[11px] text-portal-muted mt-0.5">
                               {formatBalance(balanceKobo)}
@@ -703,6 +697,8 @@ export default function BookingFlow({
                             </p>
                             <p className="text-[11px] text-portal-muted mt-0.5">
                               Card, bank transfer
+                              {serviceFee > 0 &&
+                                ` · +${formatAmount(serviceFee)} fee`}
                             </p>
                           </button>
                         </div>
@@ -779,9 +775,7 @@ export default function BookingFlow({
                         </span>
                       </div>
                       <div className="flex justify-between items-center text-[13px]">
-                        <span className="text-portal-muted">
-                          Vendor Phone
-                        </span>
+                        <span className="text-portal-muted">Vendor Phone</span>
                         <button
                           onClick={() => copyPhone(vendor.phone)}
                           className="flex items-center gap-1.5 font-semibold text-portal-text hover:text-portal-accent transition-colors"
@@ -816,7 +810,7 @@ export default function BookingFlow({
                       <div className="flex justify-between text-[13px] pt-2 border-t border-portal-border">
                         <span className="font-bold">Total Paid</span>
                         <span className="font-heading font-extrabold text-base">
-                          {formatAmount(totalAmount)}
+                          {formatAmount(paidAmount)}
                         </span>
                       </div>
                     </div>

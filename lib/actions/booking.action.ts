@@ -207,12 +207,11 @@ export async function payBookingFromWallet({
   const session = await auth();
   if (!session?.user?.id) return { error: "You must be signed in to book." };
 
-  const { serviceFeeNaira: serviceFee, commissionNaira } = await getSetting(
-    "booking_pricing_config",
-  );
+  const { commissionNaira } = await getSetting("pricing_config");
 
+  const serviceFee = 0;
   const userId = session.user.id;
-  const totalAmountKobo = nairaToKobo(fare + serviceFee);
+  const totalAmountKobo = nairaToKobo(fare);
   const vendorEarningKobo = nairaToKobo(fare) - nairaToKobo(commissionNaira);
 
   const reference = `BK${Math.random().toString().slice(2, 10).padEnd(8, "0")}`;
@@ -378,8 +377,11 @@ export async function startBookingCheckout({
   const session = await auth();
   if (!session?.user?.id) return { error: "You must be signed in to book." };
 
-  const { serviceFeeNaira: serviceFee, commissionNaira } = await getSetting(
-    "booking_pricing_config",
+  const { serviceFeeRate, serviceFeeCapNaira, commissionNaira } =
+    await getSetting("pricing_config");
+  const serviceFee = Math.min(
+    Math.round(fare * serviceFeeRate),
+    serviceFeeCapNaira,
   );
 
   const user = await db.user.findUnique({
