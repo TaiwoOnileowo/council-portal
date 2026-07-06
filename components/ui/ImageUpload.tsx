@@ -5,6 +5,7 @@ import { Upload } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { uploadFiles } from "@/lib/uploadthing";
+import { reportClientError } from "@/lib/client-log";
 
 type Props = {
   value: string;
@@ -33,7 +34,8 @@ export default function ImageUpload({
         onChange(res[0].url);
         toast.success("Image uploaded!");
       }
-    } catch {
+    } catch (error) {
+      reportClientError("[image-upload]", "uploadFiles failed", error);
       toast.error("Failed to upload image. Please try again.");
     } finally {
       setUploading(false);

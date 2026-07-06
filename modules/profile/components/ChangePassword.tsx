@@ -1,6 +1,7 @@
 "use client";
 
 import { requestPasswordReset } from "@/lib/actions/password.action";
+import { reportClientError } from "@/lib/client-log";
 import { Lock } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -20,6 +21,11 @@ export default function ChangePassword({ email }: ChangePasswordProps) {
       setSent(true);
       toast.success("Check your email for next steps.");
     } catch (error) {
+      reportClientError(
+        "[change-password]",
+        "requestPasswordReset failed",
+        error,
+      );
       toast.error(
         "Error sending password reset email. Please try again later.",
       );

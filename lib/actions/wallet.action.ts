@@ -2,7 +2,8 @@
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import type { Prisma } from "@/generated/prisma/client";
+import { Prisma } from "@/generated/prisma/client";
+import { logger } from "@/lib/logger";
 import { startPayment, getPaymentByReference } from "@/lib/payments";
 import { getSetting } from "@/lib/settings";
 import { nairaToKobo, computeServiceFee } from "@/lib/money";
@@ -84,9 +85,21 @@ export async function creditWallet(
   try {
     const created = await db.$transaction((tx) => write(tx));
     return { balance: created.balance };
-  } catch {
-    // Unique constraint on reference — already processed.
-    return { balance: await readBalance(db) };
+  } catch (err) {
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === "P2002"
+    ) {
+      // Unique constraint on reference — already processed, safe no-op.
+      return { balance: await readBalance(db) };
+    }
+    logger.error("[wallet]", "creditWallet transaction failed", {
+      owner,
+      reference: entry.reference,
+      amountKobo: entry.amountKobo,
+      err,
+    });
+    throw err;
   }
 }
 
@@ -136,15 +149,15 @@ export async function startTopUp(
     return { error: "Invalid amount." };
   }
 
-  const user = await db.user.findUnique({
-    where: { id: session.user.id },
-    select: { first_name: true, last_name: true, email: true },
-  });
+  const [user, { serviceFeeRate, serviceFeeCapNaira }] = await Promise.all([
+    db.user.findUnique({
+      where: { id: session.user.id },
+      select: { first_name: true, last_name: true, email: true },
+    }),
+    getSetting("pricing_config"),
+  ]);
   if (!user) return { error: "User not found." };
 
-  const { serviceFeeRate, serviceFeeCapNaira } = await getSetting(
-    "pricing_config",
-  );
   const feeKobo = computeServiceFee(
     amountKobo,
     serviceFeeRate,

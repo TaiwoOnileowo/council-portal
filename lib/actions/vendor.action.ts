@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
 import { isApprovedVendor } from "@/modules/vendor/vendor.constant";
 import { signInWithCredentials } from "@/lib/actions/user.action";
+import { syncVendorSubaccounts } from "@/lib/vendor-subaccounts";
+import { logger } from "@/lib/logger";
 import {
   vendorSignUpSchema,
   updateVendorSchema,
@@ -45,22 +47,22 @@ export async function signUpVendor(input: {
     return { error: "This email is not approved for vendor registration." };
   }
 
-  const existing = await db.user.findUnique({ where: { email: input.email } });
-  if (existing) {
+  const [existingEmail, existingPhone] = await Promise.all([
+    db.user.findUnique({ where: { email: input.email } }),
+    db.user.findUnique({ where: { phone: input.phone } }),
+  ]);
+  if (existingEmail) {
     return { error: "An account with this email already exists." };
   }
-
-  const existingPhone = await db.user.findUnique({
-    where: { phone: input.phone },
-  });
   if (existingPhone) {
     return { error: "An account with this phone number already exists." };
   }
 
   const passwordHash = await hashPassword(input.password);
 
+  let vendorId: string;
   try {
-    await db.user.create({
+    const created = await db.user.create({
       data: {
         first_name: input.firstName,
         last_name: input.lastName,
@@ -84,12 +86,26 @@ export async function signUpVendor(input: {
         },
       },
     });
+    vendorId = created.id;
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "";
     if (msg.includes("Unique constraint")) {
       return { error: "An account with this email already exists." };
     }
+    logger.error("[vendor-signup]", "vendor user creation failed", {
+      email: input.email,
+      error,
+    });
     return { error: "Failed to create vendor account. Please try again." };
+  }
+
+  if (input.bankCode && input.accountNumber) {
+    await syncVendorSubaccounts(vendorId).catch((err) =>
+      logger.error("[vendor-signup]", "subaccount sync failed", {
+        vendorId,
+        err,
+      }),
+    );
   }
 
   return await signInWithCredentials({
@@ -136,8 +152,23 @@ export async function updateVendorProfile(input: UpdateVendorInput) {
     userData.vendor_profile = { update: profileData };
   }
 
+  const bankDetailsChanged =
+    data.bankCode !== undefined ||
+    data.accountNumber !== undefined ||
+    data.accountName !== undefined;
+
   try {
     await db.user.update({ where: { id: session.user.id }, data: userData });
+
+    if (bankDetailsChanged) {
+      await syncVendorSubaccounts(session.user.id).catch((err) =>
+        logger.error("[vendor-profile]", "subaccount sync failed", {
+          vendorId: session.user.id,
+          err,
+        }),
+      );
+    }
+
     return { success: true };
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "";
@@ -149,6 +180,10 @@ export async function updateVendorProfile(input: UpdateVendorInput) {
       }
       return { error: "This email is already in use by another account." };
     }
+    logger.error("[vendor-profile]", "vendor profile update failed", {
+      vendorId: session.user.id,
+      error,
+    });
     return { error: "Failed to update profile. Please try again." };
   }
 }

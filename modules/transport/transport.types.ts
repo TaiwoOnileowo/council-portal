@@ -178,6 +178,14 @@ export const bookingCheckoutMetadataSchema = z.object({
   studentNotes: z.string().nullable(),
   destinationAddress: z.string(),
   departureAt: z.string().nullable(),
+  // Whether the charge actually split at the processor when it was started —
+  // recorded once, at checkout time, so the webhook (which may fire long
+  // after `payment_config.splitPaymentsEnabled` could have been toggled)
+  // finalizes based on what really happened to the money, not the live
+  // setting. Defaults false so a stray pre-existing PENDING payment from
+  // before this field existed parses as "credit the wallet", the only mode
+  // that ever ran before split payments existed.
+  splitPayment: z.boolean().default(false),
 });
 
 export type BookingCheckoutMetadata = z.infer<

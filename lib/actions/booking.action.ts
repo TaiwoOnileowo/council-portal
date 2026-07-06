@@ -18,6 +18,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { nairaToKobo, computeServiceFee } from "@/lib/money";
 import { vendorBalance } from "@/lib/actions/wallet.action";
 import { getSetting } from "@/lib/settings";
+import { isWalletEnabled } from "@/lib/payment-config";
 import { logger } from "@/lib/logger";
 import { startPayment, getPaymentByReference } from "@/lib/payments";
 
@@ -350,7 +351,14 @@ export async function payBookingFromWallet({
     }
 
     return { reference };
-  } catch {
+  } catch (err) {
+    logger.error("[booking]", "payBookingFromWallet transaction failed", {
+      reference,
+      userId,
+      vendorId,
+      totalAmountKobo,
+      err,
+    });
     return { error: "Failed to complete booking. Please try again." };
   }
 }
@@ -389,15 +397,62 @@ export async function startBookingCheckout({
   const session = await auth();
   if (!session?.user?.id) return { error: "You must be signed in to book." };
 
-  const { serviceFeeRate, serviceFeeCapNaira, commissionNaira } =
-    await getSetting("pricing_config");
+  const [{ activeProcessor }, pricingConfig, user] = await Promise.all([
+    getSetting("payment_config"),
+    getSetting("pricing_config"),
+    db.user.findUnique({
+      where: { id: session.user.id },
+      select: { email: true, first_name: true, last_name: true },
+    }),
+  ]);
+  if (!user) return { error: "User not found." };
+
+  const { serviceFeeRate, serviceFeeCapNaira, commissionNaira } = pricingConfig;
   const serviceFee = computeServiceFee(fare, serviceFeeRate, serviceFeeCapNaira);
 
-  const user = await db.user.findUnique({
-    where: { id: session.user.id },
-    select: { email: true, first_name: true, last_name: true },
-  });
-  if (!user) return { error: "User not found." };
+  // Split payments settle the vendor's cut directly at the processor —
+  // requires a subaccount for whichever processor is active. This is the
+  // only way checkout-driven earnings can ever be paid out while wallet
+  // (and so the whole payout system) is disabled, so it's derived from
+  // that rather than an independent setting — the two can't drift apart
+  // into the "wallet off, split off" state that would silently accumulate
+  // vendor earnings nothing can ever pay out. When wallet IS enabled, this
+  // falls back to the pre-split behavior: charge the full amount to us,
+  // credit the vendor's wallet on success (see finalizeBookingCheckout).
+  let split:
+    | { subaccountId: string; vendorPayoutKobo: number; platformFeeKobo: number }
+    | undefined;
+  if (!(await isWalletEnabled())) {
+    const vendorAccount = await db.vendor_profile.findUnique({
+      where: { user_id: vendorId },
+      select: {
+        paystack_subaccount_code: true,
+        flutterwave_subaccount_id: true,
+      },
+    });
+
+    const subaccountId =
+      activeProcessor === "paystack"
+        ? vendorAccount?.paystack_subaccount_code
+        : vendorAccount?.flutterwave_subaccount_id;
+
+    if (!subaccountId) {
+      logger.warn("[booking-checkout]", "checkout blocked: vendor has no subaccount", {
+        vendorId,
+        activeProcessor,
+      });
+      return {
+        error:
+          "This vendor hasn't finished payment setup yet. Please try another vendor or check back later.",
+      };
+    }
+
+    split = {
+      subaccountId,
+      vendorPayoutKobo: nairaToKobo(fare) - nairaToKobo(commissionNaira),
+      platformFeeKobo: nairaToKobo(commissionNaira + serviceFee),
+    };
+  }
 
   const reference = `BK${Math.random().toString().slice(2, 10).padEnd(8, "0")}`;
 
@@ -409,6 +464,7 @@ export async function startBookingCheckout({
     email: user.email,
     name: `${user.first_name} ${user.last_name}`,
     redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL}/transport?booking_ref=${reference}`,
+    split,
     metadata: {
       vendorId,
       routeId,
@@ -425,6 +481,7 @@ export async function startBookingCheckout({
       studentNotes: studentNotes?.trim() || null,
       destinationAddress: destinationAddress.trim(),
       departureAt: departureAt ?? null,
+      splitPayment: !!split,
     },
   });
 }
@@ -433,6 +490,13 @@ export async function startBookingCheckout({
 // completePaymentSuccess) — throwing here rolls back the whole transaction,
 // including the payment's SUCCESS transition, so a bad write leaves the
 // payment PENDING for a retry instead of stuck SUCCESS with no booking.
+//
+// `m.splitPayment` reflects what actually happened at charge time (recorded
+// once in metadata by startBookingCheckout), not the live payment_config
+// setting — payment_config.splitPaymentsEnabled could be toggled any time
+// between checkout and this webhook firing, and deciding based on the live
+// value here would risk crediting a wallet for money that already settled
+// straight to the vendor via a processor split (or the reverse).
 export async function finalizeBookingCheckout(
   payment: { reference: string; user_id: string; metadata: Prisma.JsonValue },
   tx: Prisma.TransactionClient,
@@ -444,9 +508,6 @@ export async function finalizeBookingCheckout(
     );
   }
   const m = parsed.data;
-  const vendorEarningKobo = nairaToKobo(m.fare) - nairaToKobo(m.commissionNaira);
-
-  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${m.vendorId}))`;
 
   const booking = await tx.booking.create({
     data: {
@@ -471,20 +532,36 @@ export async function finalizeBookingCheckout(
     },
   });
 
-  const vBal = await vendorBalance(m.vendorId, tx);
+  if (m.splitPayment) {
+    // The charge already split at the processor — the vendor's cut settled
+    // straight to their own bank account and never touched our balance.
+    // Crediting an internal "earning" entry for money we never actually
+    // held would be a phantom balance with nothing behind it to pay out.
+    // The booking row above is the lasting record of what was earned.
+  } else {
+    // Pre-split behavior: we hold the full charge, so credit the vendor's
+    // wallet same as payBookingFromWallet — that balance gets paid out
+    // later via withdrawal or the scheduled payout cron.
+    const vendorEarningKobo =
+      nairaToKobo(m.fare) - nairaToKobo(m.commissionNaira);
 
-  await tx.wallet.create({
-    data: {
-      vendor_id: m.vendorId,
-      difference: vendorEarningKobo,
-      balance: vBal + vendorEarningKobo,
-      reason: `Earning — ${m.routeName} · ${payment.reference}`,
-      type: "earning",
-      model_responsible: "Booking",
-      model_id: booking.id,
-      reference: `${payment.reference}-V`,
-    },
-  });
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${m.vendorId}))`;
+
+    const vBal = await vendorBalance(m.vendorId, tx);
+
+    await tx.wallet.create({
+      data: {
+        vendor_id: m.vendorId,
+        difference: vendorEarningKobo,
+        balance: vBal + vendorEarningKobo,
+        reason: `Earning — ${m.routeName} · ${payment.reference}`,
+        type: "earning",
+        model_responsible: "Booking",
+        model_id: booking.id,
+        reference: `${payment.reference}-V`,
+      },
+    });
+  }
 
   await tx.payment.updateMany({
     where: { reference: payment.reference },

@@ -1,10 +1,25 @@
 import { redis } from "./redis";
 import { logger } from "./logger";
 
+// Next's patched `fetch` throws this internally (during `next build`'s static
+// generation attempt, or an ISR revalidation) to signal "this route reads
+// live data, render it dynamically" — it's control flow, not a real failure.
+// Swallowing it here would both misreport a cache outage AND stop Next from
+// ever seeing the signal it needs to mark the route dynamic.
+function isDynamicServerUsageError(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "digest" in err &&
+    (err as { digest?: unknown }).digest === "DYNAMIC_SERVER_USAGE"
+  );
+}
+
 export async function cacheGet<T>(key: string): Promise<T | null> {
   try {
     return await redis.get<T>(key);
   } catch (err) {
+    if (isDynamicServerUsageError(err)) throw err;
     logger.error("[cache]", "get failed, treating as miss", { key, err });
     return null;
   }
@@ -22,6 +37,7 @@ export async function cacheSet(
       await redis.set(key, value);
     }
   } catch (err) {
+    if (isDynamicServerUsageError(err)) throw err;
     logger.error("[cache]", "set failed, skipping cache write", { key, err });
   }
 }

@@ -3,9 +3,11 @@
 import Modal from "@/components/ui/Modal";
 import Select, { type SelectOption } from "@/components/ui/Select";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { reportClientError } from "@/lib/client-log";
 import type { ExportFilters } from "@/modules/transport/transport.types";
 import { Download, FileSpreadsheet, FileText, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
 type Format = "pdf" | "csv";
 
@@ -73,7 +75,13 @@ export default function ExportBookingsModal({
     fetch(`/api/vendor/export/bookings?${params}`)
       .then((r) => r.json())
       .then((data: { count: number }) => { if (active) setCount(data.count); })
-      .catch(() => {});
+      .catch((error) => {
+        reportClientError(
+          "[export-bookings]",
+          "count fetch failed",
+          error,
+        );
+      });
     return () => {
       active = false;
     };
@@ -119,7 +127,7 @@ export default function ExportBookingsModal({
       });
 
       const res = await fetch(`/api/vendor/export/bookings?${params}`);
-      if (!res.ok) throw new Error("Export failed");
+      if (!res.ok) throw new Error(`Export failed with status ${res.status}`);
 
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -128,6 +136,9 @@ export default function ExportBookingsModal({
       a.download = exportFormat === "pdf" ? "bookings.pdf" : "bookings.csv";
       a.click();
       URL.revokeObjectURL(url);
+    } catch (error) {
+      reportClientError("[export-bookings]", "export download failed", error);
+      toast.error("Export failed. Please try again.");
     } finally {
       setIsExporting(false);
     }

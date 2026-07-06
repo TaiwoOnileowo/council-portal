@@ -2,6 +2,7 @@
 
 import Modal from "@/components/ui/Modal";
 import { startTopUp } from "@/lib/actions/wallet.action";
+import { reportClientError } from "@/lib/client-log";
 import { useMutation } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 
@@ -47,7 +48,7 @@ export default function TopUpModal({
       window.location.href = data.authorizationUrl;
     },
     onError: (error: unknown) => {
-      console.error("Error starting top-up:", error);
+      reportClientError("[wallet-topup]", "startTopUp mutation failed", error);
       setVerifyError("Could not start payment. Please try again.");
     },
   });

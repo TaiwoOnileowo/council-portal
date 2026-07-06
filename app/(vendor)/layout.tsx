@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import Sidebar from "@/components/Sidebar";
+import { isWalletEnabled } from "@/lib/payment-config";
 
 export default async function VendorLayout({
   children,
@@ -10,9 +11,11 @@ export default async function VendorLayout({
   const session = await auth();
   if (session?.user?.scope !== "vendor") redirect("/vendor-gate");
 
+  const walletEnabled = await isWalletEnabled();
+
   return (
     <div className="flex min-h-screen bg-portal-accent-bg/50">
-      <Sidebar variant="vendor" />
+      <Sidebar variant="vendor" walletEnabled={walletEnabled} />
       <main className="lg:ml-[260px] flex-1 px-4 pt-[70px] pb-8 sm:px-6 lg:px-10 lg:pt-8 lg:max-w-[calc(100vw-260px)]">
         {children}
       </main>

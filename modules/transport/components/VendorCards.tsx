@@ -2,13 +2,15 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { getPublicTransports } from "@/lib/actions/transport.action";
 import { getSetting } from "@/lib/settings";
+import { isWalletEnabled } from "@/lib/payment-config";
 import VendorCardsList from "./VendorCardsList";
 
 export default async function VendorCards() {
-  const [vendors, session, pricingConfig] = await Promise.all([
+  const [vendors, session, pricingConfig, walletEnabled] = await Promise.all([
     getPublicTransports(),
     auth(),
     getSetting("pricing_config"),
+    isWalletEnabled(),
   ]);
 
   let user: { id: string; name: string; phone: string; email: string } = {
@@ -37,6 +39,7 @@ export default async function VendorCards() {
       user={user}
       serviceFeeRate={pricingConfig.serviceFeeRate}
       serviceFeeCapNaira={pricingConfig.serviceFeeCapNaira}
+      walletEnabled={walletEnabled}
     />
   );
 }

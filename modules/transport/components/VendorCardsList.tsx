@@ -30,11 +30,13 @@ export default function VendorCardsList({
   user,
   serviceFeeRate,
   serviceFeeCapNaira,
+  walletEnabled,
 }: {
   vendors: PublicVendor[];
   user: { id: string; name: string; phone: string; email: string };
   serviceFeeRate: number;
   serviceFeeCapNaira: number;
+  walletEnabled: boolean;
 }) {
   const [detailVendor, setDetailVendor] = useState<PublicVendor | null>(null);
   const [bookingVendor, setBookingVendor] = useState<PublicVendor | null>(null);
@@ -293,6 +295,7 @@ export default function VendorCardsList({
             serviceFeeRate,
             serviceFeeCapNaira,
           )}
+          walletEnabled={walletEnabled}
         />
       )}
     </>

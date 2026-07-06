@@ -36,7 +36,7 @@ export const SETTINGS_REGISTRY = {
   payment_config: {
     label: "Payment configuration",
     description:
-      "Which processor handles new payment attempts (top-ups, checkout); whether vendor-initiated withdrawals are enabled per processor; and whether the scheduled payout run is enabled. Withdrawals and scheduled payouts are independent — disabling on-demand withdrawal does not stop the payout cron, and vice versa.",
+      "Which processor handles new payment attempts (top-ups, checkout); whether vendor-initiated withdrawals are enabled per processor; and whether the scheduled payout run is enabled. Withdrawals and scheduled payouts are independent — disabling on-demand withdrawal does not stop the payout cron, and vice versa. There's no separate 'split payments' toggle: checkout splits the vendor's cut at the processor whenever wallet is disabled (see isWalletEnabled) — that's the only way checkout-driven earnings can ever be paid out with no payout path live, so it can't be an independent setting without risking the two drifting out of sync.",
     schema: z.object({
       activeProcessor: z.enum(["flutterwave", "paystack"]),
       withdrawalsEnabled: z.object({

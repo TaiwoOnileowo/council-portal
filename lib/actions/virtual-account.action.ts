@@ -2,6 +2,7 @@
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { logger } from "@/lib/logger";
 
 export type VirtualAccountDetails = {
   accountNumber: string;
@@ -80,6 +81,11 @@ export async function getOrCreateVirtualAccount(): Promise<
 
     const json = await res.json();
     if (json.status !== "success" || !json.data?.account_number) {
+      logger.error("[virtual-account]", "Flutterwave VA creation failed", {
+        ownerId,
+        isVendor,
+        message: json.message,
+      });
       return {
         ok: false,
         error: json.message ?? "Could not create virtual account.",
@@ -115,7 +121,12 @@ export async function getOrCreateVirtualAccount(): Promise<
         bankName: account.bank_name,
       },
     };
-  } catch {
+  } catch (err) {
+    logger.error("[virtual-account]", "getOrCreateVirtualAccount threw", {
+      ownerId,
+      isVendor,
+      err,
+    });
     return {
       ok: false,
       error: "Could not create virtual account. Please try again.",

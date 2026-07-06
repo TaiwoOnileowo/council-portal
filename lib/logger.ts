@@ -2,9 +2,12 @@ import pino from "pino";
 import { after } from "next/server";
 
 const isDev = process.env.NODE_ENV !== "production";
+const ENV_NAME = process.env.NODE_ENV ?? "development";
+const ENV_LABEL = `${ENV_NAME === "production" ? "🟢" : "🧪"} ${ENV_NAME.toUpperCase()}`;
 
 const pinoLogger = pino({
   level: process.env.LOG_LEVEL ?? (isDev ? "debug" : "info"),
+  base: { env: ENV_NAME },
   ...(isDev
     ? {
         transport: {
@@ -74,7 +77,7 @@ function formatTelegramMessage(
   message: string,
   meta?: Record<string, unknown>,
 ): string {
-  const lines = [`${LEVEL_ICON[level]} ${tag}`, message];
+  const lines = [ENV_LABEL, `${LEVEL_ICON[level]} ${tag}`, message];
   if (meta && Object.keys(meta).length > 0) {
     lines.push(safeStringify(meta));
   }

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { signUpVendor, checkVendorApproval } from "@/lib/actions/vendor.action";
+import { reportClientError } from "@/lib/client-log";
 import {
   vendorSignUpSchema,
   type VendorSignUpInput,
@@ -57,7 +58,12 @@ export default function VendorSignUpForm() {
         return;
       }
       setStep(2);
-    } catch {
+    } catch (error) {
+      reportClientError(
+        "[vendor-signup]",
+        "checkVendorApproval failed",
+        error,
+      );
       toast.error("Could not verify email. Please try again.");
     } finally {
       setChecking(false);
@@ -87,7 +93,8 @@ export default function VendorSignUpForm() {
       toast.success("Account created successfully!");
       router.push("/vendor-dashboard");
       router.refresh();
-    } catch {
+    } catch (error) {
+      reportClientError("[vendor-signup]", "signUpVendor failed", error);
       toast.error("Something went wrong. Please try again.");
     } finally {
       setLoading(false);

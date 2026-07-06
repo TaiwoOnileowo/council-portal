@@ -2,6 +2,7 @@
 
 import Modal from "@/components/ui/Modal";
 import { requestPayout } from "@/lib/actions/payout.action";
+import { reportClientError } from "@/lib/client-log";
 import { formatAmount, formatWithCommas, parseAmount } from "@/lib/format";
 import { MIN_PAYOUT_NAIRA, koboToNaira, nairaToKobo } from "@/lib/money";
 import { queryKeys } from "@/lib/query-keys";
@@ -53,6 +54,10 @@ export default function WithdrawModal({
       queryClient.invalidateQueries({ queryKey: queryKeys.vendor.payouts(userId) });
       setDone(true);
       toast.success("Withdrawal is on its way to your bank.");
+    },
+    onError: (error) => {
+      reportClientError("[vendor-withdraw]", "requestPayout mutation failed", error);
+      setError("Something went wrong. Please try again.");
     },
   });
 

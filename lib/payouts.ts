@@ -97,6 +97,12 @@ export async function initiatePayout(
     const json = await res.json();
 
     if (json.status !== "success" || !json.data) {
+      logger.warn("[payouts]", "Flutterwave transfer rejected", {
+        reference,
+        vendorId,
+        amountKobo,
+        message: json.message,
+      });
       await reversePayout(
         reference,
         json.message ?? "Transfer could not be initiated.",
@@ -110,7 +116,13 @@ export async function initiatePayout(
     });
 
     return { reference };
-  } catch {
+  } catch (err) {
+    logger.error("[payouts]", "transfer request threw", {
+      reference,
+      vendorId,
+      amountKobo,
+      err,
+    });
     await reversePayout(reference, "Network error while initiating transfer.");
     return { error: "Withdrawal failed. Please try again." };
   }
@@ -234,8 +246,23 @@ export async function markPayoutSuccess(reference: string): Promise<void> {
         };
       },
     );
-  } catch {
-    // Unique constraint on wallet reference — already processed.
+  } catch (err) {
+    if (
+      !(
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === "P2002"
+      )
+    ) {
+      // Flutterwave has already sent the money at this point — this is not
+      // a "retry later" failure, it's "our books don't match reality now."
+      logger.error(
+        "[payouts]",
+        "markPayoutSuccess transaction failed — transfer succeeded but wallet/payout not updated",
+        { reference, err },
+      );
+    }
+    // P2002 on the wallet reference means an earlier delivery already
+    // processed this payout — safe no-op.
   }
 
   if (!payoutInfo) return;

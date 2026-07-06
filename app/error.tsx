@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { reportClientError } from "@/lib/client-log";
 
 export default function ErrorPage({
   error,
@@ -11,16 +12,7 @@ export default function ErrorPage({
   unstable_retry: () => void;
 }) {
   useEffect(() => {
-    fetch("/api/internal/client-error", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        message: error.message,
-        digest: error.digest,
-        stack: error.stack,
-        path: window.location.pathname,
-      }),
-    }).catch(() => {});
+    reportClientError("[client]", error.message, error);
   }, [error]);
 
   return (

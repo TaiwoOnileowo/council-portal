@@ -13,6 +13,14 @@ export type StartPaymentInput = {
   name: string;
   redirectUrl: string;
   metadata?: Prisma.InputJsonValue;
+  // Caller-resolved: the subaccount id must match whichever processor turns
+  // out to be active, so the caller (who knows the destination's vendor)
+  // looks it up per-processor ahead of time. See startBookingCheckout.
+  split?: {
+    subaccountId: string;
+    vendorPayoutKobo: number;
+    platformFeeKobo: number;
+  };
 };
 
 export async function startPayment({
@@ -24,6 +32,7 @@ export async function startPayment({
   name,
   redirectUrl,
   metadata,
+  split,
 }: StartPaymentInput): Promise<
   { authorizationUrl: string; reference: string } | { error: string }
 > {
@@ -45,6 +54,7 @@ export async function startPayment({
     email,
     name,
     redirectUrl,
+    split,
   });
 
   if ("error" in result) return result;

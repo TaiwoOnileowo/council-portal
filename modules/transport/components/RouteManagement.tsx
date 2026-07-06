@@ -17,6 +17,7 @@ import Select from "@/components/ui/Select";
 import TimeInput from "@/components/ui/TimeInput";
 import Toggle from "@/components/ui/Toggle";
 import { formatWithCommas } from "@/lib/format";
+import { reportClientError } from "@/lib/client-log";
 import {
   useCreatePriceList,
   useTransportPriceLists,
@@ -174,6 +175,7 @@ export default function RouteManagement() {
       clearLocalDraft(draftKey);
       setDrawerOpen(false);
     } catch (err) {
+      reportClientError("[route-management]", "price list save failed", err);
       toast.error(err instanceof Error ? err.message : "Something went wrong");
     }
   }

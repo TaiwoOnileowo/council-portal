@@ -10,6 +10,7 @@ import type {
   PublicVendor,
 } from "@/lib/actions/transport.action";
 import { formatAmount, formatBalance } from "@/lib/format";
+import { reportClientError } from "@/lib/client-log";
 import { readLocalDraft, writeLocalDraft } from "@/hooks/useLocalStorageDraft";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { nairaToKobo } from "@/lib/money";
@@ -97,6 +98,7 @@ export default function BookingFlow({
   onBack,
   user,
   serviceFee,
+  walletEnabled,
 }: {
   vendor: PublicVendor;
   priceList: PublicPriceList;
@@ -106,8 +108,9 @@ export default function BookingFlow({
   onBack: () => void;
   user: { id: string; name: string; phone: string; email: string };
   serviceFee: number;
+  walletEnabled: boolean;
 }) {
-  const { balanceKobo } = useWalletBalance();
+  const { balanceKobo } = useWalletBalance({ enabled: walletEnabled });
   const isLeaving = priceList.direction === "LEAVING";
   const directionLabel = isLeaving ? "Leaving School" : "Returning to School";
 
@@ -190,9 +193,8 @@ export default function BookingFlow({
 
   const insufficientWallet =
     balanceKobo !== null && balanceKobo < nairaToKobo(walletTotal);
-  const activeMethod: "wallet" | "online" = insufficientWallet
-    ? "online"
-    : paymentMethod;
+  const activeMethod: "wallet" | "online" =
+    !walletEnabled || insufficientWallet ? "online" : paymentMethod;
   const totalAmount = activeMethod === "online" ? onlineTotal : walletTotal;
 
   function bookingIntent(values: PassengerValues) {
@@ -257,7 +259,12 @@ export default function BookingFlow({
       savePassengerDraft(values);
       window.location.href = result.authorizationUrl;
     },
-    onError: () => {
+    onError: (error) => {
+      reportClientError(
+        "[booking-checkout]",
+        "startBookingCheckout mutation failed",
+        error,
+      );
       setSubmitError("Something went wrong. Please try again.");
       setIsProcessing(false);
     },
@@ -274,7 +281,12 @@ export default function BookingFlow({
 
     try {
       await submitWalletPayment(values);
-    } catch {
+    } catch (error) {
+      reportClientError(
+        "[booking-wallet-pay]",
+        "payBookingFromWallet threw",
+        error,
+      );
       setSubmitError("Something went wrong. Please try again.");
       setIsProcessing(false);
     }
@@ -658,50 +670,51 @@ export default function BookingFlow({
                         />
                       </Field>
 
-                      {/* Payment method */}
-                      <div>
-                        <p className="text-[12px] font-semibold text-portal-text2 mb-1.5">
-                          Pay With
-                        </p>
-                        <div className="grid grid-cols-2 gap-2.5">
-                          <button
-                            type="button"
-                            onClick={() => setPaymentMethod("wallet")}
-                            disabled={insufficientWallet}
-                            className={`rounded-xl border px-3.5 py-2.5 text-left transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-                              activeMethod === "wallet"
-                                ? "border-portal-accent bg-portal-accent/5"
-                                : "border-portal-border bg-portal-accent-bg/50 hover:border-portal-accent/50"
-                            }`}
-                          >
-                            <p className="text-[12px] font-semibold text-portal-text">
-                              Wallet Balance (Free)
-                            </p>
-                            <p className="text-[11px] text-portal-muted mt-0.5">
-                              {formatBalance(balanceKobo)}
-                              {insufficientWallet && " · insufficient"}
-                            </p>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setPaymentMethod("online")}
-                            className={`rounded-xl border px-3.5 py-2.5 text-left transition-colors ${
-                              activeMethod === "online"
-                                ? "border-portal-accent bg-portal-accent/5"
-                                : "border-portal-border bg-portal-accent-bg/50 hover:border-portal-accent/50"
-                            }`}
-                          >
-                            <p className="text-[12px] font-semibold text-portal-text">
-                              Pay Online
-                            </p>
-                            <p className="text-[11px] text-portal-muted mt-0.5">
-                              Card, bank transfer
-                              {serviceFee > 0 &&
-                                ` · +${formatAmount(serviceFee)} fee`}
-                            </p>
-                          </button>
+                      {walletEnabled && (
+                        <div>
+                          <p className="text-[12px] font-semibold text-portal-text2 mb-1.5">
+                            Pay With
+                          </p>
+                          <div className="grid grid-cols-2 gap-2.5">
+                            <button
+                              type="button"
+                              onClick={() => setPaymentMethod("wallet")}
+                              disabled={insufficientWallet}
+                              className={`rounded-xl border px-3.5 py-2.5 text-left transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                                activeMethod === "wallet"
+                                  ? "border-portal-accent bg-portal-accent/5"
+                                  : "border-portal-border bg-portal-accent-bg/50 hover:border-portal-accent/50"
+                              }`}
+                            >
+                              <p className="text-[12px] font-semibold text-portal-text">
+                                Wallet Balance (Free)
+                              </p>
+                              <p className="text-[11px] text-portal-muted mt-0.5">
+                                {formatBalance(balanceKobo)}
+                                {insufficientWallet && " · insufficient"}
+                              </p>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPaymentMethod("online")}
+                              className={`rounded-xl border px-3.5 py-2.5 text-left transition-colors ${
+                                activeMethod === "online"
+                                  ? "border-portal-accent bg-portal-accent/5"
+                                  : "border-portal-border bg-portal-accent-bg/50 hover:border-portal-accent/50"
+                              }`}
+                            >
+                              <p className="text-[12px] font-semibold text-portal-text">
+                                Pay Online
+                              </p>
+                              <p className="text-[11px] text-portal-muted mt-0.5">
+                                Card, bank transfer
+                                {serviceFee > 0 &&
+                                  ` · +${formatAmount(serviceFee)} fee`}
+                              </p>
+                            </button>
+                          </div>
                         </div>
-                      </div>
+                      )}
 
                       {submitError && (
                         <p className="text-[12px] text-red-500 text-center">

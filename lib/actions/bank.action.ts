@@ -1,6 +1,7 @@
 "use server";
 
 import { cacheGet, cacheSet } from "@/lib/cache";
+import { logger } from "@/lib/logger";
 
 export type Bank = {
   id: number;
@@ -28,16 +29,27 @@ export async function getBanks(): Promise<{ banks?: Bank[]; error?: string }> {
       headers: { Authorization: `Bearer ${secret}` },
     });
 
-    if (!res.ok) return { error: "Failed to fetch banks. Please try again." };
+    if (!res.ok) {
+      logger.error("[banks]", "Flutterwave banks fetch not ok", {
+        status: res.status,
+      });
+      return { error: "Failed to fetch banks. Please try again." };
+    }
 
     const json = await res.json();
-    if (json.status !== "success") return { error: json.message ?? "Failed to fetch banks." };
+    if (json.status !== "success") {
+      logger.error("[banks]", "Flutterwave banks fetch failed", {
+        message: json.message,
+      });
+      return { error: json.message ?? "Failed to fetch banks." };
+    }
 
     const banks = json.data as Bank[];
     await cacheSet(BANKS_CACHE_KEY, banks, BANKS_TTL);
 
     return { banks };
-  } catch {
+  } catch (err) {
+    logger.error("[banks]", "banks fetch threw", err);
     return { error: "Failed to fetch banks. Please check your connection." };
   }
 }
@@ -75,7 +87,14 @@ export async function verifyBankAccount(
         accountName: json.data.account_name,
       },
     };
-  } catch {
+  } catch (err) {
+    // No log on the "status !== success" branch above — that's the routine
+    // wrong-account-number path, not an infra problem. A thrown network
+    // error here is the actual signal something's wrong with Flutterwave.
+    logger.error("[banks]", "account verification threw", {
+      bankCode,
+      err,
+    });
     return { error: "Verification failed. Please try again." };
   }
 }

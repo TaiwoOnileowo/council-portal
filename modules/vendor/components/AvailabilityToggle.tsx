@@ -1,6 +1,7 @@
 "use client";
 
 import { updateVendorProfile } from "@/lib/actions/vendor.action";
+import { reportClientError } from "@/lib/client-log";
 import { Power } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
@@ -22,7 +23,12 @@ export default function AvailabilityToggle({ initialIsActive }: Props) {
     try {
       const result = await updateVendorProfile({ isActive: next });
       if (result?.error) throw new Error(result.error);
-    } catch {
+    } catch (error) {
+      reportClientError(
+        "[vendor-availability]",
+        "updateVendorProfile failed",
+        error,
+      );
       setAvailable(!next);
       toast.error("Failed to update availability. Please try again.");
     } finally {

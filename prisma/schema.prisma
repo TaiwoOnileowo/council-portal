@@ -109,6 +109,8 @@ model vendor_profile {
   bank_name       String?
   account_number  String?
   account_name    String?
+  paystack_subaccount_code   String? // "ACCT_..." — powers split-payment checkout on Paystack
+  flutterwave_subaccount_id  String? // "RS_..." — powers split-payment checkout on Flutterwave
   is_active       Boolean          @default(true)
   price_lists     price_list[] // transport vertical
   bookings        booking[] // transport vertical — as provider

@@ -15,6 +15,7 @@ import { useState } from "react";
 
 interface SidebarProps {
   variant: SidebarVariant;
+  walletEnabled?: boolean;
 }
 
 interface NavGroupProps extends SidebarNavGroup {
@@ -72,8 +73,18 @@ function NavGroup({ label, items, pathname }: NavGroupProps) {
   );
 }
 
-export default function Sidebar({ variant }: SidebarProps) {
+export default function Sidebar({ variant, walletEnabled = true }: SidebarProps) {
   const config = SIDEBAR_CONFIG[variant];
+  // Drop the wallet/earnings nav item when the feature is off — it would
+  // otherwise link to a page that immediately redirects away.
+  const navGroups = walletEnabled
+    ? config.navGroups
+    : config.navGroups
+        .map((group) => ({
+          ...group,
+          items: group.items.filter((item) => !item.href.endsWith("/wallet")),
+        }))
+        .filter((group) => group.items.length > 0);
   const { data: user } = useCurrentUser();
   const queryClient = useQueryClient();
   const pathname = usePathname();
@@ -160,7 +171,7 @@ export default function Sidebar({ variant }: SidebarProps) {
           </div>
 
           <nav className="flex-1 overflow-y-auto">
-            {config.navGroups.map((group) => (
+            {navGroups.map((group) => (
               <NavGroup
                 key={group.label}
                 label={group.label}
