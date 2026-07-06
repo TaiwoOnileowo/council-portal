@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { distance } from "fastest-levenshtein";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -44,4 +45,11 @@ export function textMatchRank(name: string, query: string): number {
   if (!n.includes(lq)) return -1;
   const wordBoundary = new RegExp(`[^a-z0-9]${escapeRegExp(lq)}`, "i");
   return wordBoundary.test(name) ? 2 : 3;
+}
+
+export function similarityPercent(a: string, b: string): number {
+  if (!a && !b) return 100;
+  if (!a || !b) return 0;
+  const maxLength = Math.max(a.length, b.length);
+  return Math.round(((maxLength - distance(a, b)) / maxLength) * 100);
 }

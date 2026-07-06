@@ -1,10 +1,10 @@
-import { flutterwaveProcessor } from "./flutterwave";
-import { paystackProcessor } from "./paystack";
+import { flutterwaveService } from "./flutterwave";
+import { paystackService } from "./paystack";
 import type { PaymentProcessor } from "./types";
 
 export const PAYMENT_PROCESSORS: Record<string, PaymentProcessor> = {
-  flutterwave: flutterwaveProcessor,
-  paystack: paystackProcessor,
+  flutterwave: flutterwaveService,
+  paystack: paystackService,
 };
 
 export type {

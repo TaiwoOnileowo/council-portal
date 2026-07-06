@@ -1,11 +1,11 @@
 import type {
   InitiateChargeInput,
   InitiateChargeResult,
-  PaymentProcessor,
   SubaccountBankDetails,
 } from "./types";
 import { logger } from "@/lib/logger";
 import { cacheGet, cacheSet } from "@/lib/cache";
+import { similarityPercent } from "@/lib/utils";
 
 const LOG_TAG = "[paystack]";
 
@@ -15,38 +15,15 @@ const BANKS_CACHE_KEY = "paystack:banks:NG";
 const BANKS_TTL = 60 * 60 * 24 * 7; // 7 days — bank lists rarely change
 
 function normalizeBankName(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]/g, "");
-}
-
-// Minimal edit-distance implementation — not pulling in a dependency for
-// something this small. Catches spacing/word-order/minor-spelling drift
-// that plain substring matching misses (e.g. "First Bank of Nigeria" vs
-// "First Bank Nigeria Limited"). It does NOT catch abbreviations ("GTBank"
-// vs "Guaranty Trust Bank" share almost no character sequence, so the edit
-// distance is huge relative to string length) — that would need a hardcoded
-// alias table, which doesn't exist yet.
-function levenshteinDistance(a: string, b: string): number {
-  const dp: number[][] = Array.from({ length: a.length + 1 }, () =>
-    new Array(b.length + 1).fill(0),
-  );
-  for (let i = 0; i <= a.length; i++) dp[i][0] = i;
-  for (let j = 0; j <= b.length; j++) dp[0][j] = j;
-  for (let i = 1; i <= a.length; i++) {
-    for (let j = 1; j <= b.length; j++) {
-      dp[i][j] =
-        a[i - 1] === b[j - 1]
-          ? dp[i - 1][j - 1]
-          : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
-    }
-  }
-  return dp[a.length][b.length];
-}
-
-function similarityPercent(a: string, b: string): number {
-  if (!a && !b) return 100;
-  if (!a || !b) return 0;
-  const maxLength = Math.max(a.length, b.length);
-  return Math.round(((maxLength - levenshteinDistance(a, b)) / maxLength) * 100);
+  // Paystack's list broadly abbreviates "Microfinance Bank" to "MFB" (e.g.
+  // "Moniepoint MFB", "Aella MFB", "FCMB MFB" — confirmed live) while our
+  // stored names (sourced from Flutterwave) spell it out (e.g. "Moniepoint
+  // Microfinance Bank"). Collapsing both forms to "mfb" turns this into an
+  // exact match instead of relying on the substring/fuzzy tiers below.
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "")
+    .replace(/microfinancebank/g, "mfb");
 }
 
 // Only trust a fuzzy match above this bar — a low-confidence guess is worse
@@ -54,7 +31,7 @@ function similarityPercent(a: string, b: string): number {
 // the wrong place, not just a cosmetic mismatch.
 const FUZZY_MATCH_THRESHOLD = 85;
 
-async function fetchPaystackBanks(): Promise<PaystackBank[] | null> {
+async function fetchBanks(): Promise<PaystackBank[] | null> {
   const secret = process.env.PAYSTACK_SECRET_KEY;
   if (!secret) return null;
 
@@ -83,10 +60,8 @@ async function fetchPaystackBanks(): Promise<PaystackBank[] | null> {
   }
 }
 
-async function resolvePaystackBankCode(
-  bankName: string,
-): Promise<string | null> {
-  const banks = await fetchPaystackBanks();
+async function resolveBankCode(bankName: string): Promise<string | null> {
+  const banks = await fetchBanks();
   if (!banks) return null;
 
   const target = normalizeBankName(bankName);
@@ -159,15 +134,13 @@ async function initiateCharge({
   }
 }
 
-export const paystackProcessor: PaymentProcessor = { initiateCharge };
-
-export async function createPaystackSubaccount(
+async function createSubaccount(
   bank: SubaccountBankDetails,
 ): Promise<string | null> {
   const secret = process.env.PAYSTACK_SECRET_KEY;
   if (!secret) return null;
 
-  const settlementBank = await resolvePaystackBankCode(bank.bankName);
+  const settlementBank = await resolveBankCode(bank.bankName);
   if (!settlementBank) {
     logger.error(LOG_TAG, "could not resolve bank name to a Paystack code", {
       bank,
@@ -205,14 +178,14 @@ export async function createPaystackSubaccount(
   }
 }
 
-export async function updatePaystackSubaccount(
+async function updateSubaccount(
   subaccountCode: string,
   bank: SubaccountBankDetails,
 ): Promise<boolean> {
   const secret = process.env.PAYSTACK_SECRET_KEY;
   if (!secret) return false;
 
-  const settlementBank = await resolvePaystackBankCode(bank.bankName);
+  const settlementBank = await resolveBankCode(bank.bankName);
   if (!settlementBank) {
     logger.error(LOG_TAG, "could not resolve bank name to a Paystack code", {
       subaccountCode,
@@ -257,3 +230,5 @@ export async function updatePaystackSubaccount(
     return false;
   }
 }
+
+export const paystackService = { initiateCharge, createSubaccount, updateSubaccount };

@@ -1,13 +1,7 @@
 import { db } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
-import {
-  createPaystackSubaccount,
-  updatePaystackSubaccount,
-} from "@/lib/payment-processors/paystack";
-import {
-  createFlutterwaveSubaccount,
-  updateFlutterwaveSubaccount,
-} from "@/lib/payment-processors/flutterwave";
+import { paystackService } from "@/lib/payment-processors/paystack";
+import { flutterwaveService } from "@/lib/payment-processors/flutterwave";
 import type { SubaccountBankDetails } from "@/lib/payment-processors/types";
 
 // Self-healing: creates a subaccount for a processor the vendor doesn't have
@@ -43,16 +37,15 @@ export async function syncVendorSubaccounts(vendorId: string): Promise<void> {
 
   const [paystackCode, flutterwaveId] = await Promise.all([
     vendor.paystack_subaccount_code
-      ? updatePaystackSubaccount(vendor.paystack_subaccount_code, bank).then(
-          () => undefined,
-        )
-      : createPaystackSubaccount(bank),
+      ? paystackService
+          .updateSubaccount(vendor.paystack_subaccount_code, bank)
+          .then(() => undefined)
+      : paystackService.createSubaccount(bank),
     vendor.flutterwave_subaccount_id
-      ? updateFlutterwaveSubaccount(
-          vendor.flutterwave_subaccount_id,
-          bank,
-        ).then(() => undefined)
-      : createFlutterwaveSubaccount(bank),
+      ? flutterwaveService
+          .updateSubaccount(vendor.flutterwave_subaccount_id, bank)
+          .then(() => undefined)
+      : flutterwaveService.createSubaccount(bank),
   ]);
 
   const data: Prisma.vendor_profileUpdateInput = {};

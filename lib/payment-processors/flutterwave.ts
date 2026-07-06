@@ -1,7 +1,6 @@
 import type {
   InitiateChargeInput,
   InitiateChargeResult,
-  PaymentProcessor,
   SubaccountBankDetails,
 } from "./types";
 import { logger } from "@/lib/logger";
@@ -73,9 +72,7 @@ async function initiateCharge({
   }
 }
 
-export const flutterwaveProcessor: PaymentProcessor = { initiateCharge };
-
-export async function createFlutterwaveSubaccount(
+async function createSubaccount(
   bank: SubaccountBankDetails,
 ): Promise<string | null> {
   const secret = process.env.FLW_SECRET_KEY;
@@ -122,7 +119,7 @@ export async function createFlutterwaveSubaccount(
   }
 }
 
-export async function updateFlutterwaveSubaccount(
+async function updateSubaccount(
   subaccountId: string,
   bank: SubaccountBankDetails,
 ): Promise<boolean> {
@@ -171,3 +168,5 @@ export async function updateFlutterwaveSubaccount(
     return false;
   }
 }
+
+export const flutterwaveService = { initiateCharge, createSubaccount, updateSubaccount };
