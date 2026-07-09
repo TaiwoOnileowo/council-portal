@@ -27,7 +27,7 @@ type Tab = "upcoming" | "past";
 
 export default function IncomingBookings({ vendorId }: { vendorId?: string }) {
   const [tab, setTab] = useState<Tab>("upcoming");
-  const { data: allVendors } = useTransportVendors();
+  const { data: allVendors } = useTransportVendors({ enabled: !vendorId });
   const [filterVendorId, setFilterVendorId] = useState("");
   const [route, setRoute] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
@@ -57,9 +57,7 @@ export default function IncomingBookings({ vendorId }: { vendorId?: string }) {
     page,
   });
 
-  const vendors = vendorId
-    ? undefined
-    : allVendors?.map((v) => ({ id: v.id, name: v.transportName }));
+  const vendors = allVendors?.map((v) => ({ id: v.id, name: v.transportName }));
   const bookings = data?.bookings ?? [];
   const routes = data?.routes ?? [];
   const routeCounts = data?.routeCounts ?? {};
@@ -420,6 +418,7 @@ export default function IncomingBookings({ vendorId }: { vendorId?: string }) {
         onClose={() => setExportOpen(false)}
         routes={routes}
         vendors={vendors}
+        vendorId={vendorId}
       />
     </>
   );

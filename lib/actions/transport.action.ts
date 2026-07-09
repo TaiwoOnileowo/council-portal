@@ -183,6 +183,13 @@ export async function getTransportBookings(
 ): Promise<
   { ok: true; data: TransportBookingsResponse } | { ok: false; error: string }
 > {
+  const session = await auth();
+  if (session?.user?.role !== "VENDOR" && !session?.user?.isAdmin)
+    return { ok: false, error: "Unauthorized" };
+
+  const vendorId = session.user.isAdmin ? filters.vendorId : session.user.id;
+  filters = { ...filters, vendorId };
+
   const dateRange: { gte?: Date; lte?: Date } = {};
   if (filters.dateFrom) dateRange.gte = new Date(filters.dateFrom);
   if (filters.dateTo) {
@@ -523,4 +530,3 @@ export async function updatePriceList(
 
   return { ok: true, data: formatPriceList(updated) };
 }
-

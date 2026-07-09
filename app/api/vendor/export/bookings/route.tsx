@@ -120,7 +120,9 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
 
-  const vendorId = searchParams.get("vendorId") ?? undefined;
+  const vendorId = session.user.isAdmin
+    ? (searchParams.get("vendorId") ?? undefined)
+    : session.user.id;
   const filters: ExportFilters = {
     vendorId,
     direction: (searchParams.get("direction") ??

@@ -23,7 +23,10 @@ import {
   useTransportPriceLists,
   useUpdatePriceList,
 } from "@/modules/transport/hooks/useTransportPriceLists";
-import type { PriceList } from "@/modules/transport/transport.types";
+import {
+  priceListBodySchema,
+  type PriceList,
+} from "@/modules/transport/transport.types";
 import {
   type DrawerFormValues,
   buildBody,
@@ -46,10 +49,31 @@ import {
   X,
 } from "lucide-react";
 import { useState } from "react";
-import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
+import {
+  Controller,
+  type FieldPath,
+  useFieldArray,
+  useForm,
+  useWatch,
+} from "react-hook-form";
 import { toast } from "sonner";
 import AddCard from "./AddCard";
 import PriceListCard from "./PriceListCard";
+
+function mapIssuePath(path: PropertyKey[]): FieldPath<DrawerFormValues> | null {
+  if (path.length === 1 && path[0] === "name") return "name";
+  if (path.length === 1 && path[0] === "luggagePolicy") return "luggagePolicy";
+  if (path.length === 1 && path[0] === "notes") return "notes";
+  if (
+    path.length === 3 &&
+    path[0] === "routes" &&
+    typeof path[1] === "number" &&
+    path[2] === "name"
+  ) {
+    return `routes.${path[1]}.name` as FieldPath<DrawerFormValues>;
+  }
+  return null;
+}
 
 export default function RouteManagement() {
   const {
@@ -71,7 +95,9 @@ export default function RouteManagement() {
     reset,
     setValue,
     getValues,
-    formState: { isDirty: formIsDirty },
+    setError,
+    clearErrors,
+    formState: { isDirty: formIsDirty, errors },
   } = useForm<DrawerFormValues>({
     defaultValues: emptyFormValues("leaving"),
   });
@@ -150,10 +176,17 @@ export default function RouteManagement() {
     appendDeparture({ date: "", time: "08:00" });
   }
 
+  const watchedLuggagePolicy = watchedFormValues.luggagePolicy ?? "";
+  const watchedNotes = watchedFormValues.notes ?? "";
+
   const canSave =
     (!editingId || formIsDirty) &&
     watchedName.trim().length > 0 &&
+    watchedName.length <= 80 &&
     watchedRoutes.length >= 1 &&
+    watchedRoutes.every((r) => !!r?.name?.trim()) &&
+    watchedLuggagePolicy.length <= 500 &&
+    watchedNotes.length <= 500 &&
     watchedDepartureTimes.length >= 1 &&
     watchedDepartureTimes.every((d) => !!d?.date) &&
     (watchedAvailType !== "scheduled" ||
@@ -164,12 +197,24 @@ export default function RouteManagement() {
   async function save() {
     if (!canSave || isSaving) return;
     const body = buildBody(getValues());
+
+    const parsed = priceListBodySchema.safeParse(body);
+    if (!parsed.success) {
+      clearErrors();
+      for (const issue of parsed.error.issues) {
+        const path = mapIssuePath(issue.path);
+        if (path) setError(path, { type: "manual", message: issue.message });
+      }
+      toast.error(parsed.error.issues[0].message);
+      return;
+    }
+
     try {
       if (editingId) {
-        await updateMutation.mutateAsync({ id: editingId, ...body });
+        await updateMutation.mutateAsync({ id: editingId, ...parsed.data });
         toast.success("Price list updated");
       } else {
-        await createMutation.mutateAsync(body);
+        await createMutation.mutateAsync(parsed.data);
         toast.success("Price list created");
       }
       clearLocalDraft(draftKey);
@@ -281,6 +326,7 @@ export default function RouteManagement() {
               <input
                 {...register("name")}
                 type="text"
+                maxLength={80}
                 placeholder={
                   watchedDirection === "leaving"
                     ? "e.g. Mar 2026 Resumption"
@@ -288,6 +334,11 @@ export default function RouteManagement() {
                 }
                 className="w-full px-3 py-2 text-[14px] font-semibold border border-portal-border rounded-lg bg-portal-accent-bg/50 focus:outline-none focus:border-portal-accent placeholder:text-portal-muted/50 text-portal-text"
               />
+              {errors.name && (
+                <p className="mt-1 text-[11px] text-red-500">
+                  {errors.name.message}
+                </p>
+              )}
             </div>
             <DrawerClose asChild>
               <button className="mt-6 w-7 h-7 rounded-md flex items-center justify-center text-portal-muted hover:bg-portal-accent-bg/50 transition-colors flex-shrink-0">
@@ -321,12 +372,19 @@ export default function RouteManagement() {
                   key={field.id}
                   className="grid grid-cols-1 sm:grid-cols-[1fr_120px_200px_36px_32px] gap-2 px-5 py-3 items-center border-b border-portal-border last:border-b-0"
                 >
-                  <input
-                    {...register(`routes.${index}.name`)}
-                    type="text"
-                    placeholder="Route name"
-                    className="w-full px-2 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-accent-bg/50 focus:outline-none focus:border-portal-accent"
-                  />
+                  <div>
+                    <input
+                      {...register(`routes.${index}.name`)}
+                      type="text"
+                      placeholder="Route name"
+                      className="w-full px-2 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-accent-bg/50 focus:outline-none focus:border-portal-accent"
+                    />
+                    {errors.routes?.[index]?.name && (
+                      <p className="mt-1 text-[11px] text-red-500">
+                        {errors.routes[index]?.name?.message}
+                      </p>
+                    )}
+                  </div>
 
                   <div className="flex items-center gap-2 sm:contents">
                     <Controller
@@ -486,8 +544,14 @@ export default function RouteManagement() {
                   {...register("luggagePolicy")}
                   placeholder="e.g. 1 big bag + 1 hand luggage."
                   rows={2}
+                  maxLength={500}
                   className="w-full px-3 py-2 text-[13px] border border-portal-border rounded-lg bg-portal-accent-bg/50 focus:outline-none focus:border-portal-accent resize-none"
                 />
+                {errors.luggagePolicy && (
+                  <p className="mt-1 text-[11px] text-red-500">
+                    {errors.luggagePolicy.message}
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-portal-muted mb-1.5">
@@ -500,8 +564,14 @@ export default function RouteManagement() {
                   {...register("notes")}
                   placeholder="e.g. Come early to the stand at the front of CAF."
                   rows={2}
+                  maxLength={500}
                   className="w-full px-3 py-2 text-[13px] border border-portal-border rounded-lg bg-portal-accent-bg/50 focus:outline-none focus:border-portal-accent resize-none"
                 />
+                {errors.notes && (
+                  <p className="mt-1 text-[11px] text-red-500">
+                    {errors.notes.message}
+                  </p>
+                )}
               </div>
             </div>
 

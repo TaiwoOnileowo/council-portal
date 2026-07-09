@@ -11,13 +11,13 @@ import { toast } from "sonner";
 
 type Format = "pdf" | "csv";
 
-function getDefaultFilters(): ExportFilters {
+function getDefaultFilters(vendorId?: string): ExportFilters {
   const to = new Date();
   const from = new Date();
   from.setDate(from.getDate() - 30);
   const fmt = (d: Date) => d.toISOString().split("T")[0];
   return {
-    vendorId: undefined,
+    vendorId,
     direction: "all",
     route: "all",
     bookingDateFrom: fmt(from),
@@ -38,13 +38,17 @@ export default function ExportBookingsModal({
   onClose,
   routes,
   vendors,
+  vendorId,
 }: {
   open: boolean;
   onClose: () => void;
   routes: string[];
   vendors?: { id: string; name: string }[];
+  vendorId?: string;
 }) {
-  const [filters, setFilters] = useState<ExportFilters>(getDefaultFilters);
+  const [filters, setFilters] = useState<ExportFilters>(() =>
+    getDefaultFilters(vendorId),
+  );
   const [exportFormat, setExportFormat] = useState<Format>("pdf");
   const [count, setCount] = useState<number | null>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -53,17 +57,21 @@ export default function ExportBookingsModal({
 
   useEffect(() => {
     if (open) {
-      setFilters(getDefaultFilters());
+      setFilters(getDefaultFilters(vendorId));
       setExportFormat("pdf");
       setCount(null);
     }
-  }, [open]);
+  }, [open, vendorId]);
+ 
+  // vendorId is the trusted, session-derived scope for a vendor's own view;
+  // it always wins over filters.vendorId, which only a non-scoped admin can edit.
+  const debouncedVendorId = vendorId ?? debouncedFilters.vendorId;
 
   useEffect(() => {
     if (!open) return;
     let active = true;
     const params = new URLSearchParams({
-      ...(debouncedFilters.vendorId ? { vendorId: debouncedFilters.vendorId } : {}),
+      ...(debouncedVendorId ? { vendorId: debouncedVendorId } : {}),
       direction: debouncedFilters.direction,
       route: debouncedFilters.route,
       bookingDateFrom: debouncedFilters.bookingDateFrom,
@@ -85,7 +93,7 @@ export default function ExportBookingsModal({
     return () => {
       active = false;
     };
-  }, [debouncedFilters, open]);
+  }, [debouncedFilters, open, debouncedVendorId]);
 
   const routeOptions = useMemo<SelectOption[]>(
     () => [
@@ -115,8 +123,9 @@ export default function ExportBookingsModal({
   async function handleExport() {
     setIsExporting(true);
     try {
+      const liveVendorId = vendorId ?? filters.vendorId;
       const params = new URLSearchParams({
-        ...(filters.vendorId ? { vendorId: filters.vendorId } : {}),
+        ...(liveVendorId ? { vendorId: liveVendorId } : {}),
         direction: filters.direction,
         route: filters.route,
         bookingDateFrom: filters.bookingDateFrom,
@@ -205,7 +214,7 @@ export default function ExportBookingsModal({
             Filters
           </p>
 
-          {vendors && (
+          {!vendorId && vendors && (
             <div>
               <label className="text-[11px] text-portal-muted mb-1 block">
                 Vendor

@@ -12,6 +12,14 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     reportClientError("[client]", error.message, error);
+
+    if (error.name === "ChunkLoadError") {
+      const key = "chunk-load-error-reload";
+      if (!sessionStorage.getItem(key)) {
+        sessionStorage.setItem(key, "1");
+        window.location.reload();
+      }
+    }
   }, [error]);
 
   return (

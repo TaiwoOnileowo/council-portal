@@ -35,8 +35,16 @@ export const priceListBodySchema = z.object({
       }),
     )
     .min(1, "At least one departure time is required"),
-  luggagePolicy: z.string().max(500).optional().default(""),
-  notes: z.string().max(500).optional().default(""),
+  luggagePolicy: z
+    .string()
+    .max(500, "Luggage policy must be 500 characters or less")
+    .optional()
+    .default(""),
+  notes: z
+    .string()
+    .max(500, "Notes must be 500 characters or less")
+    .optional()
+    .default(""),
   availability: z.discriminatedUnion("type", [
     z.object({ type: z.literal("active") }),
     z.object({ type: z.literal("inactive") }),
