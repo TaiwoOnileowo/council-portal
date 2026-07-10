@@ -27,10 +27,10 @@ export const SETTINGS_REGISTRY = {
       serviceFeeCapNaira: z.number().int().min(0).default(1500),
     }),
     default: {
-      commissionNaira: 2000,
+      commissionNaira: 1000,
       minPayoutNaira: 1000,
-      serviceFeeRate: 0.02,
-      serviceFeeCapNaira: 1500,
+      serviceFeeRate: 0.04,
+      serviceFeeCapNaira: 2500,
     },
   },
   payment_config: {
