@@ -54,13 +54,13 @@ export default function Pagination({
 
   return (
     <div
-      className={`flex items-center justify-between px-1 print:hidden ${className}`}
+      className={`flex flex-wrap items-center justify-between gap-2 px-1 print:hidden ${className}`}
     >
       <p className="text-[12.5px] text-portal-muted">
         Page <span className="font-semibold text-portal-text">{page + 1}</span>{" "}
         of {pageCount}
       </p>
-      <div className="flex items-center gap-1.5">
+      <div className="flex flex-wrap items-center justify-end gap-1.5">
         <button
           onClick={() => onPageChange(Math.max(0, page - 1))}
           disabled={page === 0}

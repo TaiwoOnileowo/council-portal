@@ -479,29 +479,29 @@ export async function updatePriceList(
         });
     }
 
-    for (const r of data.routes) {
-      if (r.id && existingIds.has(r.id)) {
-        await tx.price_list_route.update({
-          where: { id: r.id },
-          data: {
-            name: r.name,
-            price: r.price,
-            capacity: r.capacity,
-            active: r.active,
-          },
-        });
-      } else {
-        await tx.price_list_route.create({
-          data: {
-            price_list_id: id,
-            name: r.name,
-            price: r.price,
-            capacity: r.capacity,
-            active: r.active,
-          },
-        });
-      }
-    }
+    await Promise.all(
+      data.routes.map((r) =>
+        r.id && existingIds.has(r.id)
+          ? tx.price_list_route.update({
+              where: { id: r.id },
+              data: {
+                name: r.name,
+                price: r.price,
+                capacity: r.capacity,
+                active: r.active,
+              },
+            })
+          : tx.price_list_route.create({
+              data: {
+                price_list_id: id,
+                name: r.name,
+                price: r.price,
+                capacity: r.capacity,
+                active: r.active,
+              },
+            }),
+      ),
+    );
 
     await tx.departure_time.deleteMany({ where: { price_list_id: id } });
 
@@ -526,7 +526,7 @@ export async function updatePriceList(
         departure_times: { orderBy: { departs_at: "asc" } },
       },
     });
-  });
+  }, { timeout: 15000 });
 
   return { ok: true, data: formatPriceList(updated) };
 }

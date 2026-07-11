@@ -1,14 +1,21 @@
 "use client";
 
 import { ChevronLeft, Check } from "lucide-react";
+import { formatAmount } from "@/lib/format";
 
 type Props = {
   onBack: () => void;
   onAccept: () => void;
   loading: boolean;
+  commissionNaira: number;
 };
 
-export default function CommissionStep({ onBack, onAccept, loading }: Props) {
+export default function CommissionStep({
+  onBack,
+  onAccept,
+  loading,
+  commissionNaira,
+}: Props) {
   return (
     <div className="space-y-5">
       <div className="rounded-xl bg-portal-accent-bg border border-portal-accent-border p-5 space-y-3">
@@ -23,8 +30,10 @@ export default function CommissionStep({ onBack, onAccept, loading }: Props) {
         <p className="text-portal-text2 text-sm leading-relaxed">
           As a transport vendor on the CU Student Council portal, a flat
           commission of{" "}
-          <span className="font-semibold text-portal-text">₦1,000</span> is
-          charged per completed, booked ride.
+          <span className="font-semibold text-portal-text">
+            {formatAmount(commissionNaira)}
+          </span>{" "}
+          is charged per completed, booked ride.
         </p>
         <p className="text-[12px] text-portal-muted pt-1">
           By clicking &ldquo;Accept &amp; Create Account&rdquo; you agree to

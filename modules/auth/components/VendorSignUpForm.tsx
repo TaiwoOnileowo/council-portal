@@ -23,7 +23,11 @@ import BankStep, { type BankFields } from "./vendor-signup/BankStep";
 import CommissionStep from "./vendor-signup/CommissionStep";
 import UnapprovedScreen from "./vendor-signup/UnapprovedScreen";
 
-export default function VendorSignUpForm() {
+type Props = {
+  commissionNaira: number;
+};
+
+export default function VendorSignUpForm({ commissionNaira }: Props) {
   const router = useRouter();
 
   useBanks();
@@ -146,6 +150,7 @@ export default function VendorSignUpForm() {
           onBack={() => setStep(3)}
           onAccept={handleFinalSubmit}
           loading={loading}
+          commissionNaira={commissionNaira}
         />
       )}
     </div>

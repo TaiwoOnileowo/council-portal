@@ -17,43 +17,51 @@ interface ModeConfig {
   loginOnly?: boolean;
 }
 
-const CONFIG: Record<AuthMode, ModeConfig> = {
-  student: {
-    headings: {
-      login: "Your keys please...",
-      signup: "New face at the gate?",
-      forgot: "Lost your keys?",
+function buildConfig(commissionNaira?: number): Record<AuthMode, ModeConfig> {
+  return {
+    student: {
+      headings: {
+        login: "Your keys please...",
+        signup: "New face at the gate?",
+        forgot: "Lost your keys?",
+      },
+      Signup: SignUpForm,
     },
-    Signup: SignUpForm,
-  },
-  vendor: {
-    headings: {
-      login: "Welcome back",
-      signup: "Join as a vendor",
-      forgot: "Forgot your password?",
+    vendor: {
+      headings: {
+        login: "Welcome back",
+        signup: "Join as a vendor",
+        forgot: "Forgot your password?",
+      },
+      subtitles: {
+        login: "Sign in to your vendor account",
+        signup: "Transport vendor registration · invite only",
+      },
+      Signup: () => <VendorSignUpForm commissionNaira={commissionNaira!} />,
     },
-    subtitles: {
-      login: "Sign in to your vendor account",
-      signup: "Transport vendor registration · invite only",
+    admin: {
+      loginOnly: true,
+      headings: {
+        login: "Admin access",
+        signup: "",
+        forgot: "Forgot your password?",
+      },
+      subtitles: {
+        login: "Your keys please...",
+      },
     },
-    Signup: VendorSignUpForm,
-  },
-  admin: {
-    loginOnly: true,
-    headings: {
-      login: "Admin access",
-      signup: "",
-      forgot: "Forgot your password?",
-    },
-    subtitles: {
-      login: "Your keys please...",
-    },
-  },
-};
+  };
+}
 
-export default function AuthGate({ mode }: { mode: AuthMode }) {
+type Props =
+  | { mode: "vendor"; commissionNaira: number }
+  | { mode: Exclude<AuthMode, "vendor"> };
+
+export default function AuthGate(props: Props) {
+  const { mode } = props;
+  const commissionNaira = props.mode === "vendor" ? props.commissionNaira : undefined;
   const [view, setView] = useState<View>("login");
-  const cfg = CONFIG[mode];
+  const cfg = buildConfig(commissionNaira)[mode];
   const subtitle = cfg.subtitles?.[view];
 
   return (

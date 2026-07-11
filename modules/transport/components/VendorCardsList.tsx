@@ -155,7 +155,11 @@ export default function VendorCardsList({
                 const hiddenCount = matches.length - visible.length;
                 return (
                   <div key={vendor.id}>
-                    <div className="flex items-center gap-2.5 mb-2">
+                    <button
+                      type="button"
+                      onClick={() => setDetailVendor(vendor)}
+                      className="group flex items-center gap-2.5 mb-2 text-left"
+                    >
                       <div className="w-7 h-7 rounded-md overflow-hidden flex-shrink-0 bg-portal-accent-bg flex items-center justify-center">
                         {vendor.image ? (
                           <Image
@@ -171,10 +175,17 @@ export default function VendorCardsList({
                           </span>
                         )}
                       </div>
-                      <h3 className="font-heading text-[13px] font-bold">
-                        {vendor.transportName}
-                      </h3>
-                    </div>
+                      <div className="min-w-0">
+                        <h3 className="font-heading text-[13px] font-bold truncate group-hover:text-portal-accent transition-colors">
+                          {vendor.transportName}
+                        </h3>
+                        {vendor.tagline && (
+                          <p className="text-[11px] text-portal-muted truncate">
+                            {vendor.tagline}
+                          </p>
+                        )}
+                      </div>
+                    </button>
 
                     <div className="space-y-1.5">
                       {visible.map(({ priceList, route }) => {

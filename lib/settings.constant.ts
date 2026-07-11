@@ -14,6 +14,7 @@ export const SETTINGS_REGISTRY = {
       "swift.rides.official@gmail.com",
       "tobilobaarogundade07@gmail.com",
       "davidcityconsulting247@gmail.com",
+      "expresstravelsng1@gmail.com",
     ] as string[],
   },
   pricing_config: {
