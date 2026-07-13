@@ -231,7 +231,16 @@ model price_list_route {
   price         Int // in naira
   capacity      Int? // null = unlimited
   active        Boolean    @default(true)
+  stops         route_stop[]
   bookings      booking[]
+}
+
+model route_stop {
+  id       String           @id @default(uuid())
+  route_id String
+  route    price_list_route @relation(fields: [route_id], references: [id], onDelete: Cascade)
+  name     String
+  order    Int
 }
 
 model departure_time {
@@ -261,7 +270,8 @@ model booking {
   service_fee         Int // naira — customer-facing fee, currently always 0
   commission          Int                @default(0) // naira — platform's cut, taken from the vendor's side
   student_notes       String? // optional note from student to vendor
-  destination_address String? // student's off-campus drop-off / pickup address
+  destination_address String? // student's off-campus drop-off / pickup address, or additional directions when a stop is chosen
+  stop_name           String? // snapshot of the route stop the student chose, if the route had stops configured
   departure_at        DateTime? // snapshot of the departure the student chose
 
   // Relations

@@ -2,6 +2,7 @@
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { getSetting } from "@/lib/settings";
 import {
   priceListBodySchema,
   VENDOR_BOOKINGS_PAGE_SIZE,
@@ -18,6 +19,7 @@ import type {
 import type {
   price_list as DbPriceList,
   price_list_route as DbRoute,
+  route_stop as DbStop,
   departure_time as DbDepartureTime,
   BookingStatus,
 } from "@/generated/prisma/client";
@@ -27,6 +29,7 @@ export type PublicRoute = {
   name: string;
   price: number; // naira
   capacity: number | null;
+  stops: { id: string; name: string }[];
 };
 
 export type PublicPriceList = {
@@ -56,8 +59,16 @@ export type PublicVendor = {
 };
 
 export async function getPublicTransports(): Promise<PublicVendor[]> {
+  const session = await auth();
+  const internalUsers = await getSetting("internal_users");
+  const isInternalTester =
+    !!session?.user?.id && internalUsers.includes(session.user.id);
+
   const rows = await db.vendor_profile.findMany({
-    where: { is_active: true, category: "TRANSPORT" },
+    where: {
+      category: "TRANSPORT",
+      ...(isInternalTester ? {} : { is_active: true }),
+    },
     select: {
       user_id: true,
       business_name: true,
@@ -79,7 +90,16 @@ export async function getPublicTransports(): Promise<PublicVendor[]> {
           notes: true,
           routes: {
             where: { active: true },
-            select: { id: true, name: true, price: true, capacity: true },
+            select: {
+              id: true,
+              name: true,
+              price: true,
+              capacity: true,
+              stops: {
+                orderBy: { order: "asc" },
+                select: { id: true, name: true },
+              },
+            },
           },
           departure_times: {
             where: { departs_at: { gte: new Date() } },
@@ -101,7 +121,7 @@ export async function getPublicTransports(): Promise<PublicVendor[]> {
       instagram: v.instagram,
       tiktok: v.tiktok,
       phone: v.user.phone ?? "",
-      isActive: v.is_active,
+      isActive: isInternalTester ? true : v.is_active,
       priceLists: v.price_lists
         .filter((pl) => String(pl.availability_type) !== "INACTIVE")
         .map((pl) => ({
@@ -121,6 +141,7 @@ export async function getPublicTransports(): Promise<PublicVendor[]> {
             name: r.name,
             price: r.price,
             capacity: r.capacity,
+            stops: r.stops,
           })),
           departureTimes: pl.departure_times.map((d) => ({
             departsAt: d.departs_at.toISOString(),
@@ -131,7 +152,7 @@ export async function getPublicTransports(): Promise<PublicVendor[]> {
 }
 
 type DbPriceListFull = DbPriceList & {
-  routes: DbRoute[];
+  routes: (DbRoute & { stops: DbStop[] })[];
   departure_times: DbDepartureTime[];
 };
 
@@ -142,6 +163,9 @@ function formatPriceList(pl: DbPriceListFull): PriceList {
     price: r.price,
     capacity: r.capacity === null ? "unlimited" : r.capacity,
     active: r.active,
+    stops: [...r.stops]
+      .sort((a, b) => a.order - b.order)
+      .map((s) => ({ id: s.id, name: s.name, order: s.order })),
   }));
 
   const departureTimes: DepartureTime[] = pl.departure_times.map((d) => ({
@@ -261,6 +285,7 @@ export async function getTransportBookings(
         student_notes: true,
         vendor: { select: { business_name: true } },
         destination_address: true,
+        stop_name: true,
         departure_at: true,
         status: true,
         created_at: true,
@@ -305,6 +330,7 @@ export async function getTransportBookings(
         commission: b.commission,
         studentNotes: b.student_notes,
         destinationAddress: b.destination_address,
+        stopName: b.stop_name,
         departureAt: b.departure_at ? b.departure_at.toISOString() : null,
         createdAt: b.created_at.toISOString(),
         status: b.status as TransportBooking["status"],
@@ -327,7 +353,7 @@ export async function getTransportPriceLists(): Promise<
   const rows = await db.price_list.findMany({
     where: { vendor_id: session.user.id },
     include: {
-      routes: true,
+      routes: { include: { stops: { orderBy: { order: "asc" } } } },
       departure_times: { orderBy: { departs_at: "asc" } },
     },
     orderBy: { created_at: "desc" },
@@ -394,6 +420,9 @@ export async function createPriceList(
           price: r.price,
           capacity: r.capacity,
           active: r.active,
+          stops: {
+            create: r.stops.map((s, i) => ({ name: s.name, order: i })),
+          },
         })),
       },
       departure_times: {
@@ -403,7 +432,7 @@ export async function createPriceList(
       },
     },
     include: {
-      routes: true,
+      routes: { include: { stops: { orderBy: { order: "asc" } } } },
       departure_times: { orderBy: { departs_at: "asc" } },
     },
   });
@@ -480,27 +509,36 @@ export async function updatePriceList(
     }
 
     await Promise.all(
-      data.routes.map((r) =>
-        r.id && existingIds.has(r.id)
-          ? tx.price_list_route.update({
-              where: { id: r.id },
-              data: {
-                name: r.name,
-                price: r.price,
-                capacity: r.capacity,
-                active: r.active,
-              },
-            })
-          : tx.price_list_route.create({
-              data: {
-                price_list_id: id,
-                name: r.name,
-                price: r.price,
-                capacity: r.capacity,
-                active: r.active,
-              },
-            }),
-      ),
+      data.routes.map(async (r) => {
+        const stops = r.stops.map((s, i) => ({ name: s.name, order: i }));
+        if (r.id && existingIds.has(r.id)) {
+          await tx.price_list_route.update({
+            where: { id: r.id },
+            data: {
+              name: r.name,
+              price: r.price,
+              capacity: r.capacity,
+              active: r.active,
+            },
+          });
+          await tx.route_stop.deleteMany({ where: { route_id: r.id } });
+          if (stops.length)
+            await tx.route_stop.createMany({
+              data: stops.map((s) => ({ ...s, route_id: r.id! })),
+            });
+        } else {
+          await tx.price_list_route.create({
+            data: {
+              price_list_id: id,
+              name: r.name,
+              price: r.price,
+              capacity: r.capacity,
+              active: r.active,
+              stops: { create: stops },
+            },
+          });
+        }
+      }),
     );
 
     await tx.departure_time.deleteMany({ where: { price_list_id: id } });
@@ -522,7 +560,7 @@ export async function updatePriceList(
         },
       },
       include: {
-        routes: true,
+        routes: { include: { stops: { orderBy: { order: "asc" } } } },
         departure_times: { orderBy: { departs_at: "asc" } },
       },
     });

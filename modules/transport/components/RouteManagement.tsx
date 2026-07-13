@@ -13,10 +13,7 @@ import {
   DrawerContent,
   DrawerTitle,
 } from "@/components/ui/drawer";
-import Select from "@/components/ui/Select";
 import TimeInput from "@/components/ui/TimeInput";
-import Toggle from "@/components/ui/Toggle";
-import { formatWithCommas } from "@/lib/format";
 import { reportClientError } from "@/lib/client-log";
 import {
   useCreatePriceList,
@@ -39,15 +36,7 @@ import {
   readLocalDraft,
   useLocalStorageDraft,
 } from "@/hooks/useLocalStorageDraft";
-import {
-  House,
-  Loader2,
-  Plus,
-  RefreshCw,
-  Rocket,
-  Trash2,
-  X,
-} from "lucide-react";
+import { House, Loader2, Plus, RefreshCw, Rocket, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import {
   Controller,
@@ -59,6 +48,7 @@ import {
 import { toast } from "sonner";
 import AddCard from "./AddCard";
 import PriceListCard from "./PriceListCard";
+import RouteRow from "./RouteRow";
 
 function mapIssuePath(path: PropertyKey[]): FieldPath<DrawerFormValues> | null {
   if (path.length === 1 && path[0] === "name") return "name";
@@ -169,6 +159,7 @@ export default function RouteManagement() {
       capacityType: "unlimited",
       capacityValue: "",
       active: true,
+      stops: [],
     });
   }
 
@@ -350,17 +341,6 @@ export default function RouteManagement() {
           {/* data-vaul-no-drag prevents vaul from treating keyboard viewport changes as a dismiss gesture on mobile */}
           <div className="flex-1 overflow-y-auto" data-vaul-no-drag>
             <div className="border-b border-portal-border">
-              <div className="hidden sm:grid grid-cols-[1fr_120px_200px_36px_32px] gap-2 px-5 py-2.5 bg-portal-accent-bg/50 border-b border-portal-border">
-                {["Route", "Price (₦)", "Capacity", "", ""].map((h, i) => (
-                  <span
-                    key={i}
-                    className="text-[11px] font-semibold uppercase tracking-[0.08em] text-portal-muted"
-                  >
-                    {h}
-                  </span>
-                ))}
-              </div>
-
               {routeFields.length === 0 && (
                 <p className="px-5 py-4 text-[13px] text-portal-muted/60 italic">
                   No routes added yet. Add at least one.
@@ -368,94 +348,18 @@ export default function RouteManagement() {
               )}
 
               {routeFields.map((field, index) => (
-                <div
+                <RouteRow
                   key={field.id}
-                  className="grid grid-cols-1 sm:grid-cols-[1fr_120px_200px_36px_32px] gap-2 px-5 py-3 items-center border-b border-portal-border last:border-b-0"
-                >
-                  <div>
-                    <input
-                      {...register(`routes.${index}.name`)}
-                      type="text"
-                      placeholder="Route name"
-                      className="w-full px-2 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-accent-bg/50 focus:outline-none focus:border-portal-accent"
-                    />
-                    {errors.routes?.[index]?.name && (
-                      <p className="mt-1 text-[11px] text-red-500">
-                        {errors.routes[index]?.name?.message}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2 sm:contents">
-                    <Controller
-                      name={`routes.${index}.price`}
-                      control={control}
-                      render={({ field: priceField }) => (
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          value={priceField.value}
-                          onChange={(e) =>
-                            priceField.onChange(
-                              formatWithCommas(e.target.value),
-                            )
-                          }
-                          placeholder="₦ 0"
-                          className="w-24 sm:w-full px-2 py-1.5 text-[13px] border border-portal-border rounded-md bg-portal-accent-bg/50 focus:outline-none focus:border-portal-accent"
-                        />
-                      )}
-                    />
-
-                    <div className="flex items-center gap-1.5 flex-1 sm:flex-none">
-                      <div className="flex-1 min-w-0">
-                        <Controller
-                          name={`routes.${index}.capacityType`}
-                          control={control}
-                          render={({ field }) => (
-                            <Select
-                              size="sm"
-                              className="px-2 py-1.5 text-[13px] rounded-md"
-                              options={[
-                                { value: "unlimited", label: "Unlimited" },
-                                { value: "number", label: "Limited" },
-                              ]}
-                              value={field.value}
-                              onChange={field.onChange}
-                            />
-                          )}
-                        />
-                      </div>
-                      {watchedRoutes[index]?.capacityType === "number" && (
-                        <input
-                          {...register(`routes.${index}.capacityValue`)}
-                          type="number"
-                          placeholder="Max"
-                          min="1"
-                          className="w-14 px-1.5 py-1.5 text-[12px] border border-portal-border rounded-md bg-portal-accent-bg/50 focus:outline-none focus:border-portal-accent"
-                        />
-                      )}
-                    </div>
-
-                    <Controller
-                      name={`routes.${index}.active`}
-                      control={control}
-                      render={({ field: activeField }) => (
-                        <Toggle
-                          on={activeField.value}
-                          onChange={activeField.onChange}
-                        />
-                      )}
-                    />
-
-                    <button
-                      type="button"
-                      onClick={() => removeRoute(index)}
-                      className="w-7 h-7 flex items-center justify-center text-portal-muted hover:text-red-500 hover:bg-red-50 rounded-md transition-colors ml-auto sm:ml-0"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
+                  control={control}
+                  register={register}
+                  index={index}
+                  errors={errors}
+                  name={watchedRoutes[index]?.name}
+                  price={watchedRoutes[index]?.price}
+                  capacityType={watchedRoutes[index]?.capacityType}
+                  capacityValue={watchedRoutes[index]?.capacityValue}
+                  onRemove={() => removeRoute(index)}
+                />
               ))}
 
               <div className="px-5 py-3">

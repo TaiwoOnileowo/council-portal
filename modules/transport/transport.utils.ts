@@ -13,6 +13,7 @@ export type DrawerFormValues = {
     capacityType: "number" | "unlimited";
     capacityValue: string;
     active: boolean;
+    stops: Array<{ name: string }>;
   }>;
   departureTimes: Array<{ date: string; time: string }>;
   luggagePolicy: string;
@@ -30,6 +31,9 @@ export function draftFromRoute(r: PriceListRoute) {
     capacityType: (r.capacity === "unlimited" ? "unlimited" : "number") as "number" | "unlimited",
     capacityValue: r.capacity === "unlimited" ? "" : String(r.capacity),
     active: r.active,
+    stops: [...r.stops]
+      .sort((a, b) => a.order - b.order)
+      .map((s) => ({ name: s.name })),
   };
 }
 
@@ -68,6 +72,9 @@ export function buildBody(form: DrawerFormValues): PriceListBody {
       capacity:
         r.capacityType === "unlimited" ? null : Math.max(1, parseInt(r.capacityValue, 10) || 1),
       active: r.active,
+      stops: r.stops
+        .map((s) => ({ name: s.name.trim() }))
+        .filter((s) => s.name.length > 0),
     })),
     departureTimes: form.departureTimes.map((d) => ({
       departsAt: new Date(`${d.date}T${d.time}:00`).toISOString(),

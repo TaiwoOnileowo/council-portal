@@ -25,6 +25,13 @@ export const priceListBodySchema = z.object({
           .min(1, "Capacity must be at least 1")
           .nullable(),
         active: z.boolean(),
+        stops: z
+          .array(
+            z.object({
+              name: z.string().min(1, "Stop name is required").max(80),
+            }),
+          )
+          .default([]),
       }),
     )
     .min(1, "At least one route is required"),
@@ -58,12 +65,19 @@ export const priceListBodySchema = z.object({
 
 export type PriceListBody = z.infer<typeof priceListBodySchema>;
 
+export type PriceListStop = {
+  id: string;
+  name: string;
+  order: number;
+};
+
 export type PriceListRoute = {
   id: string;
   name: string;
   price: number;
   capacity: number | "unlimited";
   active: boolean;
+  stops: PriceListStop[];
 };
 
 export type PriceListAvailability =
@@ -102,6 +116,7 @@ export type TransportBooking = {
   commission: number;
   studentNotes: string | null;
   destinationAddress: string | null;
+  stopName: string | null;
   departureAt: string | null;
   status: "PENDING" | "CONFIRMED" | "CANCELLED" | "FAILED";
   createdAt: string;
@@ -143,6 +158,7 @@ export type StudentBooking = {
   serviceFee: number;
   studentNotes: string | null;
   destinationAddress: string | null;
+  stopName: string | null;
   departureAt: string | null;
   createdAt: string;
   vendor: {
@@ -185,6 +201,7 @@ export const bookingCheckoutMetadataSchema = z.object({
   commissionNaira: z.number(),
   studentNotes: z.string().nullable(),
   destinationAddress: z.string(),
+  stopName: z.string().nullable(),
   departureAt: z.string().nullable(),
   // Whether the charge actually split at the processor when it was started —
   // recorded once, at checkout time, so the webhook (which may fire long

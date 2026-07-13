@@ -37,6 +37,7 @@ const studentBookingSelect = {
   service_fee: true,
   student_notes: true,
   destination_address: true,
+  stop_name: true,
   departure_at: true,
   created_at: true,
   vendor: {
@@ -72,6 +73,7 @@ function toStudentBooking(b: StudentBookingRow): StudentBooking {
     serviceFee: b.service_fee,
     studentNotes: b.student_notes,
     destinationAddress: b.destination_address,
+    stopName: b.stop_name,
     departureAt: b.departure_at ? b.departure_at.toISOString() : null,
     createdAt: b.created_at.toISOString(),
     vendor: {
@@ -186,6 +188,7 @@ export async function payBookingFromWallet({
   fare,
   studentNotes,
   destinationAddress,
+  stopName,
   departureAt,
 }: {
   vendorId: string;
@@ -200,6 +203,7 @@ export async function payBookingFromWallet({
   fare: number;
   studentNotes?: string;
   destinationAddress: string;
+  stopName?: string | null;
   departureAt?: string;
 }): Promise<
   | { reference: string }
@@ -258,6 +262,7 @@ export async function payBookingFromWallet({
           commission: commissionNaira,
           student_notes: studentNotes?.trim() || null,
           destination_address: destinationAddress.trim(),
+          stop_name: stopName?.trim() || null,
           departure_at: departureAt ? new Date(departureAt) : null,
           user_id: userId,
           vendor_id: vendorId,
@@ -376,6 +381,7 @@ export async function startBookingCheckout({
   fare,
   studentNotes,
   destinationAddress,
+  stopName,
   departureAt,
 }: {
   vendorId: string;
@@ -390,6 +396,7 @@ export async function startBookingCheckout({
   fare: number;
   studentNotes?: string;
   destinationAddress: string;
+  stopName?: string | null;
   departureAt?: string;
 }): Promise<
   { authorizationUrl: string; reference: string } | { error: string }
@@ -480,6 +487,7 @@ export async function startBookingCheckout({
       commissionNaira,
       studentNotes: studentNotes?.trim() || null,
       destinationAddress: destinationAddress.trim(),
+      stopName: stopName?.trim() || null,
       departureAt: departureAt ?? null,
       splitPayment: !!split,
     },
@@ -525,6 +533,7 @@ export async function finalizeBookingCheckout(
       commission: m.commissionNaira,
       student_notes: m.studentNotes,
       destination_address: m.destinationAddress,
+      stop_name: m.stopName,
       departure_at: m.departureAt ? new Date(m.departureAt) : null,
       user_id: payment.user_id,
       vendor_id: m.vendorId,

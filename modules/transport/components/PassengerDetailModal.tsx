@@ -55,11 +55,21 @@ export default function BookingDetailModal({
                 : "Returning to school"
             }
           />
+          {booking.stopName && (
+            <DetailRow
+              label={
+                booking.direction === "LEAVING" ? "Drop-off stop" : "Pickup stop"
+              }
+              value={booking.stopName}
+            />
+          )}
           <DetailRow
             label={
-              booking.direction === "LEAVING"
-                ? "Drop-off address"
-                : "Pickup address"
+              booking.stopName
+                ? "Additional directions"
+                : booking.direction === "LEAVING"
+                  ? "Drop-off address"
+                  : "Pickup address"
             }
             value={booking.destinationAddress ?? "-"}
           />

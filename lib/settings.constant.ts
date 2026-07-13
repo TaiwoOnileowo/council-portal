@@ -55,6 +55,13 @@ export const SETTINGS_REGISTRY = {
       scheduledPayoutsEnabled: false,
     },
   },
+  internal_users: {
+    label: "Internal users",
+    description:
+      "User IDs that can see inactive transport vendors on the public transport page, for internal testing before a vendor goes live.",
+    schema: z.array(z.string()),
+    default: ["527d6daa-8f66-4518-832b-b8f200fa4820"] as string[],
+  },
   otp_config: {
     label: "OTP configuration",
     description:

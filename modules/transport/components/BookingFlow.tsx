@@ -17,6 +17,7 @@ import { nairaToKobo } from "@/lib/money";
 import { queryKeys } from "@/lib/query-keys";
 import { useWalletBalance } from "@/modules/wallet/hooks/useWalletBalance";
 import { inputClass } from "@/lib/utils";
+import Select from "@/components/ui/Select";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -34,7 +35,7 @@ import {
   X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -51,26 +52,41 @@ const HALLS = [
   "Dorcas Hall",
 ] as const;
 
-const passengerSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters").trim(),
-  hall: z.enum(HALLS, { error: "Please select your hall" }),
-  roomNumber: z
-    .string()
-    .min(1, "Room number is required")
-    .refine((v) => /^[A-H][1-4](0[1-9]|1[0-3])$/i.test(v.trim()), {
-      message: "Invalid format — e.g. E401, A113 (rooms 01\u201313 per floor)",
-    }),
-  phone: z.string().regex(/^\d{11}$/, "Must be exactly 11 digits"),
-  parentsPhone: z.string().regex(/^\d{11}$/, "Must be exactly 11 digits"),
-  destinationAddress: z
-    .string()
-    .min(5, "Please enter a complete address")
-    .max(200, "Max 200 characters")
-    .trim(),
-  studentNotes: z.string().max(300, "Max 300 characters").optional(),
-});
+function buildPassengerSchema(addressRequired: boolean) {
+  return z
+    .object({
+      name: z.string().min(2, "Name must be at least 2 characters").trim(),
+      hall: z.enum(HALLS, { error: "Please select your hall" }),
+      roomNumber: z
+        .string()
+        .min(1, "Room number is required")
+        .refine((v) => /^[A-H][1-4](0[1-9]|1[0-3])$/i.test(v.trim()), {
+          message: "Invalid format — e.g. E401, A113 (rooms 01\u201313 per floor)",
+        }),
+      phone: z.string().regex(/^\d{11}$/, "Must be exactly 11 digits"),
+      parentsPhone: z.string().regex(/^\d{11}$/, "Must be exactly 11 digits"),
+      destinationAddress: z
+        .string()
+        .max(200, "Max 200 characters")
+        .trim()
+        .optional(),
+      studentNotes: z.string().max(300, "Max 300 characters").optional(),
+    })
+    .superRefine((values, ctx) => {
+      if (
+        addressRequired &&
+        (!values.destinationAddress || values.destinationAddress.length < 5)
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["destinationAddress"],
+          message: "Please enter a complete address",
+        });
+      }
+    });
+}
 
-type PassengerValues = z.infer<typeof passengerSchema>;
+type PassengerValues = z.infer<ReturnType<typeof buildPassengerSchema>>;
 
 type PassengerDraft = Pick<
   PassengerValues,
@@ -133,8 +149,20 @@ export default function BookingFlow({
         ? priceList.departureTimes[0].departsAt
         : null,
   );
+  const hasStops = route.stops.length > 0;
+  const [selectedStop, setSelectedStop] = useState<string | null>(() =>
+    route.stops.length === 1 ? route.stops[0].name : null,
+  );
+  const isDisabled =
+    (priceList.departureTimes.length > 0 && !selectedDeparture) ||
+    (hasStops && !selectedStop);
   const savedPassengerDraft = readLocalDraft<PassengerDraft>(
     passengerDraftKey(user.id),
+  );
+
+  const passengerSchema = useMemo(
+    () => buildPassengerSchema(!hasStops),
+    [hasStops],
   );
 
   const {
@@ -161,6 +189,7 @@ export default function BookingFlow({
     if (isProcessing) return;
     setStep("ride-summary");
     setSelectedDeparture(null);
+    setSelectedStop(route.stops.length === 1 ? route.stops[0]?.name : null);
     setBookingRef("");
     setPaidAmount(0);
     setIsProcessing(false);
@@ -210,7 +239,8 @@ export default function BookingFlow({
       routeName: route.name,
       fare: basePrice,
       studentNotes: values.studentNotes,
-      destinationAddress: values.destinationAddress,
+      destinationAddress: values.destinationAddress ?? "",
+      stopName: selectedStop,
       departureAt: selectedDeparture ?? undefined,
     };
   }
@@ -459,6 +489,25 @@ export default function BookingFlow({
                       </div>
                     )}
 
+                    {hasStops && (
+                      <div className="mb-4">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-portal-muted mb-2">
+                          {isLeaving ? "Drop-off Stop" : "Pickup Stop"}
+                        </p>
+                        <Select
+                          size="sm"
+                          className="px-3.5 py-2.5 text-[13px] rounded-xl"
+                          placeholder="Select a stop"
+                          options={route.stops.map((s) => ({
+                            value: s.name,
+                            label: s.name,
+                          }))}
+                          value={selectedStop ?? ""}
+                          onChange={setSelectedStop}
+                        />
+                      </div>
+                    )}
+
                     {priceList.luggagePolicy && (
                       <div className="mb-4 flex gap-2.5 bg-portal-accent-bg/50 border border-portal-border rounded-xl px-3.5 py-3">
                         <Info className="w-3.5 h-3.5 text-portal-muted flex-shrink-0 mt-0.5" />
@@ -502,12 +551,14 @@ export default function BookingFlow({
                           Select a departure time to continue
                         </p>
                       )}
+                    {hasStops && !selectedStop && (
+                      <p className="text-[12px] text-portal-muted text-center mb-2">
+                        Select a stop to continue
+                      </p>
+                    )}
                     <button
                       onClick={() => setStep("passenger-details")}
-                      disabled={
-                        priceList.departureTimes.length > 0 &&
-                        !selectedDeparture
-                      }
+                      disabled={isDisabled}
                       className="w-full py-3 bg-portal-accent hover:bg-portal-accent2 text-white rounded-xl text-[14px] font-semibold transition-all hover:-translate-y-0.5 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0"
                     >
                       Continue
@@ -633,29 +684,27 @@ export default function BookingFlow({
                         />
                       </Field>
 
-                      <Field
-                        label={
-                          isLeaving ? "Drop-off Address" : "Pickup Address"
-                        }
-                        hint={
-                          isLeaving
-                            ? "Exact address where you'll be dropped off"
-                            : "Exact address where you stay"
-                        }
-                        error={errors.destinationAddress?.message}
-                      >
-                        <textarea
-                          {...register("destinationAddress")}
-                          placeholder={
-                            isLeaving
-                              ? "e.g. 12 Allen Avenue, Ikeja, Lagos"
-                              : "e.g. 12 Allen Avenue, Ikeja, Lagos"
+                      {!hasStops && (
+                        <Field
+                          label={
+                            isLeaving ? "Drop-off Address" : "Pickup Address"
                           }
-                          maxLength={200}
-                          rows={2}
-                          className={`${inputCls(!!errors.destinationAddress)} resize-none`}
-                        />
-                      </Field>
+                          hint={
+                            isLeaving
+                              ? "Exact address where you'll be dropped off"
+                              : "Exact address where you stay"
+                          }
+                          error={errors.destinationAddress?.message}
+                        >
+                          <textarea
+                            {...register("destinationAddress")}
+                            placeholder="e.g. 12 Allen Avenue, Ikeja, Lagos"
+                            maxLength={200}
+                            rows={2}
+                            className={`${inputCls(!!errors.destinationAddress)} resize-none`}
+                          />
+                        </Field>
+                      )}
 
                       <Field
                         label={`Note to ${vendor.transportName}`}
@@ -808,6 +857,14 @@ export default function BookingFlow({
                           {pickup} &#x2192; {destination}
                         </span>
                       </div>
+                      {selectedStop && (
+                        <div className="flex justify-between text-[13px]">
+                          <span className="text-portal-muted">Stop</span>
+                          <span className="font-semibold text-right max-w-[60%]">
+                            {selectedStop}
+                          </span>
+                        </div>
+                      )}
                       {selectedDeparture && (
                         <div className="flex justify-between text-[13px]">
                           <span className="text-portal-muted">Departure</span>

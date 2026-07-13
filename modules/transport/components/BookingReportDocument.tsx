@@ -22,6 +22,7 @@ type BookingRow = {
   fare: number;
   commission: number;
   destinationAddress: string | null;
+  stopName: string | null;
   departureAt: string | null;
   createdAt: string;
 };
@@ -353,6 +354,9 @@ export function BookingReportDocument({
               </View>
               <View style={styles.colRoute}>
                 <Text style={styles.cell}>{b.routeName}</Text>
+                {b.stopName && (
+                  <Text style={styles.cellSub}>Stop: {b.stopName}</Text>
+                )}
                 {b.destinationAddress && (
                   <Text style={styles.cellSub}>{b.destinationAddress}</Text>
                 )}
