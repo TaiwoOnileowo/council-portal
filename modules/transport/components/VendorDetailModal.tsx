@@ -11,6 +11,7 @@ import type {
 } from "@/lib/actions/transport.action";
 import {
   isPriceListActive,
+  isPriceListFull,
   closesToday,
   closesSoon,
   isVendorAvailable,
@@ -224,6 +225,11 @@ export default function VendorDetailPopup({
                           Closes soon
                         </span>
                       )}
+                      {isPriceListFull(activeList) && (
+                        <span className="text-[11px] font-semibold bg-red-50 text-red-500 border border-red-200 px-2 py-0.5 rounded-full">
+                          Fully booked
+                        </span>
+                      )}
                     </div>
                   )}
 
@@ -270,6 +276,11 @@ export default function VendorDetailPopup({
                               <p className="text-[13px] font-semibold text-portal-text">
                                 {route.name}
                               </p>
+                              {route.isFull && (
+                                <span className="inline-block mt-0.5 text-[10px] font-semibold text-red-500 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-md">
+                                  Fully booked
+                                </span>
+                              )}
                             </div>
                             <p className="font-heading text-sm font-extrabold flex-shrink-0">
                               ₦{route.price.toLocaleString()}
@@ -278,7 +289,11 @@ export default function VendorDetailPopup({
                               onClick={() =>
                                 onBookNow(vendor, activeList, route)
                               }
-                              disabled={!vendor.isActive || !listAvailable}
+                              disabled={
+                                !vendor.isActive ||
+                                !listAvailable ||
+                                route.isFull
+                              }
                               className="px-3 py-1.5 bg-portal-accent-bg border border-portal-accent-border rounded-lg text-portal-accent text-[12px] font-semibold hover:bg-portal-accent hover:text-white transition-all duration-200 flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-portal-accent-bg disabled:hover:text-portal-accent"
                             >
                               Book

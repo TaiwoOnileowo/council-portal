@@ -82,7 +82,10 @@ export function buildBody(form: DrawerFormValues): PriceListBody {
         .map((s) => ({ name: s.name.trim() }))
         .filter((s) => s.name.length > 0),
       departureTimes: r.departureTimes.map((d) => ({
-        departsAt: new Date(`${d.date}T${d.time}:00`).toISOString(),
+        departsAt:
+          d.date && d.time
+            ? new Date(`${d.date}T${d.time}:00`).toISOString()
+            : "",
         capacity:
           d.capacityType === "unlimited"
             ? null

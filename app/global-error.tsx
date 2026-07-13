@@ -1,7 +1,23 @@
 "use client";
 
 import { useEffect } from "react";
+import { Bricolage_Grotesque, Instrument_Sans } from "next/font/google";
+import { TriangleAlert } from "lucide-react";
 import { reportClientError } from "@/lib/client-log";
+import { cn } from "@/lib/utils";
+import "./globals.css";
+
+const bricolage = Bricolage_Grotesque({
+  subsets: ["latin"],
+  variable: "--font-heading",
+  weight: ["300", "400", "500", "600", "700", "800"],
+});
+
+const instrumentSans = Instrument_Sans({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  weight: ["400", "500", "600"],
+});
 
 export default function GlobalError({
   error,
@@ -24,34 +40,28 @@ export default function GlobalError({
 
   return (
     <html lang="en">
-      <body>
-        <div
-          style={{
-            minHeight: "60vh",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "1rem",
-            padding: "1.5rem",
-            textAlign: "center",
-            fontFamily: "sans-serif",
-          }}
-        >
-          <h2 style={{ fontSize: "1.125rem", fontWeight: 600 }}>
-            Something went wrong
-          </h2>
-          <p style={{ fontSize: "0.875rem", color: "#666" }}>
-            We&apos;ve been notified and are looking into it.
-          </p>
+      <body
+        className={cn(
+          bricolage.variable,
+          instrumentSans.variable,
+          "font-sans antialiased bg-portal-accent-bg/50",
+        )}
+      >
+        <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center">
+          <div className="w-12 h-12 rounded-full bg-portal-accent/10 flex items-center justify-center">
+            <TriangleAlert className="w-5 h-5 text-portal-accent" />
+          </div>
+          <div className="space-y-1">
+            <h2 className="font-heading text-lg font-semibold text-portal-text">
+              Something went wrong
+            </h2>
+            <p className="text-sm text-portal-text2 max-w-sm">
+              We&apos;ve been notified and are looking into it.
+            </p>
+          </div>
           <button
             onClick={() => unstable_retry()}
-            style={{
-              padding: "0.5rem 1rem",
-              border: "1px solid #ccc",
-              background: "#fff",
-              cursor: "pointer",
-            }}
+            className="mt-2 px-5 py-2.5 bg-portal-accent hover:bg-portal-accent2 text-white rounded-xl text-[13px] font-semibold transition-all hover:-translate-y-0.5"
           >
             Try again
           </button>

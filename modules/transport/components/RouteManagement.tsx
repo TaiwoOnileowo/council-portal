@@ -64,6 +64,17 @@ function mapIssuePath(path: PropertyKey[]): FieldPath<DrawerFormValues> | null {
   return null;
 }
 
+function issueToBlocker(
+  issue: { path: PropertyKey[]; message: string },
+  routes: Array<{ name?: string } | undefined>,
+): string {
+  if (issue.path[0] === "routes" && typeof issue.path[1] === "number") {
+    const label = routes[issue.path[1]]?.name?.trim() || `Route ${issue.path[1] + 1}`;
+    return `${issue.message} (${label})`;
+  }
+  return issue.message;
+}
+
 export default function RouteManagement() {
   const {
     data: priceLists,
@@ -98,12 +109,9 @@ export default function RouteManagement() {
   } = useFieldArray({ control, name: "routes" });
 
   const watchedFormValues = useWatch({ control });
-  const watchedName = watchedFormValues.name ?? "";
   const watchedDirection = watchedFormValues.direction ?? "leaving";
   const watchedRoutes = watchedFormValues.routes ?? [];
   const watchedAvailType = watchedFormValues.availType ?? "active";
-  const watchedSchedStart = watchedFormValues.schedStart ?? "";
-  const watchedSchedEnd = watchedFormValues.schedEnd ?? "";
 
   const draftKey = priceListDraftKey(watchedDirection, editingId);
   useLocalStorageDraft(
@@ -162,24 +170,18 @@ export default function RouteManagement() {
     });
   }
 
-  const watchedLuggagePolicy = watchedFormValues.luggagePolicy ?? "";
-  const watchedNotes = watchedFormValues.notes ?? "";
+  const draftValidation = priceListBodySchema.safeParse(
+    buildBody(watchedFormValues as DrawerFormValues),
+  );
+  const blockers = draftValidation.success
+    ? []
+    : draftValidation.error.issues.map((issue) =>
+        issueToBlocker(issue, watchedRoutes),
+      );
+  if (editingId && !formIsDirty && blockers.length === 0)
+    blockers.push("Make a change before saving");
 
-  const canSave =
-    (!editingId || formIsDirty) &&
-    watchedName.trim().length > 0 &&
-    watchedName.length <= 80 &&
-    watchedRoutes.length >= 1 &&
-    watchedRoutes.every((r) => !!r?.name?.trim()) &&
-    watchedRoutes.every(
-      (r) =>
-        (r?.departureTimes?.length ?? 0) >= 1 &&
-        (r?.departureTimes?.every((d) => !!d?.date) ?? false),
-    ) &&
-    watchedLuggagePolicy.length <= 500 &&
-    watchedNotes.length <= 500 &&
-    (watchedAvailType !== "scheduled" ||
-      (!!watchedSchedStart && !!watchedSchedEnd));
+  const canSave = blockers.length === 0;
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
@@ -474,6 +476,18 @@ export default function RouteManagement() {
           </div>
 
           <div className="px-5 pt-4 pb-[max(16px,env(safe-area-inset-bottom))] border-t border-portal-border flex-shrink-0">
+            {blockers.length > 0 && (
+              <div className="mb-2.5 text-[12px] text-portal-muted">
+                <p className="font-semibold text-portal-text2 mb-1">
+                  Before you can save:
+                </p>
+                <ul className="space-y-0.5 list-disc list-inside">
+                  {blockers.map((b, i) => (
+                    <li key={i}>{b}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <button
               onClick={save}
               disabled={!canSave || isSaving}

@@ -16,7 +16,7 @@ import type {
   PriceListAvailability,
   PriceListRoute,
   TransportBooking,
-  TransportBookingsResponse
+  TransportBookingsResponse,
 } from "@/modules/transport/transport.types";
 import {
   priceListBodySchema,
@@ -28,7 +28,11 @@ export type PublicRoute = {
   name: string;
   price: number; // naira
   stops: { id: string; name: string }[];
-  departureTimes: { departsAt: string; capacity: number | null; isFull: boolean }[];
+  departureTimes: {
+    departsAt: string;
+    capacity: number | null;
+    isFull: boolean;
+  }[];
   isFull: boolean;
 };
 
@@ -109,10 +113,6 @@ export async function getPublicTransports(): Promise<PublicVendor[]> {
     },
   });
 
-  // Booking counts per exact (route, departure) — capacity lives on the
-  // departure_time row, but there's no direct FK from booking to it, so we
-  // match on route_id + departure_at instead (same approach as the capacity
-  // enforcement check in booking.action.ts).
   const bookingCounts = await db.booking.groupBy({
     by: ["route_id", "departure_at"],
     where: { status: "CONFIRMED", departure_at: { not: null } },
@@ -155,7 +155,9 @@ export async function getPublicTransports(): Promise<PublicVendor[]> {
           routes: pl.routes.map((r) => {
             const departureTimes = r.departure_times.map((d) => {
               const confirmedCount =
-                confirmedCountByKey.get(`${r.id}|${d.departs_at.toISOString()}`) ?? 0;
+                confirmedCountByKey.get(
+                  `${r.id}|${d.departs_at.toISOString()}`,
+                ) ?? 0;
               return {
                 departsAt: d.departs_at.toISOString(),
                 capacity: d.capacity,
@@ -505,102 +507,107 @@ export async function updatePriceList(
       ? new Date(data.availability.endDate)
       : null;
 
-  const updated = await db.$transaction(async (tx) => {
-    // Reconcile routes by id so existing route IDs stay stable (bookings
-    // reference them). Update in place, create new, and never hard-delete a
-    // route that has bookings — deactivate it instead.
-    const existingRoutes = await tx.price_list_route.findMany({
-      where: { price_list_id: id },
-      select: { id: true },
-    });
-    const existingIds = new Set(existingRoutes.map((r) => r.id));
-    const incomingIds = new Set(
-      data.routes
-        .map((r) => r.id)
-        .filter((rid): rid is string => !!rid && existingIds.has(rid)),
-    );
-
-    const removedIds = [...existingIds].filter((rid) => !incomingIds.has(rid));
-    if (removedIds.length) {
-      const booked = await tx.booking.findMany({
-        where: { route_id: { in: removedIds } },
-        select: { route_id: true },
-        distinct: ["route_id"],
+  const updated = await db.$transaction(
+    async (tx) => {
+      // Reconcile routes by id so existing route IDs stay stable (bookings
+      // reference them). Update in place, create new, and never hard-delete a
+      // route that has bookings — deactivate it instead.
+      const existingRoutes = await tx.price_list_route.findMany({
+        where: { price_list_id: id },
+        select: { id: true },
       });
-      const bookedIds = new Set(booked.map((b) => b.route_id));
-      const deletable = removedIds.filter((rid) => !bookedIds.has(rid));
-      if (deletable.length)
-        await tx.price_list_route.deleteMany({
-          where: { id: { in: deletable } },
-        });
-      if (bookedIds.size)
-        await tx.price_list_route.updateMany({
-          where: { id: { in: [...bookedIds] } },
-          data: { active: false },
-        });
-    }
+      const existingIds = new Set(existingRoutes.map((r) => r.id));
+      const incomingIds = new Set(
+        data.routes
+          .map((r) => r.id)
+          .filter((rid): rid is string => !!rid && existingIds.has(rid)),
+      );
 
-    await Promise.all(
-      data.routes.map(async (r) => {
-        const stops = r.stops.map((s, i) => ({ name: s.name, order: i }));
-        const departureTimes = r.departureTimes.map((d) => ({
-          departs_at: new Date(d.departsAt),
-          capacity: d.capacity,
-        }));
-        if (r.id && existingIds.has(r.id)) {
-          await tx.price_list_route.update({
-            where: { id: r.id },
-            data: {
-              name: r.name,
-              price: r.price,
-              active: r.active,
-            },
+      const removedIds = [...existingIds].filter(
+        (rid) => !incomingIds.has(rid),
+      );
+      if (removedIds.length) {
+        const booked = await tx.booking.findMany({
+          where: { route_id: { in: removedIds } },
+          select: { route_id: true },
+          distinct: ["route_id"],
+        });
+        const bookedIds = new Set(booked.map((b) => b.route_id));
+        const deletable = removedIds.filter((rid) => !bookedIds.has(rid));
+        if (deletable.length)
+          await tx.price_list_route.deleteMany({
+            where: { id: { in: deletable } },
           });
-          await tx.route_stop.deleteMany({ where: { route_id: r.id } });
-          if (stops.length)
-            await tx.route_stop.createMany({
-              data: stops.map((s) => ({ ...s, route_id: r.id! })),
+        if (bookedIds.size)
+          await tx.price_list_route.updateMany({
+            where: { id: { in: [...bookedIds] } },
+            data: { active: false },
+          });
+      }
+
+      await Promise.all(
+        data.routes.map(async (r) => {
+          const stops = r.stops.map((s, i) => ({ name: s.name, order: i }));
+          const departureTimes = r.departureTimes.map((d) => ({
+            departs_at: new Date(d.departsAt),
+            capacity: d.capacity,
+          }));
+          if (r.id && existingIds.has(r.id)) {
+            await tx.price_list_route.update({
+              where: { id: r.id },
+              data: {
+                name: r.name,
+                price: r.price,
+                active: r.active,
+              },
             });
-          await tx.departure_time.deleteMany({ where: { route_id: r.id } });
-          await tx.departure_time.createMany({
-            data: departureTimes.map((d) => ({ ...d, route_id: r.id! })),
-          });
-        } else {
-          await tx.price_list_route.create({
-            data: {
-              price_list_id: id,
-              name: r.name,
-              price: r.price,
-              active: r.active,
-              stops: { create: stops },
-              departure_times: { create: departureTimes },
-            },
-          });
-        }
-      }),
-    );
+            await tx.route_stop.deleteMany({ where: { route_id: r.id } });
+            if (stops.length)
+              await tx.route_stop.createMany({
+                data: stops.map((s) => ({ ...s, route_id: r.id! })),
+              });
+            await tx.departure_time.deleteMany({ where: { route_id: r.id } });
+            await tx.departure_time.createMany({
+              data: departureTimes.map((d) => ({ ...d, route_id: r.id! })),
+            });
+          } else {
+            await tx.price_list_route.create({
+              data: {
+                price_list_id: id,
+                name: r.name,
+                price: r.price,
+                active: r.active,
+                stops: { create: stops },
+                departure_times: { create: departureTimes },
+              },
+            });
+          }
+        }),
+      );
 
-    return tx.price_list.update({
-      where: { id },
-      data: {
-        name: data.name,
-        direction: data.direction === "leaving" ? "LEAVING" : "RETURNING",
-        luggage_policy: data.luggagePolicy ?? "",
-        notes: data.notes ?? "",
-        availability_type: availType as "ACTIVE" | "INACTIVE" | "SCHEDULED",
-        scheduled_start: schedStart,
-        scheduled_end: schedEnd,
-      },
-      include: {
-        routes: {
-          include: {
-            stops: { orderBy: { order: "asc" } },
-            departure_times: { orderBy: { departs_at: "asc" } },
+      return tx.price_list.update({
+        where: { id },
+        data: {
+          name: data.name,
+          direction: data.direction === "leaving" ? "LEAVING" : "RETURNING",
+          luggage_policy: data.luggagePolicy ?? "",
+          notes: data.notes ?? "",
+          availability_type: availType as "ACTIVE" | "INACTIVE" | "SCHEDULED",
+          scheduled_start: schedStart,
+          scheduled_end: schedEnd,
+        },
+        include: {
+          routes: {
+            include: {
+              stops: { orderBy: { order: "asc" } },
+              departure_times: { orderBy: { departs_at: "asc" } },
+            },
           },
         },
-      },
-    });
-  }, { timeout: 15000 });
+      });
+    },
+    { timeout: 15000 },
+  );
 
   return { ok: true, data: formatPriceList(updated) };
 }

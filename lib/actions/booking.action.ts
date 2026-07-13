@@ -23,26 +23,47 @@ import { logger } from "@/lib/logger";
 import { startPayment, getPaymentByReference } from "@/lib/payments";
 import { RouteFullyBookedError } from "@/lib/booking-errors";
 
-async function assertDepartureHasCapacity(
-  tx: Prisma.TransactionClient,
-  routeId: string,
-  departureAt: string | null | undefined,
-): Promise<void> {
-  if (!departureAt) return;
+async function isDepartureFull({
+  client,
+  routeId,
+  departureAt,
+}: {
+  client: Prisma.TransactionClient | typeof db;
+  routeId: string;
+  departureAt: string;
+}): Promise<boolean> {
   const departsAt = new Date(departureAt);
 
-  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${routeId + "|" + departureAt}))`;
-
-  const departure = await tx.departure_time.findFirst({
+  const departure = await client.departure_time.findFirst({
     where: { route_id: routeId, departs_at: departsAt },
     select: { capacity: true },
   });
-  if (!departure || departure.capacity === null) return;
+  if (!departure || departure.capacity === null) return false;
 
-  const confirmedCount = await tx.booking.count({
+  const confirmedCount = await client.booking.count({
     where: { route_id: routeId, departure_at: departsAt, status: "CONFIRMED" },
   });
-  if (confirmedCount >= departure.capacity) {
+  return confirmedCount >= departure.capacity;
+}
+
+async function assertDepartureHasCapacity({
+  tx,
+  routeId,
+  departureAt,
+}: {
+  tx: Prisma.TransactionClient;
+  routeId: string;
+  departureAt: string | null | undefined;
+}): Promise<void> {
+  if (!departureAt) return;
+
+  // Locks on (route, timestamp) together so two students booking the last
+  // seat on the same departure serialize on this check instead of both
+  // slipping through; a different departure on the same route isn't
+  // blocked by this at all.
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${routeId + "|" + departureAt}))`;
+
+  if (await isDepartureFull({ client: tx, routeId, departureAt })) {
     throw new RouteFullyBookedError();
   }
 }
@@ -271,7 +292,7 @@ export async function payBookingFromWallet({
         };
       }
 
-      await assertDepartureHasCapacity(tx, routeId, departureAt);
+      await assertDepartureHasCapacity({ tx, routeId, departureAt });
 
       const booking = await tx.booking.create({
         data: {
@@ -437,31 +458,13 @@ export async function startBookingCheckout({
   const session = await auth();
   if (!session?.user?.id) return { error: "You must be signed in to book." };
 
-  // Best-effort pre-check so a student isn't sent to pay for an already-full
-  // departure — not atomic (a concurrent booking could still fill the last
-  // seat right after this), so the real enforcement is the locked check
-  // inside finalizeBookingCheckout when the payment actually succeeds.
-  if (departureAt) {
-    const departsAt = new Date(departureAt);
-    const departure = await db.departure_time.findFirst({
-      where: { route_id: routeId, departs_at: departsAt },
-      select: { capacity: true },
-    });
-    if (departure?.capacity !== null && departure?.capacity !== undefined) {
-      const confirmedCount = await db.booking.count({
-        where: {
-          route_id: routeId,
-          departure_at: departsAt,
-          status: "CONFIRMED",
-        },
-      });
-      if (confirmedCount >= departure.capacity) {
-        return {
-          error:
-            "This route is fully booked. Please choose another route or time.",
-        };
-      }
-    }
+  if (
+    departureAt &&
+    (await isDepartureFull({ client: db, routeId, departureAt }))
+  ) {
+    return {
+      error: "This route is fully booked. Please choose another route or time.",
+    };
   }
 
   const [{ activeProcessor }, pricingConfig, user] = await Promise.all([
@@ -589,7 +592,7 @@ export async function finalizeBookingCheckout(
   }
   const m = parsed.data;
 
-  await assertDepartureHasCapacity(tx, m.routeId, m.departureAt);
+  await assertDepartureHasCapacity({ tx, routeId: m.routeId, departureAt: m.departureAt });
 
   const booking = await tx.booking.create({
     data: {

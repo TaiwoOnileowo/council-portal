@@ -444,7 +444,8 @@ export default function BookingFlow({
                                 onClick={() =>
                                   setSelectedDeparture(d.departsAt)
                                 }
-                                className={`w-full flex items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-left transition-colors ${
+                                disabled={d.isFull}
+                                className={`w-full flex items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-left transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
                                   isSelected
                                     ? "border-portal-accent bg-portal-accent/5"
                                     : "border-portal-border bg-portal-accent-bg/50 hover:border-portal-accent/50"
@@ -472,11 +473,18 @@ export default function BookingFlow({
                                     new Date(d.departsAt),
                                     "EEE d MMM · h:mm a",
                                   )}
-                                  {d.capacity !== null && (
-                                    <span className="text-portal-muted font-normal">
+                                  {d.isFull ? (
+                                    <span className="text-red-500 font-normal">
                                       {" "}
-                                      · {d.capacity} seats
+                                      · Fully booked
                                     </span>
+                                  ) : (
+                                    d.capacity !== null && (
+                                      <span className="text-portal-muted font-normal">
+                                        {" "}
+                                        · {d.capacity} seats
+                                      </span>
+                                    )
                                   )}
                                 </span>
                                 {isSelected && (
