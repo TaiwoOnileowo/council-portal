@@ -19,11 +19,6 @@ export const priceListBodySchema = z.object({
             MIN_ROUTE_PRICE_NAIRA,
             `Price must be at least ₦${MIN_ROUTE_PRICE_NAIRA.toLocaleString("en-NG")}`,
           ),
-        capacity: z
-          .number()
-          .int()
-          .min(1, "Capacity must be at least 1")
-          .nullable(),
         active: z.boolean(),
         stops: z
           .array(
@@ -32,16 +27,21 @@ export const priceListBodySchema = z.object({
             }),
           )
           .default([]),
+        departureTimes: z
+          .array(
+            z.object({
+              departsAt: z.string().datetime("Invalid departure date/time"),
+              capacity: z
+                .number()
+                .int()
+                .min(1, "Capacity must be at least 1")
+                .nullable(),
+            }),
+          )
+          .min(1, "At least one departure time is required"),
       }),
     )
     .min(1, "At least one route is required"),
-  departureTimes: z
-    .array(
-      z.object({
-        departsAt: z.string().datetime("Invalid departure date/time"),
-      }),
-    )
-    .min(1, "At least one departure time is required"),
   luggagePolicy: z
     .string()
     .max(500, "Luggage policy must be 500 characters or less")
@@ -75,9 +75,9 @@ export type PriceListRoute = {
   id: string;
   name: string;
   price: number;
-  capacity: number | "unlimited";
   active: boolean;
   stops: PriceListStop[];
+  departureTimes: DepartureTime[];
 };
 
 export type PriceListAvailability =
@@ -88,6 +88,7 @@ export type PriceListAvailability =
 export type DepartureTime = {
   id: string;
   departsAt: string; // ISO datetime
+  capacity: number | "unlimited";
 };
 
 export type PriceList = {
@@ -95,7 +96,6 @@ export type PriceList = {
   name: string;
   direction: "leaving" | "returning";
   routes: PriceListRoute[];
-  departureTimes: DepartureTime[];
   luggagePolicy: string;
   notes: string;
   availability: PriceListAvailability;

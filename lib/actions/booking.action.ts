@@ -21,6 +21,31 @@ import { getSetting } from "@/lib/settings";
 import { isWalletEnabled } from "@/lib/payment-config";
 import { logger } from "@/lib/logger";
 import { startPayment, getPaymentByReference } from "@/lib/payments";
+import { RouteFullyBookedError } from "@/lib/booking-errors";
+
+async function assertDepartureHasCapacity(
+  tx: Prisma.TransactionClient,
+  routeId: string,
+  departureAt: string | null | undefined,
+): Promise<void> {
+  if (!departureAt) return;
+  const departsAt = new Date(departureAt);
+
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${routeId + "|" + departureAt}))`;
+
+  const departure = await tx.departure_time.findFirst({
+    where: { route_id: routeId, departs_at: departsAt },
+    select: { capacity: true },
+  });
+  if (!departure || departure.capacity === null) return;
+
+  const confirmedCount = await tx.booking.count({
+    where: { route_id: routeId, departure_at: departsAt, status: "CONFIRMED" },
+  });
+  if (confirmedCount >= departure.capacity) {
+    throw new RouteFullyBookedError();
+  }
+}
 
 const studentBookingSelect = {
   id: true,
@@ -246,6 +271,8 @@ export async function payBookingFromWallet({
         };
       }
 
+      await assertDepartureHasCapacity(tx, routeId, departureAt);
+
       const booking = await tx.booking.create({
         data: {
           reference,
@@ -357,6 +384,12 @@ export async function payBookingFromWallet({
 
     return { reference };
   } catch (err) {
+    if (err instanceof RouteFullyBookedError) {
+      return {
+        error:
+          "This route is fully booked. Please choose another route or time.",
+      };
+    }
     logger.error("[booking]", "payBookingFromWallet transaction failed", {
       reference,
       userId,
@@ -404,6 +437,33 @@ export async function startBookingCheckout({
   const session = await auth();
   if (!session?.user?.id) return { error: "You must be signed in to book." };
 
+  // Best-effort pre-check so a student isn't sent to pay for an already-full
+  // departure — not atomic (a concurrent booking could still fill the last
+  // seat right after this), so the real enforcement is the locked check
+  // inside finalizeBookingCheckout when the payment actually succeeds.
+  if (departureAt) {
+    const departsAt = new Date(departureAt);
+    const departure = await db.departure_time.findFirst({
+      where: { route_id: routeId, departs_at: departsAt },
+      select: { capacity: true },
+    });
+    if (departure?.capacity !== null && departure?.capacity !== undefined) {
+      const confirmedCount = await db.booking.count({
+        where: {
+          route_id: routeId,
+          departure_at: departsAt,
+          status: "CONFIRMED",
+        },
+      });
+      if (confirmedCount >= departure.capacity) {
+        return {
+          error:
+            "This route is fully booked. Please choose another route or time.",
+        };
+      }
+    }
+  }
+
   const [{ activeProcessor }, pricingConfig, user] = await Promise.all([
     getSetting("payment_config"),
     getSetting("pricing_config"),
@@ -415,7 +475,11 @@ export async function startBookingCheckout({
   if (!user) return { error: "User not found." };
 
   const { serviceFeeRate, serviceFeeCapNaira, commissionNaira } = pricingConfig;
-  const serviceFee = computeServiceFee(fare, serviceFeeRate, serviceFeeCapNaira);
+  const serviceFee = computeServiceFee(
+    fare,
+    serviceFeeRate,
+    serviceFeeCapNaira,
+  );
 
   // Split payments settle the vendor's cut directly at the processor —
   // requires a subaccount for whichever processor is active. This is the
@@ -427,7 +491,11 @@ export async function startBookingCheckout({
   // falls back to the pre-split behavior: charge the full amount to us,
   // credit the vendor's wallet on success (see finalizeBookingCheckout).
   let split:
-    | { subaccountId: string; vendorPayoutKobo: number; platformFeeKobo: number }
+    | {
+        subaccountId: string;
+        vendorPayoutKobo: number;
+        platformFeeKobo: number;
+      }
     | undefined;
   if (!(await isWalletEnabled())) {
     const vendorAccount = await db.vendor_profile.findUnique({
@@ -444,10 +512,14 @@ export async function startBookingCheckout({
         : vendorAccount?.flutterwave_subaccount_id;
 
     if (!subaccountId) {
-      logger.warn("[booking-checkout]", "checkout blocked: vendor has no subaccount", {
-        vendorId,
-        activeProcessor,
-      });
+      logger.warn(
+        "[booking-checkout]",
+        "checkout blocked: vendor has no subaccount",
+        {
+          vendorId,
+          activeProcessor,
+        },
+      );
       return {
         error:
           "This vendor hasn't finished payment setup yet. Please try another vendor or check back later.",
@@ -516,6 +588,8 @@ export async function finalizeBookingCheckout(
     );
   }
   const m = parsed.data;
+
+  await assertDepartureHasCapacity(tx, m.routeId, m.departureAt);
 
   const booking = await tx.booking.create({
     data: {

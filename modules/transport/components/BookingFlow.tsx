@@ -145,8 +145,8 @@ export default function BookingFlow({
 
   const [selectedDeparture, setSelectedDeparture] = useState<string | null>(
     () =>
-      priceList.departureTimes.length === 1
-        ? priceList.departureTimes[0].departsAt
+      route.departureTimes.length === 1
+        ? route.departureTimes[0].departsAt
         : null,
   );
   const hasStops = route.stops.length > 0;
@@ -154,7 +154,7 @@ export default function BookingFlow({
     route.stops.length === 1 ? route.stops[0].name : null,
   );
   const isDisabled =
-    (priceList.departureTimes.length > 0 && !selectedDeparture) ||
+    (route.departureTimes.length > 0 && !selectedDeparture) ||
     (hasStops && !selectedStop);
   const savedPassengerDraft = readLocalDraft<PassengerDraft>(
     passengerDraftKey(user.id),
@@ -420,27 +420,21 @@ export default function BookingFlow({
                           <Bus className="w-3.5 h-3.5 text-portal-muted" />
                           {vendor.transportName}
                         </div>
-                        {route.capacity !== null && (
-                          <div className="flex items-center gap-1.5 text-[12px] text-portal-text2">
-                            <span className="text-portal-muted">·</span>
-                            {route.capacity} seats
-                          </div>
-                        )}
                       </div>
                     </div>
 
-                    {priceList.departureTimes.length > 0 && (
+                    {route.departureTimes.length > 0 && (
                       <div className="mb-4">
                         <div className="flex items-center gap-1.5 mb-2">
                           <CalendarClock className="w-3.5 h-3.5 text-portal-muted" />
                           <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-portal-muted">
-                            {priceList.departureTimes.length === 1
+                            {route.departureTimes.length === 1
                               ? "Departure time"
                               : "Choose your departure time"}
                           </p>
                         </div>
                         <div className="space-y-1.5">
-                          {priceList.departureTimes.map((d, i) => {
+                          {route.departureTimes.map((d, i) => {
                             const isSelected =
                               selectedDeparture === d.departsAt;
                             return (
@@ -477,6 +471,12 @@ export default function BookingFlow({
                                   {format(
                                     new Date(d.departsAt),
                                     "EEE d MMM · h:mm a",
+                                  )}
+                                  {d.capacity !== null && (
+                                    <span className="text-portal-muted font-normal">
+                                      {" "}
+                                      · {d.capacity} seats
+                                    </span>
                                   )}
                                 </span>
                                 {isSelected && (
@@ -545,7 +545,7 @@ export default function BookingFlow({
                       </div>
                     </div>
 
-                    {priceList.departureTimes.length > 0 &&
+                    {route.departureTimes.length > 0 &&
                       !selectedDeparture && (
                         <p className="text-[12px] text-portal-muted text-center mb-2">
                           Select a departure time to continue

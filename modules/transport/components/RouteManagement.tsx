@@ -13,7 +13,6 @@ import {
   DrawerContent,
   DrawerTitle,
 } from "@/components/ui/drawer";
-import TimeInput from "@/components/ui/TimeInput";
 import { reportClientError } from "@/lib/client-log";
 import {
   useCreatePriceList,
@@ -36,7 +35,7 @@ import {
   readLocalDraft,
   useLocalStorageDraft,
 } from "@/hooks/useLocalStorageDraft";
-import { House, Loader2, Plus, RefreshCw, Rocket, Trash2, X } from "lucide-react";
+import { House, Loader2, Plus, RefreshCw, Rocket, X } from "lucide-react";
 import { useState } from "react";
 import {
   Controller,
@@ -98,17 +97,10 @@ export default function RouteManagement() {
     remove: removeRoute,
   } = useFieldArray({ control, name: "routes" });
 
-  const {
-    fields: departureFields,
-    append: appendDeparture,
-    remove: removeDeparture,
-  } = useFieldArray({ control, name: "departureTimes" });
-
   const watchedFormValues = useWatch({ control });
   const watchedName = watchedFormValues.name ?? "";
   const watchedDirection = watchedFormValues.direction ?? "leaving";
   const watchedRoutes = watchedFormValues.routes ?? [];
-  const watchedDepartureTimes = watchedFormValues.departureTimes ?? [];
   const watchedAvailType = watchedFormValues.availType ?? "active";
   const watchedSchedStart = watchedFormValues.schedStart ?? "";
   const watchedSchedEnd = watchedFormValues.schedEnd ?? "";
@@ -156,15 +148,18 @@ export default function RouteManagement() {
     appendRoute({
       name: "",
       price: "",
-      capacityType: "unlimited",
-      capacityValue: "",
       active: true,
       stops: [],
+      departureTimes: [],
     });
   }
 
-  function addDeparture() {
-    appendDeparture({ date: "", time: "08:00" });
+  function copyDeparturesToAllRoutes(sourceIndex: number) {
+    const source = getValues(`routes.${sourceIndex}.departureTimes`);
+    watchedRoutes.forEach((_, i) => {
+      if (i !== sourceIndex)
+        setValue(`routes.${i}.departureTimes`, source, { shouldDirty: true });
+    });
   }
 
   const watchedLuggagePolicy = watchedFormValues.luggagePolicy ?? "";
@@ -176,10 +171,13 @@ export default function RouteManagement() {
     watchedName.length <= 80 &&
     watchedRoutes.length >= 1 &&
     watchedRoutes.every((r) => !!r?.name?.trim()) &&
+    watchedRoutes.every(
+      (r) =>
+        (r?.departureTimes?.length ?? 0) >= 1 &&
+        (r?.departureTimes?.every((d) => !!d?.date) ?? false),
+    ) &&
     watchedLuggagePolicy.length <= 500 &&
     watchedNotes.length <= 500 &&
-    watchedDepartureTimes.length >= 1 &&
-    watchedDepartureTimes.every((d) => !!d?.date) &&
     (watchedAvailType !== "scheduled" ||
       (!!watchedSchedStart && !!watchedSchedEnd));
 
@@ -356,9 +354,8 @@ export default function RouteManagement() {
                   errors={errors}
                   name={watchedRoutes[index]?.name}
                   price={watchedRoutes[index]?.price}
-                  capacityType={watchedRoutes[index]?.capacityType}
-                  capacityValue={watchedRoutes[index]?.capacityValue}
                   onRemove={() => removeRoute(index)}
+                  onCopyDeparturesToAll={() => copyDeparturesToAllRoutes(index)}
                 />
               ))}
 
@@ -370,68 +367,6 @@ export default function RouteManagement() {
                 >
                   <Plus className="w-3.5 h-3.5" />
                   Add Route
-                </button>
-              </div>
-            </div>
-
-            <div className="border-b border-portal-border">
-              <div className="px-5 pt-5 pb-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-portal-muted mb-3">
-                  Departure Times
-                </p>
-                {departureFields.length === 0 && (
-                  <p className="text-[13px] text-portal-muted/60 italic mb-2">
-                    No departure times yet. Add at least one.
-                  </p>
-                )}
-                <div className="space-y-2">
-                  {departureFields.map((field, index) => (
-                    <div
-                      key={field.id}
-                      className="flex flex-col sm:flex-row sm:items-center gap-2"
-                    >
-                      <div className="sm:flex-1 min-w-0">
-                        <Controller
-                          name={`departureTimes.${index}.date`}
-                          control={control}
-                          render={({ field }) => (
-                            <DatePickerField
-                              value={field.value}
-                              onChange={field.onChange}
-                              placeholder="Pick a date"
-                            />
-                          )}
-                        />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Controller
-                          name={`departureTimes.${index}.time`}
-                          control={control}
-                          render={({ field: timeField }) => (
-                            <TimeInput
-                              value={timeField.value}
-                              onChange={timeField.onChange}
-                            />
-                          )}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeDeparture(index)}
-                          className="w-7 h-7 flex items-center justify-center text-portal-muted hover:text-red-500 hover:bg-red-50 rounded-md transition-colors flex-shrink-0"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  onClick={addDeparture}
-                  className="mt-2 flex items-center gap-1.5 text-[13px] font-medium text-portal-accent hover:text-portal-accent2 transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  Add Departure
                 </button>
               </div>
             </div>

@@ -10,6 +10,7 @@ import {
   finalizeBookingCheckout,
   notifyBookingConfirmed,
 } from "@/lib/actions/booking.action";
+import { RouteFullyBookedError } from "@/lib/booking-errors";
 import { logger } from "@/lib/logger";
 import type { Prisma } from "@/generated/prisma/client";
 
@@ -171,6 +172,20 @@ export async function POST(req: NextRequest) {
       );
     }
   } catch (err) {
+    if (err instanceof RouteFullyBookedError) {
+      await markPaymentResult(reference, {
+        status: "FAILED",
+        failureReason: "Route fully booked — needs manual refund",
+      });
+      logger.error(
+        LOG_TAG,
+        "booking failed: route fully booked, payment needs manual refund",
+        {
+          reference,
+        },
+      );
+      return NextResponse.json({ received: true });
+    }
     logger.error(
       LOG_TAG,
       "payment success processing failed — rolled back, payment remains PENDING for retry",

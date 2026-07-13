@@ -270,11 +270,6 @@ export default function VendorDetailPopup({
                               <p className="text-[13px] font-semibold text-portal-text">
                                 {route.name}
                               </p>
-                              {route.capacity !== null && (
-                                <span className="inline-block mt-0.5 text-[10px] font-semibold text-portal-accent bg-portal-accent-bg border border-portal-accent-border px-1.5 py-0.5 rounded-md">
-                                  {route.capacity} seats
-                                </span>
-                              )}
                             </div>
                             <p className="font-heading text-sm font-extrabold flex-shrink-0">
                               ₦{route.price.toLocaleString()}

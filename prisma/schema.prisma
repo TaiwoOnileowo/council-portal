@@ -216,7 +216,6 @@ model price_list {
   scheduled_start   DateTime?
   scheduled_end     DateTime?
   routes            price_list_route[]
-  departure_times   departure_time[]
   created_at        DateTime           @default(now())
   updated_at        DateTime           @updatedAt
 
@@ -224,15 +223,15 @@ model price_list {
 }
 
 model price_list_route {
-  id            String     @id @default(uuid())
-  price_list_id String
-  price_list    price_list @relation(fields: [price_list_id], references: [id], onDelete: Cascade)
-  name          String
-  price         Int // in naira
-  capacity      Int? // null = unlimited
-  active        Boolean    @default(true)
-  stops         route_stop[]
-  bookings      booking[]
+  id              String     @id @default(uuid())
+  price_list_id   String
+  price_list      price_list @relation(fields: [price_list_id], references: [id], onDelete: Cascade)
+  name            String
+  price           Int // in naira
+  active          Boolean    @default(true)
+  stops           route_stop[]
+  bookings        booking[]
+  departure_times departure_time[]
 }
 
 model route_stop {
@@ -244,10 +243,11 @@ model route_stop {
 }
 
 model departure_time {
-  id            String     @id @default(uuid())
-  price_list_id String
-  price_list    price_list @relation(fields: [price_list_id], references: [id], onDelete: Cascade)
-  departs_at    DateTime // specific departure date and time
+  id         String           @id @default(uuid())
+  route_id   String
+  route      price_list_route @relation(fields: [route_id], references: [id], onDelete: Cascade)
+  departs_at DateTime // specific departure date and time
+  capacity   Int? // seats for this specific departure; null = unlimited
 }
 
 model booking {

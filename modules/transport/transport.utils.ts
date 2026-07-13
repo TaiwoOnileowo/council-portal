@@ -10,12 +10,15 @@ export type DrawerFormValues = {
     id?: string;
     name: string;
     price: string;
-    capacityType: "number" | "unlimited";
-    capacityValue: string;
     active: boolean;
     stops: Array<{ name: string }>;
+    departureTimes: Array<{
+      date: string;
+      time: string;
+      capacityType: "number" | "unlimited";
+      capacityValue: string;
+    }>;
   }>;
-  departureTimes: Array<{ date: string; time: string }>;
   luggagePolicy: string;
   notes: string;
   availType: "active" | "inactive" | "scheduled";
@@ -28,12 +31,21 @@ export function draftFromRoute(r: PriceListRoute) {
     id: r.id,
     name: r.name,
     price: r.price > 0 ? r.price.toLocaleString("en-NG") : "",
-    capacityType: (r.capacity === "unlimited" ? "unlimited" : "number") as "number" | "unlimited",
-    capacityValue: r.capacity === "unlimited" ? "" : String(r.capacity),
     active: r.active,
     stops: [...r.stops]
       .sort((a, b) => a.order - b.order)
       .map((s) => ({ name: s.name })),
+    departureTimes: r.departureTimes.map((dt: DepartureTime) => {
+      const d = new Date(dt.departsAt);
+      return {
+        date: format(d, "yyyy-MM-dd"),
+        time: format(d, "HH:mm"),
+        capacityType: (dt.capacity === "unlimited" ? "unlimited" : "number") as
+          | "number"
+          | "unlimited",
+        capacityValue: dt.capacity === "unlimited" ? "" : String(dt.capacity),
+      };
+    }),
   };
 }
 
@@ -42,10 +54,6 @@ export function formValuesFromPriceList(pl: PriceList): DrawerFormValues {
     name: pl.name,
     direction: pl.direction,
     routes: pl.routes.map(draftFromRoute),
-    departureTimes: pl.departureTimes.map((dt: DepartureTime) => {
-      const d = new Date(dt.departsAt);
-      return { date: format(d, "yyyy-MM-dd"), time: format(d, "HH:mm") };
-    }),
     luggagePolicy: pl.luggagePolicy,
     notes: pl.notes,
     availType: pl.availability.type,
@@ -69,15 +77,17 @@ export function buildBody(form: DrawerFormValues): PriceListBody {
       ...(r.id ? { id: r.id } : {}),
       name: r.name.trim(),
       price: parseAmount(r.price),
-      capacity:
-        r.capacityType === "unlimited" ? null : Math.max(1, parseInt(r.capacityValue, 10) || 1),
       active: r.active,
       stops: r.stops
         .map((s) => ({ name: s.name.trim() }))
         .filter((s) => s.name.length > 0),
-    })),
-    departureTimes: form.departureTimes.map((d) => ({
-      departsAt: new Date(`${d.date}T${d.time}:00`).toISOString(),
+      departureTimes: r.departureTimes.map((d) => ({
+        departsAt: new Date(`${d.date}T${d.time}:00`).toISOString(),
+        capacity:
+          d.capacityType === "unlimited"
+            ? null
+            : Math.max(1, parseInt(d.capacityValue, 10) || 1),
+      })),
     })),
     luggagePolicy: form.luggagePolicy,
     notes: form.notes,
@@ -106,6 +116,10 @@ export function closesSoon(pl: PublicPriceList): boolean {
   return diff > 0 && diff <= 2 * 24 * 60 * 60 * 1000;
 }
 
+export function isPriceListFull(pl: PublicPriceList): boolean {
+  return pl.routes.length > 0 && pl.routes.every((r) => r.isFull);
+}
+
 export function isVendorAvailable(vendor: PublicVendor): boolean {
   if (!vendor.isActive) return false;
   const now = new Date();
@@ -127,7 +141,6 @@ export function emptyFormValues(direction: "leaving" | "returning"): DrawerFormV
     name: direction === "leaving" ? "Leaving School" : "Returning to School",
     direction,
     routes: [],
-    departureTimes: [],
     luggagePolicy: "",
     notes: "",
     availType: "active",
