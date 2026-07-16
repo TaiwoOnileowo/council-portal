@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { auth } from "@/auth";
 import type {
   BookingStatus,
@@ -8,6 +9,7 @@ import type {
   price_list_route as DbRoute,
   route_stop as DbStop,
 } from "@/generated/prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { getSetting } from "@/lib/settings";
 import type {
@@ -545,45 +547,61 @@ export async function updatePriceList(
           });
       }
 
-      await Promise.all(
-        data.routes.map(async (r) => {
-          const stops = r.stops.map((s, i) => ({ name: s.name, order: i }));
-          const departureTimes = r.departureTimes.map((d) => ({
-            departs_at: new Date(d.departsAt),
-            capacity: d.capacity,
-          }));
-          if (r.id && existingIds.has(r.id)) {
-            await tx.price_list_route.update({
-              where: { id: r.id },
-              data: {
-                name: r.name,
-                price: r.price,
-                active: r.active,
-              },
-            });
-            await tx.route_stop.deleteMany({ where: { route_id: r.id } });
-            if (stops.length)
-              await tx.route_stop.createMany({
-                data: stops.map((s) => ({ ...s, route_id: r.id! })),
-              });
-            await tx.departure_time.deleteMany({ where: { route_id: r.id } });
-            await tx.departure_time.createMany({
-              data: departureTimes.map((d) => ({ ...d, route_id: r.id! })),
-            });
-          } else {
-            await tx.price_list_route.create({
-              data: {
-                price_list_id: id,
-                name: r.name,
-                price: r.price,
-                active: r.active,
-                stops: { create: stops },
-                departure_times: { create: departureTimes },
-              },
-            });
-          }
-        }),
+      const toUpdate = data.routes.filter(
+        (r): r is typeof r & { id: string } => !!r.id && existingIds.has(r.id),
       );
+      const toCreate = data.routes
+        .filter((r) => !(r.id && existingIds.has(r.id)))
+        .map((r) => ({ ...r, id: randomUUID() }));
+
+      if (toUpdate.length) {
+        await tx.$executeRaw`
+          UPDATE price_list_route AS r
+          SET name = v.name, price = v.price, active = v.active
+          FROM (VALUES ${Prisma.join(
+            toUpdate.map(
+              (r) =>
+                Prisma.sql`(${r.id}::text, ${r.name}::text, ${r.price}::int, ${r.active}::boolean)`,
+            ),
+          )}) AS v(id, name, price, active)
+          WHERE r.id = v.id
+        `;
+        await tx.route_stop.deleteMany({
+          where: { route_id: { in: toUpdate.map((r) => r.id) } },
+        });
+        await tx.departure_time.deleteMany({
+          where: { route_id: { in: toUpdate.map((r) => r.id) } },
+        });
+      }
+
+      if (toCreate.length) {
+        await tx.price_list_route.createMany({
+          data: toCreate.map((r) => ({
+            id: r.id,
+            price_list_id: id,
+            name: r.name,
+            price: r.price,
+            active: r.active,
+          })),
+        });
+      }
+
+      // Stops and departures for every touched route (existing + new) are
+      // (re)created together in one call each.
+      const touched = [...toUpdate, ...toCreate];
+      const stopRows = touched.flatMap((r) =>
+        r.stops.map((s, i) => ({ route_id: r.id, name: s.name, order: i })),
+      );
+      const departureRows = touched.flatMap((r) =>
+        r.departureTimes.map((d) => ({
+          route_id: r.id,
+          departs_at: new Date(d.departsAt),
+          capacity: d.capacity,
+        })),
+      );
+      if (stopRows.length) await tx.route_stop.createMany({ data: stopRows });
+      if (departureRows.length)
+        await tx.departure_time.createMany({ data: departureRows });
 
       return tx.price_list.update({
         where: { id },
