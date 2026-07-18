@@ -61,7 +61,8 @@ function buildPassengerSchema(addressRequired: boolean) {
         .string()
         .min(1, "Room number is required")
         .refine((v) => /^[A-H][1-4](0[1-9]|1[0-3])$/i.test(v.trim()), {
-          message: "Invalid format — e.g. E401, A113 (rooms 01\u201313 per floor)",
+          message:
+            "Invalid format — e.g. E401, A113 (rooms 01\u201313 per floor)",
         }),
       phone: z.string().regex(/^\d{11}$/, "Must be exactly 11 digits"),
       parentsPhone: z.string().regex(/^\d{11}$/, "Must be exactly 11 digits"),
@@ -153,9 +154,7 @@ export default function BookingFlow({
   const [selectedStop, setSelectedStop] = useState<string | null>(() =>
     route.stops.length === 1 ? route.stops[0].name : null,
   );
-  const isDisabled =
-    (route.departureTimes.length > 0 && !selectedDeparture) ||
-    (hasStops && !selectedStop);
+  const isDisabled = !selectedDeparture || (hasStops && !selectedStop);
   const savedPassengerDraft = readLocalDraft<PassengerDraft>(
     passengerDraftKey(user.id),
   );
@@ -423,7 +422,15 @@ export default function BookingFlow({
                       </div>
                     </div>
 
-                    {route.departureTimes.length > 0 && (
+                    {route.departureTimes.length === 0 ? (
+                      <div className="mb-4 flex gap-2.5 bg-portal-accent-bg/50 border border-portal-border rounded-xl px-3.5 py-3">
+                        <Info className="w-3.5 h-3.5 text-portal-muted flex-shrink-0 mt-0.5" />
+                        <p className="text-[12px] text-portal-muted">
+                          No departure times are available for this route right
+                          now. Please check back later.
+                        </p>
+                      </div>
+                    ) : (
                       <div className="mb-4">
                         <div className="flex items-center gap-1.5 mb-2">
                           <CalendarClock className="w-3.5 h-3.5 text-portal-muted" />
@@ -553,12 +560,11 @@ export default function BookingFlow({
                       </div>
                     </div>
 
-                    {route.departureTimes.length > 0 &&
-                      !selectedDeparture && (
-                        <p className="text-[12px] text-portal-muted text-center mb-2">
-                          Select a departure time to continue
-                        </p>
-                      )}
+                    {route.departureTimes.length > 0 && !selectedDeparture && (
+                      <p className="text-[12px] text-portal-muted text-center mb-2">
+                        Select a departure time to continue
+                      </p>
+                    )}
                     {hasStops && !selectedStop && (
                       <p className="text-[12px] text-portal-muted text-center mb-2">
                         Select a stop to continue
