@@ -12,11 +12,12 @@ export default function AnnouncementBanner() {
       <Megaphone className="w-4 h-4 text-portal-gold flex-shrink-0" />
       <p className="flex-1 text-[13.5px] text-portal-text2">
         <strong className="text-portal-text font-semibold">
-          Resumption Transport, Booking Open:
+          TTG Transport, Booking Open:
         </strong>{" "}
-        Rides for the 2025/2026 Omega semester departure are now available. Book
+        Rides for the TTG departure are now available. Book
         early to secure your preferred vendor.
       </p>
+      {/* Resumption Transport, Booking Open: Rides for the 2025/2026 Omega semester departure are now available. Book early to secure your preferred vendor. */}
       <button
         onClick={() => setVisible(false)}
         className="text-portal-muted hover:text-portal-text transition-colors p-1"
